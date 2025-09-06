@@ -25,32 +25,27 @@ struct SessionView: View {
                         // Header Section
                         headerSection
                         
-                        // Session Control
-                        sessionControlSection
-                        
-                        // Session Content
-                        if dataManager.currentSession.isActive {
-                            VStack(spacing: 24) {
-                                // Session Info
-                                sessionInfoSection
-                                
-                                // Entry Form - Made more prominent
-                                entryFormSection
-                                
-                                // Current Readings
-                                currentReadingsSection
-                                
-                                // Session Average
-                                if !dataManager.currentSession.readings.isEmpty {
-                                    sessionAverageSection
-                                }
-                                
-                                // Action Buttons
-                                actionButtonsSection
+                        // Session Content (always visible)
+                        VStack(spacing: 24) {
+                            // Session Info
+                            sessionInfoSection
+                            
+                            // Entry Form - Made more prominent
+                            entryFormSection
+                            
+                            // Current Readings
+                            currentReadingsSection
+                            
+                            // Session Average
+                            if !dataManager.currentSession.readings.isEmpty {
+                                sessionAverageSection
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 20)
+                            
+                            // Action Buttons
+                            actionButtonsSection
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
                     }
                 }
             }
@@ -106,17 +101,36 @@ struct SessionView: View {
                         
                         Spacer()
                         
-                        if dataManager.currentSession.isActive {
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("Session Active")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white.opacity(0.8))
-                                
-                                Text(formatDuration(sessionDuration))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
+                        HStack(spacing: 12) {
+                            if dataManager.currentSession.isActive {
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text("Session Active")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white.opacity(0.8))
+                                    
+                                    Text(formatDuration(sessionDuration))
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
+                            // Start New Session Button
+                            Button(action: startNewSession) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("New Session")
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.green.opacity(0.9))
+                                )
                             }
                         }
                     }
@@ -142,98 +156,6 @@ struct SessionView: View {
         }
     }
     
-    // MARK: - Session Control Section
-    
-    private var sessionControlSection: some View {
-        VStack(spacing: 20) {
-            if !dataManager.currentSession.isActive {
-                VStack(spacing: 16) {
-                    VStack(spacing: 8) {
-                        Image(systemName: "heart.text.square.fill")
-                            .font(.system(size: 48))
-                            .foregroundColor(.blue)
-                        
-                        Text("Ready to Track")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                        
-                        Text("Start a new session to begin recording your blood pressure readings")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                    
-                    Button(action: startSession) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "play.circle.fill")
-                                .font(.title2)
-                            Text("Start New Session")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.green, Color.green.opacity(0.8)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                        )
-                        .foregroundColor(.white)
-                        .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
-                    }
-                }
-                .padding(24)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 2)
-                )
-                .padding(.horizontal, 20)
-            } else {
-                HStack(spacing: 12) {
-                    Button(action: stopSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "stop.circle.fill")
-                            Text("Stop")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.red)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                    }
-                    
-                    Button(action: saveSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                            Text("Save & Complete")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(canSaveSession ? Color.blue : Color.gray)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                    }
-                    .disabled(!canSaveSession)
-                }
-                .padding(.horizontal, 20)
-            }
-        }
-        .padding(.vertical, 20)
-    }
     
     // MARK: - Session Info Section
     
@@ -265,24 +187,24 @@ struct SessionView: View {
             
             Spacer()
             
-            // Session Duration
+            // Session Status
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .fill(Color.green.opacity(0.1))
+                        .fill(dataManager.currentSession.isActive ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
                         .frame(width: 50, height: 50)
                     
-                    Image(systemName: "clock.fill")
+                    Image(systemName: dataManager.currentSession.isActive ? "play.circle.fill" : "pause.circle.fill")
                         .font(.title3)
-                        .foregroundColor(.green)
+                        .foregroundColor(dataManager.currentSession.isActive ? .green : .gray)
                 }
                 
                 VStack(spacing: 2) {
-                    Text("Duration")
+                    Text("Status")
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
-                    Text(formatDuration(sessionDuration))
+                    Text(dataManager.currentSession.isActive ? "Active" : "Ready")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
@@ -678,22 +600,61 @@ struct SessionView: View {
     // MARK: - Action Buttons Section
     
     private var actionButtonsSection: some View {
-        Button(action: clearSession) {
-            HStack(spacing: 12) {
-                Image(systemName: "trash.circle.fill")
-                    .font(.title3)
-                Text("Clear Session")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+        VStack(spacing: 12) {
+            if dataManager.currentSession.isActive {
+                HStack(spacing: 12) {
+                    Button(action: stopSession) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "stop.circle.fill")
+                            Text("Stop Session")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.red)
+                        )
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                    }
+                    
+                    Button(action: saveSession) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Save & Complete")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(canSaveSession ? Color.blue : Color.gray)
+                        )
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                    }
+                    .disabled(!canSaveSession)
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.orange)
-            )
-            .foregroundColor(.white)
-            .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
+            
+            if !dataManager.currentSession.readings.isEmpty {
+                Button(action: clearSession) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "trash.circle.fill")
+                            .font(.title3)
+                        Text("Clear Session")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.orange)
+                    )
+                    .foregroundColor(.white)
+                    .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+            }
         }
     }
     
@@ -716,6 +677,19 @@ struct SessionView: View {
     // MARK: - Actions
     
     private func startSession() {
+        dataManager.startSession()
+        startSessionTimer()
+    }
+    
+    private func startNewSession() {
+        if dataManager.currentSession.isActive {
+            // If there are readings, save them first
+            if !dataManager.currentSession.readings.isEmpty {
+                dataManager.saveCurrentSession()
+            } else {
+                dataManager.clearCurrentSession()
+            }
+        }
         dataManager.startSession()
         startSessionTimer()
     }

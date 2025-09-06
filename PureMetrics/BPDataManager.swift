@@ -86,6 +86,11 @@ class BPDataManager: ObservableObject {
     // MARK: - Session Management
     
     func addReading(systolic: Int, diastolic: Int, heartRate: Int? = nil, timestamp: Date? = nil) -> Bool {
+        // Auto-start session if not active and we have room for readings
+        if !currentSession.isActive && currentSession.readings.count < maxReadingsPerSession {
+            currentSession = BPSession(startTime: Date())
+        }
+        
         guard currentSession.readings.count < maxReadingsPerSession else {
             return false
         }
@@ -125,7 +130,7 @@ class BPDataManager: ObservableObject {
     }
     
     func canAddReading() -> Bool {
-        return currentSession.readings.count < maxReadingsPerSession && currentSession.isActive
+        return currentSession.readings.count < maxReadingsPerSession
     }
     
     // MARK: - Delete Operations
