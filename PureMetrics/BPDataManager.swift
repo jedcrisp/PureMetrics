@@ -1,6 +1,75 @@
 import Foundation
 import SwiftUI
 
+// MARK: - BP Category Enum
+
+enum BPCategory: String, CaseIterable {
+    case normal = "Normal"
+    case elevated = "Elevated"
+    case highStage1 = "High Stage 1"
+    case highStage2 = "High Stage 2"
+    case hypertensiveCrisis = "Hypertensive Crisis"
+    
+    var color: Color {
+        switch self {
+        case .normal: return .green
+        case .elevated: return .yellow
+        case .highStage1: return .orange
+        case .highStage2: return .red
+        case .hypertensiveCrisis: return .purple
+        }
+    }
+    
+    static func fromValues(systolic: Int, diastolic: Int) -> BPCategory {
+        if systolic >= 180 || diastolic >= 120 {
+            return .hypertensiveCrisis
+        } else if systolic >= 140 || diastolic >= 90 {
+            return .highStage2
+        } else if systolic >= 130 || diastolic >= 80 {
+            return .highStage1
+        } else if systolic >= 120 || diastolic >= 80 {
+            return .elevated
+        } else {
+            return .normal
+        }
+    }
+}
+
+// MARK: - Rolling Average Model
+
+struct RollingAverage: Identifiable {
+    let id = UUID()
+    let period: Int
+    let averageSystolic: Double
+    let averageDiastolic: Double
+    let averageHeartRate: Double?
+    let readingCount: Int
+    let sessionCount: Int
+    let startDate: Date
+    let endDate: Date
+    
+    var displayString: String {
+        let systolic = Int(averageSystolic.rounded())
+        let diastolic = Int(averageDiastolic.rounded())
+        return "\(systolic)/\(diastolic)"
+    }
+    
+    var periodLabel: String {
+        switch period {
+        case 3: return "3-Day"
+        case 7: return "7-Day"
+        case 14: return "14-Day"
+        case 21: return "21-Day"
+        case 30: return "30-Day"
+        default: return "\(period)-Day"
+        }
+    }
+    
+    var bpCategory: BPCategory {
+        BPCategory.fromValues(systolic: Int(averageSystolic.rounded()), diastolic: Int(averageDiastolic.rounded()))
+    }
+}
+
 class BPDataManager: ObservableObject {
     @Published var currentSession: BPSession
     @Published var sessions: [BPSession] = []
@@ -83,6 +152,57 @@ class BPDataManager: ObservableObject {
     func deleteAllSessions() {
         sessions.removeAll()
         saveSessions()
+    }
+    
+    // MARK: - Rolling Averages
+    
+    func getRollingAverages() -> [RollingAverage] {
+        let periods = [3, 7, 14, 21, 30]
+        var rollingAverages: [RollingAverage] = []
+        
+        for period in periods {
+            if let average = calculateRollingAverage(for: period) {
+                rollingAverages.append(average)
+            }
+        }
+        
+        return rollingAverages
+    }
+    
+    private func calculateRollingAverage(for days: Int) -> RollingAverage? {
+        let calendar = Calendar.current
+        let endDate = Date()
+        guard let startDate = calendar.date(byAdding: .day, value: -days, to: endDate) else {
+            return nil
+        }
+        
+        let sessionsInPeriod = sessions.filter { session in
+            session.startTime >= startDate && session.startTime <= endDate
+        }
+        
+        guard !sessionsInPeriod.isEmpty else { return nil }
+        
+        let allReadings = sessionsInPeriod.flatMap { $0.readings }
+        guard !allReadings.isEmpty else { return nil }
+        
+        let systolicValues = allReadings.map { Double($0.systolic) }
+        let diastolicValues = allReadings.map { Double($0.diastolic) }
+        let heartRateValues = allReadings.compactMap { $0.heartRate }.map { Double($0) }
+        
+        let avgSystolic = systolicValues.reduce(0, +) / Double(systolicValues.count)
+        let avgDiastolic = diastolicValues.reduce(0, +) / Double(diastolicValues.count)
+        let avgHeartRate = heartRateValues.isEmpty ? nil : heartRateValues.reduce(0, +) / Double(heartRateValues.count)
+        
+        return RollingAverage(
+            period: days,
+            averageSystolic: avgSystolic,
+            averageDiastolic: avgDiastolic,
+            averageHeartRate: avgHeartRate,
+            readingCount: allReadings.count,
+            sessionCount: sessionsInPeriod.count,
+            startDate: startDate,
+            endDate: endDate
+        )
     }
     
     // MARK: - Data Persistence

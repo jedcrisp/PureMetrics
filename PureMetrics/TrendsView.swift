@@ -51,6 +51,11 @@ struct TrendsView: View {
                                 emptyStateView
                             }
                             
+                            // Rolling Averages
+                            if !dataManager.sessions.isEmpty {
+                                rollingAveragesSection
+                            }
+                            
                             // Statistics Summary
                             if !filteredSessions.isEmpty {
                                 statisticsSummary
@@ -375,6 +380,49 @@ struct TrendsView: View {
         )
     }
     
+    // MARK: - Rolling Averages Section
+    
+    private var rollingAveragesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                
+                Text("Rolling Averages")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                
+                Spacer()
+            }
+            
+            let rollingAverages = dataManager.getRollingAverages()
+            
+            if rollingAverages.isEmpty {
+                Text("Not enough data for rolling averages")
+                    .foregroundColor(.secondary)
+                    .italic()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 20)
+            } else {
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 12) {
+                    ForEach(rollingAverages) { average in
+                        RollingAverageCard(average: average)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
     // MARK: - Statistics Summary
     
     private var statisticsSummary: some View {
@@ -514,6 +562,51 @@ struct CombinedChartDataPoint {
     let date: Date
     let systolic: Double
     let diastolic: Double
+}
+
+// MARK: - Rolling Average Card Component
+
+struct RollingAverageCard: View {
+    let average: RollingAverage
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            // Period Label
+            Text(average.periodLabel)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+            
+            // BP Values
+            Text(average.displayString)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+            
+            // BP Category
+            Text(average.bpCategory.rawValue)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(average.bpCategory.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(average.bpCategory.color.opacity(0.1))
+                )
+            
+            // Reading Count
+            Text("\(average.readingCount) readings")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemGray6))
+        )
+    }
 }
 
 // MARK: - Summary Card Component
