@@ -1,0 +1,298 @@
+import SwiftUI
+
+struct ProfileView: View {
+    @ObservedObject var dataManager: BPDataManager
+    @State private var userName = ""
+    @State private var age = ""
+    @State private var showingEditProfile = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Profile Header
+                    profileHeaderSection
+                    
+                    // Statistics Overview
+                    statisticsSection
+                    
+                    // Recent Activity
+                    recentActivitySection
+                }
+                .padding()
+            }
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Edit") {
+                        showingEditProfile = true
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingEditProfile) {
+            EditProfileView(userName: $userName, age: $age)
+        }
+        .onAppear {
+            loadUserData()
+        }
+    }
+    
+    // MARK: - Profile Header Section
+    
+    private var profileHeaderSection: some View {
+        VStack(spacing: 16) {
+            // Avatar
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [.blue, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 100, height: 100)
+                .overlay(
+                    Text(userName.isEmpty ? "U" : String(userName.prefix(1)).uppercased())
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                )
+            
+            VStack(spacing: 4) {
+                Text(userName.isEmpty ? "User" : userName)
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                if !age.isEmpty {
+                    Text("Age: \(age)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.gray.opacity(0.1))
+        )
+    }
+    
+    // MARK: - Statistics Section
+    
+    private var statisticsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Statistics")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 16) {
+                StatCard(
+                    title: "Total Sessions",
+                    value: "\(dataManager.sessions.count)",
+                    icon: "heart.text.square",
+                    color: .blue
+                )
+                
+                StatCard(
+                    title: "Total Readings",
+                    value: "\(totalReadings)",
+                    icon: "waveform.path.ecg",
+                    color: .green
+                )
+                
+                StatCard(
+                    title: "Avg Systolic",
+                    value: overallAverageSystolic,
+                    icon: "arrow.up",
+                    color: .red
+                )
+                
+                StatCard(
+                    title: "Avg Diastolic",
+                    value: overallAverageDiastolic,
+                    icon: "arrow.down",
+                    color: .orange
+                )
+            }
+        }
+    }
+    
+    // MARK: - Recent Activity Section
+    
+    private var recentActivitySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Recent Activity")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            if dataManager.sessions.isEmpty {
+                Text("No sessions recorded yet")
+                    .foregroundColor(.secondary)
+                    .italic()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(dataManager.sessions.prefix(5))) { session in
+                        RecentSessionRow(session: session)
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var totalReadings: Int {
+        dataManager.sessions.reduce(0) { $0 + $1.readings.count }
+    }
+    
+    private var overallAverageSystolic: String {
+        guard !dataManager.sessions.isEmpty else { return "--" }
+        let allReadings = dataManager.sessions.flatMap { $0.readings }
+        guard !allReadings.isEmpty else { return "--" }
+        let average = Double(allReadings.map { $0.systolic }.reduce(0, +)) / Double(allReadings.count)
+        return String(format: "%.0f", average)
+    }
+    
+    private var overallAverageDiastolic: String {
+        guard !dataManager.sessions.isEmpty else { return "--" }
+        let allReadings = dataManager.sessions.flatMap { $0.readings }
+        guard !allReadings.isEmpty else { return "--" }
+        let average = Double(allReadings.map { $0.diastolic }.reduce(0, +)) / Double(allReadings.count)
+        return String(format: "%.0f", average)
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func loadUserData() {
+        userName = UserDefaults.standard.string(forKey: "userName") ?? ""
+        age = UserDefaults.standard.string(forKey: "userAge") ?? ""
+    }
+}
+
+// MARK: - Stat Card Component
+
+struct StatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+    }
+}
+
+// MARK: - Recent Session Row Component
+
+struct RecentSessionRow: View {
+    let session: BPSession
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(session.startTime, style: .date)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Text(session.startTime, style: .time)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(session.displayString)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.blue)
+                
+                Text("\(session.readings.count) reading\(session.readings.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.05))
+        )
+    }
+}
+
+// MARK: - Edit Profile View
+
+struct EditProfileView: View {
+    @Binding var userName: String
+    @Binding var age: String
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Personal Information") {
+                    TextField("Name", text: $userName)
+                    TextField("Age", text: $age)
+                        .keyboardType(.numberPad)
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        saveUserData()
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func saveUserData() {
+        UserDefaults.standard.set(userName, forKey: "userName")
+        UserDefaults.standard.set(age, forKey: "userAge")
+    }
+}
+
+// MARK: - Preview
+
+struct ProfileView_Previews: PreviewProvider {
+    static var previews: some View {
+        ProfileView(dataManager: BPDataManager())
+    }
+}

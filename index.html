@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PureBP - Blood Pressure Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PureBP</h1>
+            <p>Simple Blood Pressure Tracking</p>
+        </header>
+
+        <main>
+            <!-- Current Session View -->
+            <section id="current-session" class="session-section">
+                <h2>Current Session</h2>
+                <div class="session-info">
+                    <div class="session-stats">
+                        <span id="readings-count">0/5 readings</span>
+                        <span id="session-time"></span>
+                    </div>
+                </div>
+
+                <!-- Entry Form -->
+                <form id="bp-form" class="entry-form">
+                    <div class="form-group">
+                        <label for="systolic">Systolic (Top Number)</label>
+                        <input type="number" id="systolic" name="systolic" min="50" max="300" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="diastolic">Diastolic (Bottom Number)</label>
+                        <input type="number" id="diastolic" name="diastolic" min="30" max="200" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="heart-rate">Heart Rate (Optional)</label>
+                        <input type="number" id="heart-rate" name="heartRate" min="30" max="200">
+                    </div>
+                    
+                    <button type="submit" id="add-reading-btn">Add Reading</button>
+                </form>
+
+                <!-- Current Session Readings -->
+                <div id="current-readings" class="readings-list">
+                    <h3>Current Readings</h3>
+                    <div id="readings-container"></div>
+                </div>
+
+                <!-- Session Average Display -->
+                <div id="session-average" class="average-display" style="display: none;">
+                    <h3>Session Average</h3>
+                    <div class="average-values">
+                        <span class="systolic-avg" id="avg-systolic">--</span>
+                        <span class="divider">/</span>
+                        <span class="diastolic-avg" id="avg-diastolic">--</span>
+                        <span class="heart-rate-avg" id="avg-heart-rate"></span>
+                    </div>
+                </div>
+
+                <!-- Session Actions -->
+                <div class="session-actions">
+                    <button id="save-session-btn" class="save-btn" disabled>Save Session</button>
+                    <button id="clear-session-btn" class="clear-btn">Clear Session</button>
+                </div>
+            </section>
+
+            <!-- History View -->
+            <section id="history-section" class="history-section">
+                <div class="section-header">
+                    <h2>History</h2>
+                    <button id="toggle-history" class="toggle-btn">Show History</button>
+                </div>
+                
+                <div id="history-content" class="history-content" style="display: none;">
+                    <div id="history-list" class="history-list">
+                        <!-- History items will be populated here -->
+                    </div>
+                    <div id="no-history" class="no-history">
+                        <p>No sessions recorded yet. Start by adding your first reading!</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
