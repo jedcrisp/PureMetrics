@@ -7,42 +7,42 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1A2B3C4D5E6F7890 /* PureMetricsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7891 /* PureMetricsApp.swift */; };
-		1A2B3C4D5E6F7892 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7893 /* ContentView.swift */; };
-		1A2B3C4D5E6F7894 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7895 /* Assets.xcassets */; };
-		1A2B3C4D5E6F7896 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7897 /* Preview Assets.xcassets */; };
-		1A2B3C4D5E6F7898 /* BloodPressureReading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7899 /* BloodPressureReading.swift */; };
-		1A2B3C4D5E6F789A /* BPSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F789B /* BPSession.swift */; };
-		1A2B3C4D5E6F789C /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F789D /* SessionView.swift */; };
-		1A2B3C4D5E6F789E /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F789F /* HistoryView.swift */; };
-		1A2B3C4D5E6F78A0 /* BPDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A1 /* BPDataManager.swift */; };
-		1A2B3C4D5E6F78A2 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A3 /* ProfileView.swift */; };
-		1A2B3C4D5E6F78A4 /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A5 /* TrendsView.swift */; };
-		1A2B3C4D5E6F78A6 /* DailyReadingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A7 /* DailyReadingsView.swift */; };
-		1A2B3C4D5E6F78AB /* HealthMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A9 /* HealthMetric.swift */; };
-		1A2B3C4D5E6F78AC /* HealthMetricInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78AA /* HealthMetricInput.swift */; };
+		A1B2C3D4E5F67890 /* PureMetricsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67891 /* PureMetricsApp.swift */; };
+		A1B2C3D4E5F67892 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67893 /* ContentView.swift */; };
+		A1B2C3D4E5F67894 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67895 /* Assets.xcassets */; };
+		A1B2C3D4E5F67896 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67897 /* Preview Assets.xcassets */; };
+		A1B2C3D4E5F67898 /* BloodPressureReading.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67899 /* BloodPressureReading.swift */; };
+		A1B2C3D4E5F6789A /* BPSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6789B /* BPSession.swift */; };
+		A1B2C3D4E5F6789C /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6789D /* SessionView.swift */; };
+		A1B2C3D4E5F6789E /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6789F /* HistoryView.swift */; };
+		A1B2C3D4E5F678A0 /* BPDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A1 /* BPDataManager.swift */; };
+		A1B2C3D4E5F678A2 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A3 /* ProfileView.swift */; };
+		A1B2C3D4E5F678A4 /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A5 /* TrendsView.swift */; };
+		A1B2C3D4E5F678A6 /* DailyReadingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A7 /* DailyReadingsView.swift */; };
+		A1B2C3D4E5F678A8 /* HealthMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A9 /* HealthMetric.swift */; };
+		A1B2C3D4E5F678AA /* HealthMetricInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678AB /* HealthMetricInput.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		1A2B3C4D5E6F7891 /* PureMetricsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureMetricsApp.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F7893 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F7895 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		1A2B3C4D5E6F7897 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		1A2B3C4D5E6F7899 /* BloodPressureReading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodPressureReading.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F789B /* BPSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BPSession.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F789D /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F789F /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F78A1 /* BPDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BPDataManager.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F78A3 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F78A5 /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F78A7 /* DailyReadingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyReadingsView.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F78A8 /* PureMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		1A2B3C4D5E6F78A9 /* HealthMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetric.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F78AA /* HealthMetricInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricInput.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F67891 /* PureMetricsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureMetricsApp.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F67893 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F67895 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A1B2C3D4E5F67897 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		A1B2C3D4E5F67899 /* BloodPressureReading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodPressureReading.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6789B /* BPSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BPSession.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6789D /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6789F /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F678A1 /* BPDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BPDataManager.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F678A3 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F678A5 /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F678A7 /* DailyReadingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyReadingsView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F678A9 /* HealthMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetric.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F678AB /* HealthMetricInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricInput.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F678AC /* PureMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		1A2B3C4D5E6F78A9 /* Frameworks */ = {
+		A1B2C3D4E5F678AD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -52,47 +52,47 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		1A2B3C4D5E6F78AA = {
+		A1B2C3D4E5F678AE = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D5E6F78AB /* PureMetrics */,
-				1A2B3C4D5E6F78AC /* Products */,
+				A1B2C3D4E5F678AF /* PureMetrics */,
+				A1B2C3D4E5F678B0 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		1A2B3C4D5E6F78AB /* PureMetrics */ = {
+		A1B2C3D4E5F678AF /* PureMetrics */ = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D5E6F7891 /* PureMetricsApp.swift */,
-				1A2B3C4D5E6F7893 /* ContentView.swift */,
-				1A2B3C4D5E6F7899 /* BloodPressureReading.swift */,
-				1A2B3C4D5E6F789B /* BPSession.swift */,
-				1A2B3C4D5E6F789D /* SessionView.swift */,
-				1A2B3C4D5E6F789F /* HistoryView.swift */,
-				1A2B3C4D5E6F78A1 /* BPDataManager.swift */,
-				1A2B3C4D5E6F78A3 /* ProfileView.swift */,
-				1A2B3C4D5E6F78A5 /* TrendsView.swift */,
-				1A2B3C4D5E6F78A7 /* DailyReadingsView.swift */,
-				1A2B3C4D5E6F78A9 /* HealthMetric.swift */,
-				1A2B3C4D5E6F78AA /* HealthMetricInput.swift */,
-				1A2B3C4D5E6F7895 /* Assets.xcassets */,
-				1A2B3C4D5E6F78AD /* Preview Content */,
+				A1B2C3D4E5F67891 /* PureMetricsApp.swift */,
+				A1B2C3D4E5F67893 /* ContentView.swift */,
+				A1B2C3D4E5F67899 /* BloodPressureReading.swift */,
+				A1B2C3D4E5F6789B /* BPSession.swift */,
+				A1B2C3D4E5F6789D /* SessionView.swift */,
+				A1B2C3D4E5F6789F /* HistoryView.swift */,
+				A1B2C3D4E5F678A1 /* BPDataManager.swift */,
+				A1B2C3D4E5F678A3 /* ProfileView.swift */,
+				A1B2C3D4E5F678A5 /* TrendsView.swift */,
+				A1B2C3D4E5F678A7 /* DailyReadingsView.swift */,
+				A1B2C3D4E5F678A9 /* HealthMetric.swift */,
+				A1B2C3D4E5F678AB /* HealthMetricInput.swift */,
+				A1B2C3D4E5F67895 /* Assets.xcassets */,
+				A1B2C3D4E5F678B1 /* Preview Content */,
 			);
 			path = PureMetrics;
 			sourceTree = "<group>";
 		};
-		1A2B3C4D5E6F78AC /* Products */ = {
+		A1B2C3D4E5F678B0 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D5E6F78A8 /* PureMetrics.app */,
+				A1B2C3D4E5F678AC /* PureMetrics.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		1A2B3C4D5E6F78AD /* Preview Content */ = {
+		A1B2C3D4E5F678B1 /* Preview Content */ = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D5E6F7897 /* Preview Assets.xcassets */,
+				A1B2C3D4E5F67897 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
 			sourceTree = "<group>";
@@ -100,13 +100,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1A2B3C4D5E6F78AE /* PureMetrics */ = {
+		A1B2C3D4E5F678B2 /* PureMetrics */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1A2B3C4D5E6F78AF /* Build configuration list for PBXNativeTarget "PureMetrics" */;
+			buildConfigurationList = A1B2C3D4E5F678B3 /* Build configuration list for PBXNativeTarget "PureMetrics" */;
 			buildPhases = (
-				1A2B3C4D5E6F78B0 /* Sources */,
-				1A2B3C4D5E6F78A9 /* Frameworks */,
-				1A2B3C4D5E6F78B1 /* Resources */,
+				A1B2C3D4E5F678B4 /* Sources */,
+				A1B2C3D4E5F678AD /* Frameworks */,
+				A1B2C3D4E5F678B5 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -114,25 +114,25 @@
 			);
 			name = PureMetrics;
 			productName = PureMetrics;
-			productReference = 1A2B3C4D5E6F78A8 /* PureMetrics.app */;
+			productReference = A1B2C3D4E5F678AC /* PureMetrics.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		1A2B3C4D5E6F78B2 /* Project object */ = {
+		A1B2C3D4E5F678B6 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
-					1A2B3C4D5E6F78AE = {
+					A1B2C3D4E5F678B2 = {
 						CreatedOnToolsVersion = 15.0;
 					};
 				};
 			};
-			buildConfigurationList = 1A2B3C4D5E6F78B3 /* Build configuration list for PBXProject "PureMetrics" */;
+			buildConfigurationList = A1B2C3D4E5F678B7 /* Build configuration list for PBXProject "PureMetrics" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -140,52 +140,52 @@
 				en,
 				Base,
 			);
-			mainGroup = 1A2B3C4D5E6F78AA;
-			productRefGroup = 1A2B3C4D5E6F78AC /* Products */;
+			mainGroup = A1B2C3D4E5F678AE;
+			productRefGroup = A1B2C3D4E5F678B0 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1A2B3C4D5E6F78AE /* PureMetrics */,
+				A1B2C3D4E5F678B2 /* PureMetrics */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		1A2B3C4D5E6F78B1 /* Resources */ = {
+		A1B2C3D4E5F678B5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5E6F7896 /* Preview Assets.xcassets in Resources */,
-				1A2B3C4D5E6F7894 /* Assets.xcassets in Resources */,
+				A1B2C3D4E5F67896 /* Preview Assets.xcassets in Resources */,
+				A1B2C3D4E5F67894 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		1A2B3C4D5E6F78B0 /* Sources */ = {
+		A1B2C3D4E5F678B4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1A2B3C4D5E6F7892 /* ContentView.swift in Sources */,
-				1A2B3C4D5E6F7898 /* BloodPressureReading.swift in Sources */,
-				1A2B3C4D5E6F789A /* BPSession.swift in Sources */,
-				1A2B3C4D5E6F789C /* SessionView.swift in Sources */,
-				1A2B3C4D5E6F789E /* HistoryView.swift in Sources */,
-				1A2B3C4D5E6F78A0 /* BPDataManager.swift in Sources */,
-				1A2B3C4D5E6F78A2 /* ProfileView.swift in Sources */,
-				1A2B3C4D5E6F78A4 /* TrendsView.swift in Sources */,
-				1A2B3C4D5E6F78A6 /* DailyReadingsView.swift in Sources */,
-				1A2B3C4D5E6F78AB /* HealthMetric.swift in Sources */,
-				1A2B3C4D5E6F78AC /* HealthMetricInput.swift in Sources */,
-				1A2B3C4D5E6F7890 /* PureMetricsApp.swift in Sources */,
+				A1B2C3D4E5F6789A /* BPSession.swift in Sources */,
+				A1B2C3D4E5F6789C /* SessionView.swift in Sources */,
+				A1B2C3D4E5F6789E /* HistoryView.swift in Sources */,
+				A1B2C3D4E5F678A0 /* BPDataManager.swift in Sources */,
+				A1B2C3D4E5F678A2 /* ProfileView.swift in Sources */,
+				A1B2C3D4E5F678A4 /* TrendsView.swift in Sources */,
+				A1B2C3D4E5F678A6 /* DailyReadingsView.swift in Sources */,
+				A1B2C3D4E5F678A8 /* HealthMetric.swift in Sources */,
+				A1B2C3D4E5F678AA /* HealthMetricInput.swift in Sources */,
+				A1B2C3D4E5F67890 /* PureMetricsApp.swift in Sources */,
+				A1B2C3D4E5F67892 /* ContentView.swift in Sources */,
+				A1B2C3D4E5F67898 /* BloodPressureReading.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		1A2B3C4D5E6F78B4 /* Debug */ = {
+		A1B2C3D4E5F678B8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -248,7 +248,7 @@
 			};
 			name = Debug;
 		};
-		1A2B3C4D5E6F78B5 /* Release */ = {
+		A1B2C3D4E5F678B9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -304,7 +304,7 @@
 			};
 			name = Release;
 		};
-		1A2B3C4D5E6F78B6 /* Debug */ = {
+		A1B2C3D4E5F678BA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -312,10 +312,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"PureMetrics/Preview Content\"";
-				DEVELOPMENT_TEAM = HN6CFCKN72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -334,7 +332,7 @@
 			};
 			name = Debug;
 		};
-		1A2B3C4D5E6F78B7 /* Release */ = {
+		A1B2C3D4E5F678BB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -342,10 +340,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"PureMetrics/Preview Content\"";
-				DEVELOPMENT_TEAM = HN6CFCKN72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -367,25 +363,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1A2B3C4D5E6F78AF /* Build configuration list for PBXNativeTarget "PureMetrics" */ = {
+		A1B2C3D4E5F678B3 /* Build configuration list for PBXNativeTarget "PureMetrics" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1A2B3C4D5E6F78B6 /* Debug */,
-				1A2B3C4D5E6F78B7 /* Release */,
+				A1B2C3D4E5F678BA /* Debug */,
+				A1B2C3D4E5F678BB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1A2B3C4D5E6F78B3 /* Build configuration list for PBXProject "PureMetrics" */ = {
+		A1B2C3D4E5F678B7 /* Build configuration list for PBXProject "PureMetrics" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				1A2B3C4D5E6F78B4 /* Debug */,
-				1A2B3C4D5E6F78B5 /* Release */,
+				A1B2C3D4E5F678B8 /* Debug */,
+				A1B2C3D4E5F678B9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 1A2B3C4D5E6F78B2 /* Project object */;
+	rootObject = A1B2C3D4E5F678B6 /* Project object */;
 }
