@@ -78,66 +78,96 @@ struct SessionView: View {
     
     private var headerSection: some View {
         VStack(spacing: 0) {
-            // Top gradient header
+            // Top gradient header with improved design
             LinearGradient(
-                colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.6)],
+                colors: [
+                    Color.blue.opacity(0.9),
+                    Color.blue.opacity(0.7),
+                    Color.purple.opacity(0.6)
+                ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .frame(height: 120)
+            .frame(height: 140)
             .overlay(
-                VStack(spacing: 8) {
+                VStack(spacing: 0) {
+                    // Top section with app name and status
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 6) {
                             Text("PureMetrics")
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
                             
-                            Text("Blood Pressure Tracker")
+                            Text("Blood Pressure Tracking")
                                 .font(.subheadline)
+                                .fontWeight(.medium)
                                 .foregroundColor(.white.opacity(0.9))
                         }
                         
                         Spacer()
                         
-                        HStack(spacing: 12) {
-                            if dataManager.currentSession.isActive {
-                                VStack(alignment: .trailing, spacing: 4) {
+                        if dataManager.currentSession.isActive {
+                            VStack(alignment: .trailing, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 8, height: 8)
                                     Text("Session Active")
                                         .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.white.opacity(0.8))
-                                    
-                                    Text(formatDuration(sessionDuration))
-                                        .font(.title2)
-                                        .fontWeight(.bold)
+                                        .fontWeight(.semibold)
                                         .foregroundColor(.white)
                                 }
+                                
+                                Text(formatDuration(sessionDuration))
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
                             }
-                            
-                            // Start New Session Button
-                            Button(action: startNewSession) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "plus.circle.fill")
-                                    Text("New Session")
-                                }
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(Color.green.opacity(0.9))
-                                )
-                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.white.opacity(0.15))
+                            )
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
                     
                     Spacer()
+                    
+                    // New Session Button - moved to bottom of header
+                    HStack {
+                        Spacer()
+                        
+                        Button(action: startNewSession) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title3)
+                                Text("New Session")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.green, Color.green.opacity(0.8)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
+                            )
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.bottom, 16)
                 }
             )
             
@@ -211,11 +241,11 @@ struct SessionView: View {
                 }
             }
         }
-        .padding(20)
+        .padding(24)
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 20)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
         )
     }
     
@@ -223,24 +253,32 @@ struct SessionView: View {
     
     private var entryFormSection: some View {
         VStack(spacing: 24) {
-            // Header
-            VStack(spacing: 8) {
+            // Header with improved design
+            VStack(spacing: 12) {
                 HStack {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.blue)
+                    ZStack {
+                        Circle()
+                            .fill(Color.blue.opacity(0.1))
+                            .frame(width: 50, height: 50)
+                        
+                        Image(systemName: "heart.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    }
                     
-                    Text("Add Blood Pressure Reading")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Add Reading")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                        
+                        Text("Enter your blood pressure values")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     
                     Spacer()
                 }
-                
-                Text("Enter your systolic and diastolic values")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
             }
             
             // BP Input Fields
@@ -406,9 +444,9 @@ struct SessionView: View {
             }
             .disabled(!canAddReading)
         }
-        .padding(24)
+        .padding(28)
         .background(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 24)
                 .fill(Color(.systemBackground))
                 .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
         )
