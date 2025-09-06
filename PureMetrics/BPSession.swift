@@ -3,12 +3,14 @@ import Foundation
 struct BPSession: Codable, Identifiable {
     let id = UUID()
     var readings: [BloodPressureReading]
+    var healthMetrics: [HealthMetric] // New: support for additional health metrics
     let startTime: Date
     var endTime: Date?
     var isActive: Bool
     
     init() {
         self.readings = []
+        self.healthMetrics = []
         self.startTime = Date()
         self.endTime = nil
         self.isActive = false
@@ -16,6 +18,7 @@ struct BPSession: Codable, Identifiable {
     
     init(startTime: Date) {
         self.readings = []
+        self.healthMetrics = []
         self.startTime = startTime
         self.endTime = nil
         self.isActive = true
@@ -78,5 +81,40 @@ struct BPSession: Codable, Identifiable {
     
     mutating func stop() {
         isActive = false
+    }
+    
+    // MARK: - Health Metrics Management
+    
+    mutating func addHealthMetric(_ metric: HealthMetric) {
+        healthMetrics.append(metric)
+    }
+    
+    mutating func removeHealthMetric(at index: Int) {
+        guard index < healthMetrics.count else { return }
+        healthMetrics.remove(at: index)
+    }
+    
+    func getMetricsForType(_ type: MetricType) -> [HealthMetric] {
+        return healthMetrics.filter { $0.type == type }
+    }
+    
+    func getAverageForType(_ type: MetricType) -> Double? {
+        let metrics = getMetricsForType(type)
+        guard !metrics.isEmpty else { return nil }
+        return metrics.map { $0.value }.reduce(0, +) / Double(metrics.count)
+    }
+    
+    var allMetrics: [HealthMetric] {
+        var all: [HealthMetric] = []
+        
+        // Add BP readings as health metrics
+        for reading in readings {
+            all.append(contentsOf: reading.toHealthMetrics())
+        }
+        
+        // Add additional health metrics
+        all.append(contentsOf: healthMetrics)
+        
+        return all.sorted { $0.timestamp < $1.timestamp }
     }
 }

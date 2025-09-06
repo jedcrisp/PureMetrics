@@ -104,6 +104,21 @@ class BPDataManager: ObservableObject {
         return true
     }
     
+    func addHealthMetric(type: MetricType, value: Double, timestamp: Date? = nil) -> Bool {
+        // Auto-start session if not active
+        if !currentSession.isActive {
+            currentSession = BPSession(startTime: Date())
+        }
+        
+        let metric = HealthMetric(type: type, value: value, timestamp: timestamp)
+        guard metric.isValid else {
+            return false
+        }
+        
+        currentSession.addHealthMetric(metric)
+        return true
+    }
+    
     func removeReading(at index: Int) {
         currentSession.removeReading(at: index)
     }

@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1A2B3C4D5E6F7890 /* PureBPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7891 /* PureBPApp.swift */; };
+		1A2B3C4D5E6F7890 /* PureMetricsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7891 /* PureMetricsApp.swift */; };
 		1A2B3C4D5E6F7892 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7893 /* ContentView.swift */; };
 		1A2B3C4D5E6F7894 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7895 /* Assets.xcassets */; };
 		1A2B3C4D5E6F7896 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7897 /* Preview Assets.xcassets */; };
@@ -19,6 +19,8 @@
 		1A2B3C4D5E6F78A2 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A3 /* ProfileView.swift */; };
 		1A2B3C4D5E6F78A4 /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A5 /* TrendsView.swift */; };
 		1A2B3C4D5E6F78A6 /* DailyReadingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A7 /* DailyReadingsView.swift */; };
+		1A2B3C4D5E6F78AB /* HealthMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78A9 /* HealthMetric.swift */; };
+		1A2B3C4D5E6F78AC /* HealthMetricInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F78AA /* HealthMetricInput.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +37,8 @@
 		1A2B3C4D5E6F78A5 /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F78A7 /* DailyReadingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyReadingsView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F78A8 /* PureMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A2B3C4D5E6F78A9 /* HealthMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetric.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F78AA /* HealthMetricInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricInput.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +73,8 @@
 				1A2B3C4D5E6F78A3 /* ProfileView.swift */,
 				1A2B3C4D5E6F78A5 /* TrendsView.swift */,
 				1A2B3C4D5E6F78A7 /* DailyReadingsView.swift */,
+				1A2B3C4D5E6F78A9 /* HealthMetric.swift */,
+				1A2B3C4D5E6F78AA /* HealthMetricInput.swift */,
 				1A2B3C4D5E6F7895 /* Assets.xcassets */,
 				1A2B3C4D5E6F78AD /* Preview Content */,
 			);
@@ -96,7 +102,7 @@
 /* Begin PBXNativeTarget section */
 		1A2B3C4D5E6F78AE /* PureMetrics */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1A2B3C4D5E6F78AF /* Build configuration list for PBXNativeTarget "PureBP" */;
+			buildConfigurationList = 1A2B3C4D5E6F78AF /* Build configuration list for PBXNativeTarget "PureMetrics" */;
 			buildPhases = (
 				1A2B3C4D5E6F78B0 /* Sources */,
 				1A2B3C4D5E6F78A9 /* Frameworks */,
@@ -126,7 +132,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 1A2B3C4D5E6F78B3 /* Build configuration list for PBXProject "PureBP" */;
+			buildConfigurationList = 1A2B3C4D5E6F78B3 /* Build configuration list for PBXProject "PureMetrics" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -170,7 +176,9 @@
 				1A2B3C4D5E6F78A2 /* ProfileView.swift in Sources */,
 				1A2B3C4D5E6F78A4 /* TrendsView.swift in Sources */,
 				1A2B3C4D5E6F78A6 /* DailyReadingsView.swift in Sources */,
-				1A2B3C4D5E6F7890 /* PureBPApp.swift in Sources */,
+				1A2B3C4D5E6F78AB /* HealthMetric.swift in Sources */,
+				1A2B3C4D5E6F78AC /* HealthMetricInput.swift in Sources */,
+				1A2B3C4D5E6F7890 /* PureMetricsApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -307,6 +315,7 @@
 				DEVELOPMENT_TEAM = HN6CFCKN72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -336,6 +345,7 @@
 				DEVELOPMENT_TEAM = HN6CFCKN72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

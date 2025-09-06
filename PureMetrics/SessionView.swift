@@ -13,6 +13,12 @@ struct SessionView: View {
     @State private var manualDate = Date()
     @State private var manualTime = Date()
     
+    // New health metrics state
+    @State private var selectedMetricType: MetricType = .bloodPressure
+    @State private var weight = ""
+    @State private var bloodSugar = ""
+    @State private var additionalHeartRate = ""
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -248,12 +254,12 @@ struct SessionView: View {
                 HStack {
                     ZStack {
                         Circle()
-                            .fill(Color.blue.opacity(0.1))
+                            .fill(colorForMetricType(selectedMetricType).opacity(0.1))
                             .frame(width: 50, height: 50)
                         
-                        Image(systemName: "heart.fill")
+                        Image(systemName: selectedMetricType.icon)
                             .font(.title2)
-                            .foregroundColor(.blue)
+                            .foregroundColor(colorForMetricType(selectedMetricType))
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
@@ -262,7 +268,7 @@ struct SessionView: View {
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
                         
-                        Text("Enter your blood pressure values")
+                        Text("Enter your \(selectedMetricType.rawValue.lowercased()) value\(selectedMetricType == .bloodPressure ? "s" : "")")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -271,79 +277,21 @@ struct SessionView: View {
                 }
             }
             
-            // BP Input Fields
+            // Metric Type Selector
+            MetricTypeSelector(
+                selectedType: $selectedMetricType,
+                availableTypes: [.bloodPressure, .weight, .bloodSugar, .heartRate]
+            )
+            
+            // Dynamic Input Fields based on selected metric type
             VStack(spacing: 20) {
-                HStack(spacing: 16) {
-                    // Systolic
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("Systolic")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.red)
-                            
-                            Spacer()
-                            
-                            Text("mmHg")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        TextField("120", text: $systolic)
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .multilineTextAlignment(.center)
-                            .keyboardType(.numberPad)
-                            .padding(.vertical, 20)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.red.opacity(0.08))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color.red.opacity(0.2), lineWidth: 1.5)
-                                    )
-                            )
-                    }
-                    
-                    // Divider
-                    VStack {
-                        Spacer()
-                        Text("/")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                    
-                    // Diastolic
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("Diastolic")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.blue)
-                            
-                            Spacer()
-                            
-                            Text("mmHg")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        TextField("80", text: $diastolic)
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .multilineTextAlignment(.center)
-                            .keyboardType(.numberPad)
-                            .padding(.vertical, 20)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.blue.opacity(0.08))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color.blue.opacity(0.2), lineWidth: 1.5)
-                                    )
-                            )
-                    }
+                if selectedMetricType == .bloodPressure {
+                    BloodPressureInput(systolic: $systolic, diastolic: $diastolic)
+                } else {
+                    HealthMetricInput(
+                        type: selectedMetricType,
+                        value: bindingForMetricType(selectedMetricType)
+                    )
                 }
                 
                 // Heart Rate
@@ -728,24 +676,39 @@ struct SessionView: View {
     }
     
     private func addReading() {
-        guard let systolicInt = Int(systolic),
-              let diastolicInt = Int(diastolic) else {
-            showAlert("Please enter valid numbers for systolic and diastolic values.")
-            return
-        }
-        
-        let heartRateInt = heartRate.isEmpty ? nil : Int(heartRate)
         let timestamp = useManualTime ? combineDateAndTime(manualDate, manualTime) : nil
         
-        if dataManager.addReading(systolic: systolicInt, diastolic: diastolicInt, heartRate: heartRateInt, timestamp: timestamp) {
-            clearForm()
-        } else {
-            if dataManager.currentSession.readings.count >= 5 {
-                showAlert("Maximum 5 readings per session allowed.")
-            } else if !dataManager.currentSession.isActive {
-                showAlert("Please start a session first.")
+        if selectedMetricType == .bloodPressure {
+            // Handle blood pressure reading
+            guard let systolicInt = Int(systolic),
+                  let diastolicInt = Int(diastolic) else {
+                showAlert("Please enter valid numbers for systolic and diastolic values.")
+                return
+            }
+            
+            let heartRateInt = heartRate.isEmpty ? nil : Int(heartRate)
+            
+            if dataManager.addReading(systolic: systolicInt, diastolic: diastolicInt, heartRate: heartRateInt, timestamp: timestamp) {
+                clearForm()
             } else {
-                showAlert("Invalid reading values. Please check your input.")
+                if dataManager.currentSession.readings.count >= 5 {
+                    showAlert("Maximum 5 readings per session allowed.")
+                } else {
+                    showAlert("Invalid reading values. Please check your input.")
+                }
+            }
+        } else {
+            // Handle other health metrics
+            let valueString = bindingForMetricType(selectedMetricType).wrappedValue
+            guard let value = Double(valueString) else {
+                showAlert("Please enter a valid number for \(selectedMetricType.rawValue.lowercased()).")
+                return
+            }
+            
+            if dataManager.addHealthMetric(type: selectedMetricType, value: value, timestamp: timestamp) {
+                clearForm()
+            } else {
+                showAlert("Invalid \(selectedMetricType.rawValue.lowercased()) value. Please check your input.")
             }
         }
     }
@@ -767,9 +730,7 @@ struct SessionView: View {
     }
     
     private func clearForm() {
-        systolic = ""
-        diastolic = ""
-        heartRate = ""
+        clearInputs()
         useManualTime = false
         manualDate = Date()
         manualTime = Date()
@@ -807,5 +768,34 @@ struct SessionView: View {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    // MARK: - Helper Functions for Health Metrics
+    
+    private func colorForMetricType(_ type: MetricType) -> Color {
+        switch type {
+        case .bloodPressure: return .blue
+        case .weight: return .green
+        case .bloodSugar: return .orange
+        case .heartRate: return .red
+        }
+    }
+    
+    private func bindingForMetricType(_ type: MetricType) -> Binding<String> {
+        switch type {
+        case .weight: return $weight
+        case .bloodSugar: return $bloodSugar
+        case .heartRate: return $additionalHeartRate
+        case .bloodPressure: return $systolic // This shouldn't be used
+        }
+    }
+    
+    private func clearInputs() {
+        systolic = ""
+        diastolic = ""
+        heartRate = ""
+        weight = ""
+        bloodSugar = ""
+        additionalHeartRate = ""
     }
 }
