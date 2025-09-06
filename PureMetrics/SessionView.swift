@@ -88,86 +88,76 @@ struct SessionView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .frame(height: 140)
+            .frame(height: 100)
             .overlay(
                 VStack(spacing: 0) {
-                    // Top section with app name and status
+                    // Top section with app name, status, and New Session button
                     HStack {
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("PureMetrics")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                            
-                            Text("Blood Pressure Tracking")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.white.opacity(0.9))
                         }
                         
                         Spacer()
                         
-                        if dataManager.currentSession.isActive {
-                            VStack(alignment: .trailing, spacing: 4) {
-                                HStack(spacing: 6) {
-                                    Circle()
-                                        .fill(Color.green)
-                                        .frame(width: 8, height: 8)
-                                    Text("Session Active")
+                        HStack(spacing: 16) {
+                            if dataManager.currentSession.isActive {
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    HStack(spacing: 6) {
+                                        Circle()
+                                            .fill(Color.green)
+                                            .frame(width: 8, height: 8)
+                                        Text("Active")
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.white)
+                                    }
+                                    
+                                    Text(formatDuration(sessionDuration))
                                         .font(.caption)
-                                        .fontWeight(.semibold)
+                                        .fontWeight(.bold)
                                         .foregroundColor(.white)
                                 }
-                                
-                                Text(formatDuration(sessionDuration))
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.white.opacity(0.15))
+                                )
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.white.opacity(0.15))
-                            )
+                            
+                            // New Session Button - back to top right
+                            Button(action: startNewSession) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.subheadline)
+                                    Text("New")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 18)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.green, Color.green.opacity(0.8)],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .shadow(color: .green.opacity(0.3), radius: 6, x: 0, y: 3)
+                                )
+                            }
                         }
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
                     
                     Spacer()
-                    
-                    // New Session Button - moved to bottom of header
-                    HStack {
-                        Spacer()
-                        
-                        Button(action: startNewSession) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title3)
-                                Text("New Session")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 25)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.green, Color.green.opacity(0.8)],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
-                            )
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.bottom, 16)
                 }
             )
             
