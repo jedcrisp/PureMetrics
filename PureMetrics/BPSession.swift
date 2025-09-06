@@ -8,6 +8,10 @@ struct BPSession: Codable, Identifiable {
     var endTime: Date?
     var isActive: Bool
     
+    enum CodingKeys: String, CodingKey {
+        case readings, healthMetrics, startTime, endTime, isActive
+    }
+    
     init() {
         self.readings = []
         self.healthMetrics = []
