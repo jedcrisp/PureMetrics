@@ -22,7 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		1A2B3C4D5E6F7891 /* PureBPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureBPApp.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F7891 /* PureMetricsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureMetricsApp.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7893 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7895 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7897 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
@@ -34,7 +34,7 @@
 		1A2B3C4D5E6F78A3 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F78A5 /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F78A7 /* DailyReadingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyReadingsView.swift; sourceTree = "<group>"; };
-		1A2B3C4D5E6F78A8 /* PureBP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureBP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A2B3C4D5E6F78A8 /* PureMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,15 +51,15 @@
 		1A2B3C4D5E6F78AA = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D5E6F78AB /* PureBP */,
+				1A2B3C4D5E6F78AB /* PureMetrics */,
 				1A2B3C4D5E6F78AC /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		1A2B3C4D5E6F78AB /* PureBP */ = {
+		1A2B3C4D5E6F78AB /* PureMetrics */ = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D5E6F7891 /* PureBPApp.swift */,
+				1A2B3C4D5E6F7891 /* PureMetricsApp.swift */,
 				1A2B3C4D5E6F7893 /* ContentView.swift */,
 				1A2B3C4D5E6F7899 /* BloodPressureReading.swift */,
 				1A2B3C4D5E6F789B /* BPSession.swift */,
@@ -72,13 +72,13 @@
 				1A2B3C4D5E6F7895 /* Assets.xcassets */,
 				1A2B3C4D5E6F78AD /* Preview Content */,
 			);
-			path = PureBP;
+			path = PureMetrics;
 			sourceTree = "<group>";
 		};
 		1A2B3C4D5E6F78AC /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1A2B3C4D5E6F78A8 /* PureBP.app */,
+				1A2B3C4D5E6F78A8 /* PureMetrics.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -94,7 +94,7 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1A2B3C4D5E6F78AE /* PureBP */ = {
+		1A2B3C4D5E6F78AE /* PureMetrics */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1A2B3C4D5E6F78AF /* Build configuration list for PBXNativeTarget "PureBP" */;
 			buildPhases = (
@@ -106,9 +106,9 @@
 			);
 			dependencies = (
 			);
-			name = PureBP;
-			productName = PureBP;
-			productReference = 1A2B3C4D5E6F78A8 /* PureBP.app */;
+			name = PureMetrics;
+			productName = PureMetrics;
+			productReference = 1A2B3C4D5E6F78A8 /* PureMetrics.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -139,7 +139,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1A2B3C4D5E6F78AE /* PureBP */,
+				1A2B3C4D5E6F78AE /* PureMetrics */,
 			);
 		};
 /* End PBXProject section */
@@ -303,7 +303,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"PureBP/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"PureMetrics/Preview Content\"";
 				DEVELOPMENT_TEAM = HN6CFCKN72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -317,7 +317,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.purebp.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.puremetrics.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -332,7 +332,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"PureBP/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"PureMetrics/Preview Content\"";
 				DEVELOPMENT_TEAM = HN6CFCKN72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -346,7 +346,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.purebp.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.puremetrics.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -357,7 +357,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1A2B3C4D5E6F78AF /* Build configuration list for PBXNativeTarget "PureBP" */ = {
+		1A2B3C4D5E6F78AF /* Build configuration list for PBXNativeTarget "PureMetrics" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1A2B3C4D5E6F78B6 /* Debug */,
@@ -366,7 +366,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		1A2B3C4D5E6F78B3 /* Build configuration list for PBXProject "PureBP" */ = {
+		1A2B3C4D5E6F78B3 /* Build configuration list for PBXProject "PureMetrics" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				1A2B3C4D5E6F78B4 /* Debug */,

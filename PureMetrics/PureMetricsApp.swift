@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct PureBPApp: App {
+struct PureMetricsApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

@@ -1,4 +1,4 @@
-# PureBP - Blood Pressure Tracker
+# PureMetrics - Blood Pressure Tracker
 
 A professional iOS app for tracking blood pressure readings with comprehensive analysis and trends.
 
@@ -39,8 +39,8 @@ A professional iOS app for tracking blood pressure readings with comprehensive a
 ## App Structure
 
 ```
-PureBP/
-├── PureBPApp.swift          # Main app entry point
+PureMetrics/
+├── PureMetricsApp.swift     # Main app entry point
 ├── ContentView.swift        # Tab view container
 ├── SessionView.swift        # Main entry and session management
 ├── DailyReadingsView.swift  # Daily readings with session details
@@ -73,7 +73,7 @@ PureBP/
 
 ## Getting Started
 
-1. Open `PureBP.xcodeproj` in Xcode
+1. Open `PureMetrics.xcodeproj` in Xcode
 2. Select your target device or simulator
 3. Build and run the project
 
