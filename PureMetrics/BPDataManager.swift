@@ -59,6 +59,32 @@ class BPDataManager: ObservableObject {
         return currentSession.readings.count < maxReadingsPerSession && currentSession.isActive
     }
     
+    // MARK: - Delete Operations
+    
+    func deleteSession(at index: Int) {
+        guard index >= 0 && index < sessions.count else { return }
+        sessions.remove(at: index)
+        saveSessions()
+    }
+    
+    func deleteSession(by id: UUID) {
+        sessions.removeAll { $0.id == id }
+        saveSessions()
+    }
+    
+    func deleteSessionsForDate(_ date: Date) {
+        let calendar = Calendar.current
+        sessions.removeAll { session in
+            calendar.isDate(session.startTime, inSameDayAs: date)
+        }
+        saveSessions()
+    }
+    
+    func deleteAllSessions() {
+        sessions.removeAll()
+        saveSessions()
+    }
+    
     // MARK: - Data Persistence
     
     private func saveSessions() {

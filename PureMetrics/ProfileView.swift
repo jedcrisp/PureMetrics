@@ -5,6 +5,7 @@ struct ProfileView: View {
     @State private var userName = ""
     @State private var age = ""
     @State private var showingEditProfile = false
+    @State private var showingDeleteAllConfirmation = false
     
     var body: some View {
         NavigationView {
@@ -18,6 +19,9 @@ struct ProfileView: View {
                     
                     // Recent Activity
                     recentActivitySection
+                    
+                    // Delete All Data Section
+                    deleteAllDataSection
                 }
                 .padding()
             }
@@ -33,6 +37,14 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingEditProfile) {
             EditProfileView(userName: $userName, age: $age)
+        }
+        .alert("Delete All Data", isPresented: $showingDeleteAllConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete All", role: .destructive) {
+                dataManager.deleteAllSessions()
+            }
+        } message: {
+            Text("Are you sure you want to delete all your blood pressure data? This action cannot be undone and will remove all sessions and readings.")
         }
         .onAppear {
             loadUserData()
@@ -173,6 +185,45 @@ struct ProfileView: View {
     private func loadUserData() {
         userName = UserDefaults.standard.string(forKey: "userName") ?? ""
         age = UserDefaults.standard.string(forKey: "userAge") ?? ""
+    }
+    
+    // MARK: - Delete All Data Section
+    
+    private var deleteAllDataSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Data Management")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            VStack(spacing: 12) {
+                Button(action: { showingDeleteAllConfirmation = true }) {
+                    HStack {
+                        Image(systemName: "trash.fill")
+                            .foregroundColor(.red)
+                        Text("Delete All Data")
+                            .foregroundColor(.red)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.red.opacity(0.1))
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Text("This will permanently delete all your blood pressure sessions and readings.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white)
+                    .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+            )
+        }
     }
 }
 

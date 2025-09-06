@@ -4,6 +4,9 @@ struct DailyReadingsView: View {
     @ObservedObject var dataManager: BPDataManager
     @State private var selectedDate = Date()
     @State private var showingDatePicker = false
+    @State private var showingDeleteConfirmation = false
+    @State private var sessionToDelete: BPSession?
+    @State private var showingDeleteDayConfirmation = false
     
     var body: some View {
         NavigationView {
@@ -22,6 +25,24 @@ struct DailyReadingsView: View {
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showingDatePicker) {
                 DatePickerSheet(selectedDate: $selectedDate)
+            }
+            .alert("Delete Session", isPresented: $showingDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    if let session = sessionToDelete {
+                        dataManager.deleteSession(by: session.id)
+                    }
+                }
+            } message: {
+                Text("Are you sure you want to delete this session? This action cannot be undone.")
+            }
+            .alert("Delete All Sessions for This Day", isPresented: $showingDeleteDayConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete All", role: .destructive) {
+                    dataManager.deleteSessionsForDate(selectedDate)
+                }
+            } message: {
+                Text("Are you sure you want to delete all \(sessionsForSelectedDate.count) session\(sessionsForSelectedDate.count == 1 ? "" : "s") for \(selectedDate, style: .date)? This action cannot be undone.")
             }
         }
     }
@@ -42,9 +63,19 @@ struct DailyReadingsView: View {
                 
                 Spacer()
                 
-                Text("\(sessionsForSelectedDate.count) session\(sessionsForSelectedDate.count == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 16) {
+                    Text("\(sessionsForSelectedDate.count) session\(sessionsForSelectedDate.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if !sessionsForSelectedDate.isEmpty {
+                        Button(action: { showingDeleteDayConfirmation = true }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                    }
+                }
             }
             .padding(.horizontal)
             
@@ -104,7 +135,10 @@ struct DailyReadingsView: View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 ForEach(sessionsForSelectedDate) { session in
-                    SessionDetailCard(session: session)
+                    SessionDetailCard(session: session, dataManager: dataManager, onDelete: {
+                        sessionToDelete = session
+                        showingDeleteConfirmation = true
+                    })
                 }
             }
             .padding()
@@ -135,6 +169,8 @@ struct DailyReadingsView: View {
 
 struct SessionDetailCard: View {
     let session: BPSession
+    let dataManager: BPDataManager
+    let onDelete: () -> Void
     @State private var isExpanded = false
     
     var body: some View {
@@ -168,9 +204,18 @@ struct SessionDetailCard: View {
                         }
                     }
                     
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
+                    HStack(spacing: 12) {
+                        Button(action: onDelete) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
                 }
                 .padding()
             }
