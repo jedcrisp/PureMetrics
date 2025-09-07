@@ -62,12 +62,7 @@ enum ExerciseType: String, CaseIterable, Codable {
     }
     
     var supportsWeight: Bool {
-        switch self {
-        case .benchPress, .squat, .deadlift, .powerClean, .overheadPress, .barbellRow:
-            return true
-        default:
-            return false
-        }
+        return true // All exercises support weight
     }
     
     var supportsTime: Bool {
@@ -80,12 +75,7 @@ enum ExerciseType: String, CaseIterable, Codable {
     }
     
     var supportsReps: Bool {
-        switch self {
-        case .jumpRope, .pullUps, .pushUps, .lunges, .burpees:
-            return true
-        default:
-            return false
-        }
+        return true // All exercises support reps
     }
 }
 

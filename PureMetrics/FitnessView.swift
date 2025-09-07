@@ -4,14 +4,11 @@ struct FitnessView: View {
     @ObservedObject var dataManager: BPDataManager
     @State private var selectedExerciseType: ExerciseType = .benchPress
     @State private var showingExerciseSelector = false
-    @State private var showingSetInput = false
-    @State private var selectedExerciseIndex: Int?
-    @State private var reps = ""
-    @State private var weight = ""
-    @State private var time = ""
+    @State private var selectedExerciseIndices: Set<Int> = []
     @State private var useManualTime = false
     @State private var manualDate = Date()
     @State private var manualTime = Date()
+    @State private var exerciseSetInputs: [Int: [SetInput]] = [:]
     
     var body: some View {
         NavigationView {
@@ -52,24 +49,10 @@ struct FitnessView: View {
         .sheet(isPresented: $showingExerciseSelector) {
             ExerciseSelectorView(selectedExercise: $selectedExerciseType) { exerciseType in
                 dataManager.addExerciseSession(exerciseType)
+                // Initialize set inputs for the new exercise
+                let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
+                exerciseSetInputs[newExerciseIndex] = [SetInput()]
                 showingExerciseSelector = false
-            }
-        }
-        .sheet(isPresented: $showingSetInput) {
-            if let exerciseIndex = selectedExerciseIndex {
-                SetInputView(
-                    exerciseType: dataManager.currentFitnessSession.exerciseSessions[exerciseIndex].exerciseType,
-                    reps: $reps,
-                    weight: $weight,
-                    time: $time,
-                    useManualTime: $useManualTime,
-                    manualDate: $manualDate,
-                    manualTime: $manualTime
-                ) { set in
-                    dataManager.addExerciseSet(to: exerciseIndex, set: set)
-                    clearSetInputs()
-                    showingSetInput = false
-                }
             }
         }
     }
@@ -352,7 +335,7 @@ struct FitnessView: View {
     }
     
     private func exerciseRow(exerciseSession: ExerciseSession, index: Int) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             // Exercise Header
             HStack {
                 ZStack {
@@ -381,17 +364,28 @@ struct FitnessView: View {
                 HStack(spacing: 8) {
                     // Add Set Button
                     Button(action: {
-                        selectedExerciseIndex = index
-                        showingSetInput = true
+                        if selectedExerciseIndices.contains(index) {
+                            // If this exercise is already selected, close it
+                            selectedExerciseIndices.remove(index)
+                        } else {
+                            // If this exercise is not selected, open it
+                            selectedExerciseIndices.insert(index)
+                        }
                     }) {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.blue)
+                        Image(systemName: selectedExerciseIndices.contains(index) ? "minus.circle.fill" : "plus.circle.fill")
+                            .foregroundColor(selectedExerciseIndices.contains(index) ? .orange : .blue)
                             .font(.title3)
                     }
                     
                     // Remove Exercise Button
                     Button(action: {
                         dataManager.removeExerciseSession(at: index)
+                        // Clear set inputs for this exercise
+                        exerciseSetInputs.removeValue(forKey: index)
+                        // Remove from selected indices
+                        selectedExerciseIndices.remove(index)
+                        // Update indices for remaining exercises
+                        updateExerciseIndices()
                     }) {
                         Image(systemName: "trash.circle.fill")
                             .foregroundColor(.red.opacity(0.7))
@@ -400,7 +394,12 @@ struct FitnessView: View {
                 }
             }
             
-            // Sets List
+            // Inline Set Input (when selected)
+            if selectedExerciseIndices.contains(index) {
+                inlineSetInput(exerciseSession: exerciseSession, exerciseIndex: index)
+            }
+            
+            // Existing Sets List
             if !exerciseSession.sets.isEmpty {
                 VStack(spacing: 8) {
                     ForEach(Array(exerciseSession.sets.enumerated()), id: \.element.id) { setIndex, set in
@@ -439,6 +438,278 @@ struct FitnessView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemGray6))
         )
+    }
+    
+    // MARK: - Inline Set Input
+    
+    private func inlineSetInput(exerciseSession: ExerciseSession, exerciseIndex: Int) -> some View {
+        VStack(spacing: 16) {
+            // Exercise Name Header
+            HStack {
+                Text(exerciseSession.exerciseType.rawValue)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            // Set Input Boxes
+            LazyVStack(spacing: 8) {
+                ForEach(Array(getSetInputs(for: exerciseIndex).enumerated()), id: \.element.id) { setIndex, setInput in
+                    setInputBox(exerciseType: exerciseSession.exerciseType, setIndex: setIndex, exerciseIndex: exerciseIndex, setInput: setInput)
+                }
+                
+                // Add new set box
+                Button(action: {
+                    addNewSetInput(for: exerciseIndex)
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(colorForExerciseType(exerciseSession.exerciseType))
+                        Text("Add Set")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(colorForExerciseType(exerciseSession.exerciseType))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(colorForExerciseType(exerciseSession.exerciseType).opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(colorForExerciseType(exerciseSession.exerciseType).opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                }
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(colorForExerciseType(exerciseSession.exerciseType).opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+    
+    private func setInputBox(exerciseType: ExerciseType, setIndex: Int, exerciseIndex: Int, setInput: SetInput) -> some View {
+        HStack(spacing: 12) {
+            // Set Number
+            ZStack {
+                Circle()
+                    .fill(colorForExerciseType(exerciseType).opacity(0.1))
+                    .frame(width: 28, height: 28)
+                
+                Text("\(setIndex + 1)")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(colorForExerciseType(exerciseType))
+            }
+            
+            // Reps Input
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Reps")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+                
+                TextField("10", text: Binding(
+                    get: { setInput.reps },
+                    set: { updateSetInput(exerciseIndex: exerciseIndex, setIndex: setIndex, reps: $0) }
+                ))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .keyboardType(.numberPad)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(colorForExerciseType(exerciseType).opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(colorForExerciseType(exerciseType).opacity(0.2), lineWidth: 1)
+                        )
+                )
+            }
+            
+            // "x" separator
+            Text("x")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.secondary)
+                .padding(.top, 20)
+            
+            // Weight Input
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Weight")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+                
+                HStack(spacing: 2) {
+                    TextField("135", text: Binding(
+                        get: { setInput.weight },
+                        set: { updateSetInput(exerciseIndex: exerciseIndex, setIndex: setIndex, weight: $0) }
+                    ))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .keyboardType(.decimalPad)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(colorForExerciseType(exerciseType).opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(colorForExerciseType(exerciseType).opacity(0.2), lineWidth: 1)
+                            )
+                    )
+                    
+                    Text("lbs")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Time Input
+            if exerciseType.supportsTime {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Time")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    
+                    HStack(spacing: 2) {
+                        TextField("60", text: Binding(
+                            get: { setInput.time },
+                            set: { updateSetInput(exerciseIndex: exerciseIndex, setIndex: setIndex, time: $0) }
+                        ))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .multilineTextAlignment(.center)
+                        .keyboardType(.numberPad)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(colorForExerciseType(exerciseType).opacity(0.08))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(colorForExerciseType(exerciseType).opacity(0.2), lineWidth: 1)
+                                )
+                        )
+                        
+                        Text("sec")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            // Add Set Button
+            Button(action: {
+                addSetToExercise(exerciseIndex: exerciseIndex, setInput: setInput)
+            }) {
+                Image(systemName: "plus.circle.fill")
+                    .foregroundColor(setInput.isValid ? colorForExerciseType(exerciseType) : .gray)
+                    .font(.title3)
+            }
+            .disabled(!setInput.isValid)
+        }
+    }
+    
+    // MARK: - Set Input Management
+    
+    private func getSetInputs(for exerciseIndex: Int) -> [SetInput] {
+        if exerciseSetInputs[exerciseIndex] == nil {
+            exerciseSetInputs[exerciseIndex] = [SetInput()]
+        }
+        return exerciseSetInputs[exerciseIndex] ?? []
+    }
+    
+    private func addNewSetInput(for exerciseIndex: Int) {
+        if exerciseSetInputs[exerciseIndex] == nil {
+            exerciseSetInputs[exerciseIndex] = [SetInput()]
+        } else {
+            exerciseSetInputs[exerciseIndex]?.append(SetInput())
+        }
+    }
+    
+    private func updateSetInput(exerciseIndex: Int, setIndex: Int, reps: String? = nil, weight: String? = nil, time: String? = nil) {
+        guard var inputs = exerciseSetInputs[exerciseIndex],
+              setIndex < inputs.count else { return }
+        
+        if let reps = reps {
+            inputs[setIndex].reps = reps
+        }
+        if let weight = weight {
+            inputs[setIndex].weight = weight
+        }
+        if let time = time {
+            inputs[setIndex].time = time
+        }
+        
+        exerciseSetInputs[exerciseIndex] = inputs
+    }
+    
+    private func addSetToExercise(exerciseIndex: Int, setInput: SetInput) {
+        guard setInput.isValid else { return }
+        
+        let repsInt = setInput.reps.isEmpty ? nil : Int(setInput.reps)
+        let weightDouble = setInput.weight.isEmpty ? nil : Double(setInput.weight)
+        let timeInterval = setInput.time.isEmpty ? nil : TimeInterval(setInput.time)
+        
+        let timestamp = useManualTime ? combineDateAndTime(manualDate, manualTime) : nil
+        
+        let set = ExerciseSet(
+            reps: repsInt,
+            weight: weightDouble,
+            time: timeInterval,
+            timestamp: timestamp
+        )
+        
+        dataManager.addExerciseSet(to: exerciseIndex, set: set)
+        
+        // Clear the input after adding
+        if let index = getSetInputs(for: exerciseIndex).firstIndex(where: { $0.id == setInput.id }) {
+            exerciseSetInputs[exerciseIndex]?[index] = SetInput()
+        }
+    }
+    
+    private func updateExerciseIndices() {
+        // Rebuild the exerciseSetInputs dictionary with correct indices
+        let newInputs: [Int: [SetInput]] = Dictionary(uniqueKeysWithValues: 
+            exerciseSetInputs.compactMap { (key, value) in
+                let newKey = key > 0 ? key - 1 : nil
+                return newKey.map { ($0, value) }
+            }
+        )
+        exerciseSetInputs = newInputs
+    }
+    
+    private func combineDateAndTime(_ date: Date, _ time: Date) -> Date {
+        let calendar = Calendar.current
+        let dateComponents = calendar.dateComponents([.year, .month, .day], from: date)
+        let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: time)
+        
+        var combinedComponents = DateComponents()
+        combinedComponents.year = dateComponents.year
+        combinedComponents.month = dateComponents.month
+        combinedComponents.day = dateComponents.day
+        combinedComponents.hour = timeComponents.hour
+        combinedComponents.minute = timeComponents.minute
+        combinedComponents.second = timeComponents.second
+        
+        return calendar.date(from: combinedComponents) ?? Date()
     }
     
     // MARK: - Action Buttons Section
@@ -533,14 +804,6 @@ struct FitnessView: View {
         dataManager.clearCurrentFitnessSession()
     }
     
-    private func clearSetInputs() {
-        reps = ""
-        weight = ""
-        time = ""
-        useManualTime = false
-        manualDate = Date()
-        manualTime = Date()
-    }
     
     // MARK: - Helper Functions
     
@@ -622,204 +885,17 @@ struct ExerciseSelectorView: View {
     }
 }
 
-// MARK: - Set Input View
 
-struct SetInputView: View {
-    let exerciseType: ExerciseType
-    @Binding var reps: String
-    @Binding var weight: String
-    @Binding var time: String
-    @Binding var useManualTime: Bool
-    @Binding var manualDate: Date
-    @Binding var manualTime: Date
-    let onSetAdded: (ExerciseSet) -> Void
-    @Environment(\.presentationMode) var presentationMode
+// MARK: - Set Input Model
+
+struct SetInput: Identifiable {
+    let id = UUID()
+    var reps: String = ""
+    var weight: String = ""
+    var time: String = ""
     
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 24) {
-                // Exercise Header
-                HStack {
-                    ZStack {
-                        Circle()
-                            .fill(colorForExerciseType(exerciseType).opacity(0.1))
-                            .frame(width: 60, height: 60)
-                        
-                        Image(systemName: exerciseType.icon)
-                            .font(.title2)
-                            .foregroundColor(colorForExerciseType(exerciseType))
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(exerciseType.rawValue)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                        
-                        Text("Add Set")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                
-                // Input Fields
-                VStack(spacing: 20) {
-                    if exerciseType.supportsReps {
-                        inputField(title: "Reps", value: $reps, placeholder: "10", unit: "reps")
-                    }
-                    
-                    if exerciseType.supportsWeight {
-                        inputField(title: "Weight", value: $weight, placeholder: "135", unit: "lbs")
-                    }
-                    
-                    if exerciseType.supportsTime {
-                        inputField(title: "Time", value: $time, placeholder: "60", unit: "seconds")
-                    }
-                }
-                .padding(.horizontal, 20)
-                
-                // Manual Time Toggle
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "calendar")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Toggle("Use Manual Date/Time", isOn: $useManualTime)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    if useManualTime {
-                        VStack(spacing: 12) {
-                            DatePicker("Date", selection: $manualDate, displayedComponents: .date)
-                                .datePickerStyle(CompactDatePickerStyle())
-                            
-                            DatePicker("Time", selection: $manualTime, displayedComponents: .hourAndMinute)
-                                .datePickerStyle(CompactDatePickerStyle())
-                        }
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray6))
-                        )
-                    }
-                }
-                .padding(.horizontal, 20)
-                
-                Spacer()
-                
-                // Add Set Button
-                Button(action: addSet) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                        Text("Add Set")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(canAddSet ? colorForExerciseType(exerciseType) : Color.gray)
-                    )
-                    .foregroundColor(.white)
-                    .shadow(color: canAddSet ? colorForExerciseType(exerciseType).opacity(0.3) : .clear, radius: 8, x: 0, y: 4)
-                }
-                .disabled(!canAddSet)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
-            }
-            .navigationTitle("")
-            .navigationBarHidden(true)
-        }
-    }
-    
-    private func inputField(title: String, value: Binding<String>, placeholder: String, unit: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(title)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(colorForExerciseType(exerciseType))
-                
-                Spacer()
-                
-                Text(unit)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            TextField(placeholder, text: value)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .multilineTextAlignment(.center)
-                .keyboardType(.numberPad)
-                .padding(.vertical, 16)
-                .padding(.horizontal, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(colorForExerciseType(exerciseType).opacity(0.08))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(colorForExerciseType(exerciseType).opacity(0.2), lineWidth: 1.5)
-                        )
-                )
-        }
-    }
-    
-    private var canAddSet: Bool {
-        let hasReps = !exerciseType.supportsReps || !reps.isEmpty
-        let hasWeight = !exerciseType.supportsWeight || !weight.isEmpty
-        let hasTime = !exerciseType.supportsTime || !time.isEmpty
-        
-        return hasReps && hasWeight && hasTime
-    }
-    
-    private func addSet() {
-        let repsInt = exerciseType.supportsReps ? Int(reps) : nil
-        let weightDouble = exerciseType.supportsWeight ? Double(weight) : nil
-        let timeInterval = exerciseType.supportsTime ? TimeInterval(time) : nil
-        
-        let timestamp = useManualTime ? combineDateAndTime(manualDate, manualTime) : nil
-        
-        let set = ExerciseSet(
-            reps: repsInt,
-            weight: weightDouble,
-            time: timeInterval,
-            timestamp: timestamp
-        )
-        
-        onSetAdded(set)
-    }
-    
-    private func combineDateAndTime(_ date: Date, _ time: Date) -> Date {
-        let calendar = Calendar.current
-        let dateComponents = calendar.dateComponents([.year, .month, .day], from: date)
-        let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: time)
-        
-        var combinedComponents = DateComponents()
-        combinedComponents.year = dateComponents.year
-        combinedComponents.month = dateComponents.month
-        combinedComponents.day = dateComponents.day
-        combinedComponents.hour = timeComponents.hour
-        combinedComponents.minute = timeComponents.minute
-        combinedComponents.second = timeComponents.second
-        
-        return calendar.date(from: combinedComponents) ?? Date()
-    }
-    
-    private func colorForExerciseType(_ type: ExerciseType) -> Color {
-        switch type.color {
-        case "blue": return .blue
-        case "green": return .green
-        case "orange": return .orange
-        default: return .gray
-        }
+    var isValid: Bool {
+        return !reps.isEmpty || !weight.isEmpty || !time.isEmpty
     }
 }
 

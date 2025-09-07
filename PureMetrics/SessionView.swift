@@ -39,8 +39,6 @@ struct SessionView: View {
                             // Entry Form - Made more prominent
                             entryFormSection
                             
-                            // Current Readings
-                            currentReadingsSection
                             
                             // Session Average
                             if !dataManager.currentSession.readings.isEmpty {
@@ -186,62 +184,134 @@ struct SessionView: View {
     // MARK: - Session Info Section
     
     private var sessionInfoSection: some View {
-        HStack(spacing: 20) {
-            // Readings Count
-            VStack(spacing: 8) {
+        HStack(spacing: 24) {
+            // Readings Count - Enhanced design
+            VStack(spacing: 12) {
                 ZStack {
+                    // Outer ring for progress indication
                     Circle()
-                        .fill(Color.blue.opacity(0.1))
+                        .stroke(Color.blue.opacity(0.2), lineWidth: 3)
+                        .frame(width: 60, height: 60)
+                    
+                    // Progress ring
+                    Circle()
+                        .trim(from: 0, to: CGFloat(dataManager.currentSession.readings.count) / 5.0)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.blue, Color.blue.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                        )
+                        .frame(width: 60, height: 60)
+                        .rotationEffect(.degrees(-90))
+                    
+                    // Inner circle with count
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue.opacity(0.1), Color.blue.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                         .frame(width: 50, height: 50)
                     
-                    Text("\(dataManager.currentSession.readings.count)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.blue)
+                    VStack(spacing: 2) {
+                        Text("\(dataManager.currentSession.readings.count)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                        Text("of 5")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue.opacity(0.7))
+                    }
                 }
                 
-                VStack(spacing: 2) {
-                    Text("Readings")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    Text("of 5")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
+                Text("Readings")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
             }
             
-            Spacer()
+            // Divider
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .frame(width: 1, height: 60)
             
-            // Session Status
-            VStack(spacing: 8) {
+            // Session Status - Enhanced design
+            VStack(spacing: 12) {
                 ZStack {
+                    // Status indicator background
                     Circle()
-                        .fill(dataManager.currentSession.isActive ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
-                        .frame(width: 50, height: 50)
+                        .fill(
+                            dataManager.currentSession.isActive ? 
+                            LinearGradient(
+                                colors: [Color.green.opacity(0.15), Color.green.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ) :
+                            LinearGradient(
+                                colors: [Color.gray.opacity(0.15), Color.gray.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 60, height: 60)
                     
+                    // Status icon with subtle animation
                     Image(systemName: dataManager.currentSession.isActive ? "play.circle.fill" : "pause.circle.fill")
-                        .font(.title3)
+                        .font(.title2)
                         .foregroundColor(dataManager.currentSession.isActive ? .green : .gray)
+                        .scaleEffect(dataManager.currentSession.isActive ? 1.1 : 1.0)
+                        .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: dataManager.currentSession.isActive)
                 }
                 
-                VStack(spacing: 2) {
+                VStack(spacing: 4) {
                     Text("Status")
                         .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    Text(dataManager.currentSession.isActive ? "Active" : "Ready")
-                        .font(.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    
+                    Text(dataManager.currentSession.isActive ? "Active" : "Ready")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundColor(dataManager.currentSession.isActive ? .green : .gray)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    dataManager.currentSession.isActive ? 
+                                    Color.green.opacity(0.1) : 
+                                    Color.gray.opacity(0.1)
+                                )
+                        )
                 }
             }
         }
-        .padding(24)
+        .padding(28)
         .background(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 24)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
         )
     }
     
@@ -383,110 +453,6 @@ struct SessionView: View {
         )
     }
     
-    // MARK: - Current Readings Section
-    
-    private var currentReadingsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "list.bullet.circle.fill")
-                    .font(.title3)
-                    .foregroundColor(.blue)
-                
-                Text("Current Readings")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Text("\(dataManager.currentSession.readings.count)/5")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.blue.opacity(0.1))
-                    )
-            }
-            
-            if dataManager.currentSession.readings.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "heart.text.square")
-                        .font(.system(size: 32))
-                        .foregroundColor(.gray.opacity(0.6))
-                    
-                    Text("No readings yet")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    
-                    Text("Add your first reading above to get started")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
-            } else {
-                LazyVStack(spacing: 12) {
-                    ForEach(Array(dataManager.currentSession.readings.enumerated()), id: \.element.id) { index, reading in
-                        readingRow(reading: reading, index: index)
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        )
-    }
-    
-    private func readingRow(reading: BloodPressureReading, index: Int) -> some View {
-        HStack(spacing: 16) {
-            // Reading number
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 32, height: 32)
-                
-                Text("\(index + 1)")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.blue)
-            }
-            
-            // Reading values
-            VStack(alignment: .leading, spacing: 4) {
-                Text(reading.displayString)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                
-                Text(reading.timestamp, style: .time)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            // Remove button
-            Button(action: {
-                dataManager.removeReading(at: index)
-            }) {
-                Image(systemName: "trash.circle.fill")
-                    .foregroundColor(.red.opacity(0.7))
-                    .font(.title3)
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
-        )
-    }
     
     // MARK: - Session Average Section
     
