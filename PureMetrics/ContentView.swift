@@ -13,26 +13,33 @@ struct ContentView: View {
                 }
                 .tag(0)
             
+            FitnessView(dataManager: dataManager)
+                .tabItem {
+                    Image(systemName: "dumbbell.fill")
+                    Text("Fitness")
+                }
+                .tag(1)
+            
             DailyReadingsView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "calendar")
                     Text("Daily")
                 }
-                .tag(1)
+                .tag(2)
             
             TrendsView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                     Text("Trends")
                 }
-                .tag(2)
+                .tag(3)
             
             ProfileView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "person.circle.fill")
                     Text("Profile")
                 }
-                .tag(3)
+                .tag(4)
         }
         .accentColor(.blue)
     }

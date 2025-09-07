@@ -169,30 +169,81 @@ struct MetricTypeSelector: View {
     let availableTypes: [MetricType]
     
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "heart.text.square.fill")
+                    .font(.title3)
+                    .foregroundColor(.blue)
+                
+                Text("Health Metric")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+            }
+            
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
                 ForEach(availableTypes, id: \.self) { type in
-                    Button(action: { selectedType = type }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: type.icon)
-                                .font(.subheadline)
-                            Text(type.rawValue)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                        }
-                        .foregroundColor(selectedType == type ? .white : colorForType(type))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(selectedType == type ? colorForType(type) : colorForType(type).opacity(0.1))
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                    MetricTypeCard(
+                        type: type,
+                        isSelected: selectedType == type,
+                        onTap: { selectedType = type }
+                    )
                 }
             }
-            .padding(.horizontal, 20)
         }
+    }
+}
+
+struct MetricTypeCard: View {
+    let type: MetricType
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 12) {
+                // Icon with background
+                ZStack {
+                    Circle()
+                        .fill(isSelected ? colorForType(type) : colorForType(type).opacity(0.1))
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: type.icon)
+                        .font(.title2)
+                        .foregroundColor(isSelected ? .white : colorForType(type))
+                }
+                
+                // Title
+                Text(type.rawValue)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+                
+                // Unit
+                Text(type.unit)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? colorForType(type).opacity(0.1) : Color(.systemGray6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(isSelected ? colorForType(type) : Color.clear, lineWidth: 2)
+                    )
+            )
+            .scaleEffect(isSelected ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
     
     private func colorForType(_ type: MetricType) -> Color {

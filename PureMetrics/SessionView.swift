@@ -250,25 +250,15 @@ struct SessionView: View {
     private var entryFormSection: some View {
         VStack(spacing: 24) {
             // Header with improved design
-            VStack(spacing: 12) {
+            VStack(spacing: 16) {
                 HStack {
-                    ZStack {
-                        Circle()
-                            .fill(colorForMetricType(selectedMetricType).opacity(0.1))
-                            .frame(width: 50, height: 50)
-                        
-                        Image(systemName: selectedMetricType.icon)
-                            .font(.title2)
-                            .foregroundColor(colorForMetricType(selectedMetricType))
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Add Reading")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Add Health Reading")
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
                         
-                        Text("Enter your \(selectedMetricType.rawValue.lowercased()) value\(selectedMetricType == .bloodPressure ? "s" : "")")
+                        Text("Select a metric type and enter your values")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -282,6 +272,7 @@ struct SessionView: View {
                 selectedType: $selectedMetricType,
                 availableTypes: [.bloodPressure, .weight, .bloodSugar, .heartRate]
             )
+            .padding(.horizontal, 4)
             
             // Dynamic Input Fields based on selected metric type
             VStack(spacing: 20) {
@@ -294,39 +285,41 @@ struct SessionView: View {
                     )
                 }
                 
-                // Heart Rate
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Heart Rate")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.green)
+                // Heart Rate (only for Blood Pressure)
+                if selectedMetricType == .bloodPressure {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("Heart Rate")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.green)
+                            
+                            Spacer()
+                            
+                            Text("bpm")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Text("(Optional)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                         
-                        Spacer()
-                        
-                        Text("bpm")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text("(Optional)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        TextField("72", text: $heartRate)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .keyboardType(.numberPad)
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.green.opacity(0.08))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.green.opacity(0.2), lineWidth: 1.5)
+                                    )
+                            )
                     }
-                    
-                    TextField("72", text: $heartRate)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .multilineTextAlignment(.center)
-                        .keyboardType(.numberPad)
-                        .padding(.vertical, 16)
-                        .padding(.horizontal, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.green.opacity(0.08))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.green.opacity(0.2), lineWidth: 1.5)
-                                )
-                        )
                 }
             }
             
@@ -637,13 +630,22 @@ struct SessionView: View {
     // MARK: - Computed Properties
     
     private var canAddReading: Bool {
-        guard let systolicInt = Int(systolic),
-              let diastolicInt = Int(diastolic) else { return false }
-        
-        let heartRateInt = heartRate.isEmpty ? nil : Int(heartRate)
-        
-        return dataManager.isValidReading(systolic: systolicInt, diastolic: diastolicInt, heartRate: heartRateInt) &&
-               dataManager.canAddReading()
+        if selectedMetricType == .bloodPressure {
+            guard let systolicInt = Int(systolic),
+                  let diastolicInt = Int(diastolic) else { return false }
+            
+            let heartRateInt = heartRate.isEmpty ? nil : Int(heartRate)
+            
+            return dataManager.isValidReading(systolic: systolicInt, diastolic: diastolicInt, heartRate: heartRateInt) &&
+                   dataManager.canAddReading()
+        } else {
+            // For other health metrics, just check if we have a valid value
+            let valueString = bindingForMetricType(selectedMetricType).wrappedValue
+            guard let value = Double(valueString) else { return false }
+            
+            let metric = HealthMetric(type: selectedMetricType, value: value)
+            return metric.isValid && dataManager.canAddReading()
+        }
     }
     
     private var canSaveSession: Bool {

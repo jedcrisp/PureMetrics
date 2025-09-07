@@ -5,18 +5,14 @@ struct TrendsView: View {
     @ObservedObject var dataManager: BPDataManager
     @State private var selectedTimeRange: TimeRange = .week
     @State private var selectedMetric: Metric = .systolic
+    @State private var selectedExerciseType: ExerciseType = .benchPress
     
-    enum TimeRange: String, CaseIterable {
-        case week = "Week"
-        case month = "Month"
-        case threeMonths = "3 Months"
-        case year = "Year"
-    }
     
     enum Metric: String, CaseIterable {
         case systolic = "Systolic"
         case diastolic = "Diastolic"
         case heartRate = "Heart Rate"
+        case fitness = "Fitness"
     }
     
     var body: some View {
@@ -39,13 +35,24 @@ struct TrendsView: View {
                             // Metric Selector
                             metricSelector
                             
+                            // Exercise Type Selector (only for fitness metric)
+                            if selectedMetric == .fitness {
+                                exerciseTypeSelector
+                            }
+                            
                             // Combined BP Chart
                             if !filteredSessions.isEmpty {
                                 combinedChartSection
                             }
                             
                             // Individual Metric Chart
-                            if !filteredSessions.isEmpty {
+                            if selectedMetric == .fitness {
+                                if !fitnessChartData.isEmpty {
+                                    fitnessChartSection
+                                } else {
+                                    fitnessEmptyStateView
+                                }
+                            } else if !filteredSessions.isEmpty {
                                 chartSection
                             } else {
                                 emptyStateView
@@ -187,6 +194,37 @@ struct TrendsView: View {
                 }
             }
             .pickerStyle(SegmentedPickerStyle())
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
+    // MARK: - Exercise Type Selector
+    
+    private var exerciseTypeSelector: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "dumbbell.fill")
+                    .font(.title3)
+                    .foregroundColor(.orange)
+                
+                Text("Exercise Type")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+            }
+            
+            Picker("Exercise Type", selection: $selectedExerciseType) {
+                ForEach(ExerciseType.allCases, id: \.self) { exerciseType in
+                    Text(exerciseType.rawValue).tag(exerciseType)
+                }
+            }
+            .pickerStyle(MenuPickerStyle())
         }
         .padding(20)
         .background(
@@ -352,6 +390,65 @@ struct TrendsView: View {
         )
     }
     
+    // MARK: - Fitness Chart Section
+    
+    private var fitnessChartSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "dumbbell.fill")
+                    .font(.title2)
+                    .foregroundColor(.orange)
+                
+                Text("\(selectedExerciseType.rawValue) Progress")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                
+                Spacer()
+            }
+            
+            Chart {
+                ForEach(fitnessChartData, id: \.date) { dataPoint in
+                    LineMark(
+                        x: .value("Date", dataPoint.date),
+                        y: .value("Weight", dataPoint.averageWeight)
+                    )
+                    .foregroundStyle(.orange)
+                    .lineStyle(StrokeStyle(lineWidth: 3))
+                    
+                    PointMark(
+                        x: .value("Date", dataPoint.date),
+                        y: .value("Weight", dataPoint.averageWeight)
+                    )
+                    .foregroundStyle(.orange)
+                    .symbolSize(50)
+                }
+            }
+            .frame(height: 200)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { value in
+                    AxisGridLine()
+                    AxisValueLabel(format: .dateTime.month().day())
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let intValue = value.as(Int.self) {
+                            Text("\(intValue)")
+                        }
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
     // MARK: - Empty State View
     
     private var emptyStateView: some View {
@@ -366,6 +463,34 @@ struct TrendsView: View {
                 .foregroundColor(.primary)
             
             Text("Start recording your blood pressure to see trends over time.")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
+    // MARK: - Fitness Empty State View
+    
+    private var fitnessEmptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "dumbbell.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.orange.opacity(0.6))
+            
+            Text("No Fitness Data")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+            
+            Text("Start tracking your \(selectedExerciseType.rawValue.lowercased()) workouts to see progress over time.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -507,6 +632,8 @@ struct TrendsView: View {
                 value = session.averageDiastolic
             case .heartRate:
                 value = session.averageHeartRate ?? 0
+            case .fitness:
+                value = 0 // Fitness data is handled separately
             }
             
             return ChartDataPoint(
@@ -534,7 +661,13 @@ struct TrendsView: View {
             return .blue
         case .heartRate:
             return .green
+        case .fitness:
+            return .orange
         }
+    }
+    
+    private var fitnessChartData: [FitnessTrendData] {
+        dataManager.getFitnessTrends(for: selectedExerciseType, timeRange: selectedTimeRange)
     }
     
     private var averageValue: Double {

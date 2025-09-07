@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		796CC9702E6CEB1600391532 /* FitnessExercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC96E2E6CEB1600391532 /* FitnessExercise.swift */; };
+		796CC9712E6CEB1600391532 /* FitnessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC96F2E6CEB1600391532 /* FitnessView.swift */; };
 		A1B2C3D4E5F67890 /* PureMetricsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67891 /* PureMetricsApp.swift */; };
 		A1B2C3D4E5F67892 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67893 /* ContentView.swift */; };
 		A1B2C3D4E5F67894 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67895 /* Assets.xcassets */; };
@@ -24,6 +26,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		796CC96E2E6CEB1600391532 /* FitnessExercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessExercise.swift; sourceTree = "<group>"; };
+		796CC96F2E6CEB1600391532 /* FitnessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F67891 /* PureMetricsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureMetricsApp.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F67893 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F67895 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -63,6 +67,8 @@
 		A1B2C3D4E5F678AF /* PureMetrics */ = {
 			isa = PBXGroup;
 			children = (
+				796CC96E2E6CEB1600391532 /* FitnessExercise.swift */,
+				796CC96F2E6CEB1600391532 /* FitnessView.swift */,
 				A1B2C3D4E5F67891 /* PureMetricsApp.swift */,
 				A1B2C3D4E5F67893 /* ContentView.swift */,
 				A1B2C3D4E5F67899 /* BloodPressureReading.swift */,
@@ -173,6 +179,8 @@
 				A1B2C3D4E5F678A0 /* BPDataManager.swift in Sources */,
 				A1B2C3D4E5F678A2 /* ProfileView.swift in Sources */,
 				A1B2C3D4E5F678A4 /* TrendsView.swift in Sources */,
+				796CC9702E6CEB1600391532 /* FitnessExercise.swift in Sources */,
+				796CC9712E6CEB1600391532 /* FitnessView.swift in Sources */,
 				A1B2C3D4E5F678A6 /* DailyReadingsView.swift in Sources */,
 				A1B2C3D4E5F678A8 /* HealthMetric.swift in Sources */,
 				A1B2C3D4E5F678AA /* HealthMetricInput.swift in Sources */,
@@ -309,6 +317,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"PureMetrics/Preview Content\"";
@@ -338,6 +347,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"PureMetrics/Preview Content\"";
