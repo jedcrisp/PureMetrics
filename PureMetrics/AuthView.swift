@@ -12,21 +12,20 @@ struct AuthView: View {
     @State private var alertMessage = ""
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                LinearGradient(
-                    colors: [
-                        Color.orange.opacity(0.9),
-                        Color.orange.opacity(0.7),
-                        Color.red.opacity(0.6)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                ScrollView {
+        ZStack {
+            // Background
+            LinearGradient(
+                colors: [
+                    Color.orange.opacity(0.9),
+                    Color.orange.opacity(0.7),
+                    Color.red.opacity(0.6)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            ScrollView {
                     VStack(spacing: 32) {
                         // Header
                         VStack(spacing: 16) {
@@ -51,6 +50,9 @@ struct AuthView: View {
                             }
                             .pickerStyle(SegmentedPickerStyle())
                             .padding(.horizontal, 20)
+                            .onChange(of: isSignUp) { newValue in
+                                print("Picker changed to: \(newValue ? "Sign Up" : "Sign In")")
+                            }
                             
                             // Form Fields
                             VStack(spacing: 16) {
@@ -188,20 +190,18 @@ struct AuthView: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
-        }
-        .alert("Authentication", isPresented: $showingAlert) {
-            Button("OK") { }
-        } message: {
-            Text(alertMessage)
-        }
-        .onChange(of: authService.errorMessage) { errorMessage in
-            if let error = errorMessage {
-                alertMessage = error
-                showingAlert = true
+            .alert("Authentication", isPresented: $showingAlert) {
+                Button("OK") { }
+            } message: {
+                Text(alertMessage)
+            }
+            .onChange(of: authService.errorMessage) { errorMessage in
+                if let error = errorMessage {
+                    alertMessage = error
+                    showingAlert = true
+                }
             }
         }
-    }
     
     // MARK: - Computed Properties
     
@@ -220,6 +220,7 @@ struct AuthView: View {
     // MARK: - Actions
     
     private func handleAuth() {
+        print("Auth button tapped - isSignUp: \(isSignUp)")
         if isSignUp {
             handleSignUp()
         } else {
@@ -238,6 +239,8 @@ struct AuthView: View {
                 print("Sign up successful: \(user.uid)")
             case .failure(let error):
                 print("Sign up failed: \(error.localizedDescription)")
+                alertMessage = error.localizedDescription
+                showingAlert = true
             }
         }
     }
@@ -249,6 +252,8 @@ struct AuthView: View {
                 print("Sign in successful: \(user.uid)")
             case .failure(let error):
                 print("Sign in failed: \(error.localizedDescription)")
+                alertMessage = error.localizedDescription
+                showingAlert = true
             }
         }
     }
