@@ -7,9 +7,14 @@ struct WorkoutSelector: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedCategory: WorkoutCategory? = nil
     @State private var selectedDifficulty: WorkoutDifficulty? = nil
+    @State private var showFavoritesOnly = false
     
     private var filteredWorkouts: [PreBuiltWorkout] {
         var workouts = workoutManager.workouts
+        
+        if showFavoritesOnly {
+            workouts = workouts.filter { $0.isFavorite }
+        }
         
         if let category = selectedCategory {
             workouts = workouts.filter { $0.category == category }
@@ -20,6 +25,10 @@ struct WorkoutSelector: View {
         }
         
         return workouts
+    }
+    
+    private var favoriteWorkouts: [PreBuiltWorkout] {
+        return workoutManager.getFavoriteWorkouts()
     }
     
     var body: some View {
@@ -60,15 +69,30 @@ struct WorkoutSelector: View {
                         HStack(spacing: 12) {
                             FilterChip(
                                 title: "All",
-                                isSelected: selectedCategory == nil,
-                                onTap: { selectedCategory = nil }
+                                isSelected: selectedCategory == nil && !showFavoritesOnly,
+                                onTap: { 
+                                    selectedCategory = nil
+                                    showFavoritesOnly = false
+                                }
+                            )
+                            
+                            FilterChip(
+                                title: "⭐ Favorites",
+                                isSelected: showFavoritesOnly,
+                                onTap: { 
+                                    showFavoritesOnly = true
+                                    selectedCategory = nil
+                                }
                             )
                             
                             ForEach(WorkoutCategory.allCases, id: \.self) { category in
                                 FilterChip(
                                     title: category.rawValue,
-                                    isSelected: selectedCategory == category,
-                                    onTap: { selectedCategory = category }
+                                    isSelected: selectedCategory == category && !showFavoritesOnly,
+                                    onTap: { 
+                                        selectedCategory = category
+                                        showFavoritesOnly = false
+                                    }
                                 )
                             }
                         }
@@ -110,6 +134,9 @@ struct WorkoutSelector: View {
                                 selectedWorkout = workout
                                 onWorkoutSelected(workout)
                                 presentationMode.wrappedValue.dismiss()
+                            },
+                            onFavorite: {
+                                workoutManager.toggleFavorite(workout)
                             }
                         )
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -149,6 +176,7 @@ struct WorkoutCard: View {
     let workout: PreBuiltWorkout
     let isSelected: Bool
     let onTap: () -> Void
+    let onFavorite: (() -> Void)?
     
     var body: some View {
         Button(action: onTap) {
@@ -156,7 +184,7 @@ struct WorkoutCard: View {
                 // Header
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(workout.name)
+                        Text(workout.displayName)
                             .font(.headline)
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
@@ -168,10 +196,23 @@ struct WorkoutCard: View {
                     
                     Spacer()
                     
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.blue)
-                            .font(.title2)
+                    HStack(spacing: 12) {
+                        // Favorite Button
+                        if let onFavorite = onFavorite {
+                            Button(action: onFavorite) {
+                                Image(systemName: workout.isFavorite ? "heart.fill" : "heart")
+                                    .font(.title3)
+                                    .foregroundColor(workout.isFavorite ? .red : .secondary)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        
+                        // Selection Indicator
+                        if isSelected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.title2)
+                        }
                     }
                 }
                 

@@ -10,9 +10,17 @@ struct PreBuiltWorkout: Identifiable, Codable {
     let exercises: [WorkoutExercise]
     let estimatedDuration: Int // in minutes
     let difficulty: WorkoutDifficulty
+    var isFavorite: Bool = false
     
     enum CodingKeys: String, CodingKey {
-        case name, category, description, exercises, estimatedDuration, difficulty
+        case name, category, description, exercises, estimatedDuration, difficulty, isFavorite
+    }
+    
+    var displayName: String {
+        if isFavorite {
+            return "⭐ \(name)"
+        }
+        return name
     }
 }
 
@@ -95,6 +103,7 @@ class PreBuiltWorkoutManager: ObservableObject {
     
     init() {
         loadPreBuiltWorkouts()
+        loadFavorites()
     }
     
     private func loadPreBuiltWorkouts() {
@@ -541,6 +550,34 @@ class PreBuiltWorkoutManager: ObservableObject {
     
     func getWorkouts(for difficulty: WorkoutDifficulty) -> [PreBuiltWorkout] {
         return workouts.filter { $0.difficulty == difficulty }
+    }
+    
+    func getFavoriteWorkouts() -> [PreBuiltWorkout] {
+        return workouts.filter { $0.isFavorite }
+    }
+    
+    func toggleFavorite(_ workout: PreBuiltWorkout) {
+        if let index = workouts.firstIndex(where: { $0.id == workout.id }) {
+            workouts[index].isFavorite.toggle()
+            saveFavorites()
+        }
+    }
+    
+    private func saveFavorites() {
+        // Save favorite status to UserDefaults
+        let favoriteIds = workouts.filter { $0.isFavorite }.map { $0.id.uuidString }
+        UserDefaults.standard.set(favoriteIds, forKey: "PreBuiltWorkoutFavorites")
+    }
+    
+    private func loadFavorites() {
+        // Load favorite status from UserDefaults
+        guard let favoriteIds = UserDefaults.standard.array(forKey: "PreBuiltWorkoutFavorites") as? [String] else { return }
+        
+        for (index, workout) in workouts.enumerated() {
+            if favoriteIds.contains(workout.id.uuidString) {
+                workouts[index].isFavorite = true
+            }
+        }
     }
 }
 
