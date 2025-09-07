@@ -15,5 +15,19 @@
 			</array>
 		</dict>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>PureMetrics uses Face ID to protect your health data</string>
+	<key>NSBiometricUsageDescription</key>
+	<string>PureMetrics uses biometric authentication to secure your health information</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>PureMetrics accesses your health data to provide insights and trends</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>PureMetrics updates your health data to keep it synchronized</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PureMetrics uses the camera to take profile photos</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PureMetrics accesses your photo library to select profile photos</string>
 </dict>
 </plist>
