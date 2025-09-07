@@ -369,12 +369,25 @@ class BPDataManager: ObservableObject {
     }
     
     func saveCurrentFitnessSession() {
-        guard !currentFitnessSession.exerciseSessions.isEmpty else { return }
+        print("=== SAVING CURRENT FITNESS SESSION ===")
+        print("Current session exercise count: \(currentFitnessSession.exerciseSessions.count)")
+        for (index, exercise) in currentFitnessSession.exerciseSessions.enumerated() {
+            print("  Exercise \(index) (\(exercise.exerciseType.rawValue)): \(exercise.sets.count) sets")
+            for (setIndex, set) in exercise.sets.enumerated() {
+                print("    Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0)")
+            }
+        }
+        
+        guard !currentFitnessSession.exerciseSessions.isEmpty else { 
+            print("No exercises to save, returning")
+            return 
+        }
         
         currentFitnessSession.complete()
         fitnessSessions.insert(currentFitnessSession, at: 0)
         saveFitnessSessions()
         currentFitnessSession = FitnessSession()
+        print("=== END SAVING CURRENT FITNESS SESSION ===")
     }
     
     func clearCurrentFitnessSession() {
