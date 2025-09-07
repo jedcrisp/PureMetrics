@@ -282,10 +282,8 @@ class BPDataManager: ObservableObject {
             let data = try JSONEncoder().encode(healthMetrics)
             userDefaults.set(data, forKey: "HealthMetrics")
             
-            // Auto-sync to Firestore if user is authenticated
-            if authService.isAuthenticated {
-                syncHealthMetricsToFirebase()
-            }
+            // Don't auto-sync individual metrics - let the full sync handle it
+            // This prevents duplicate entries in Firebase
         } catch {
             print("Error saving health metrics: \(error)")
         }
@@ -302,38 +300,6 @@ class BPDataManager: ObservableObject {
         }
     }
     
-    private func syncHealthMetricsToFirebase() {
-        guard authService.isAuthenticated else { return }
-        
-        // Convert health metrics to unified data structure with correct data types
-        let unifiedData = healthMetrics.map { metric in
-            let dataType: HealthDataType
-            switch metric.type {
-            case .weight: dataType = .weight
-            case .bloodPressure: dataType = .bloodPressureSession
-            case .bloodSugar: dataType = .bloodSugar
-            case .heartRate: dataType = .heartRate
-            }
-            
-            return UnifiedHealthData(
-                id: metric.id,
-                dataType: dataType,
-                metricType: metric.type,
-                value: metric.value,
-                unit: metric.type.unit,
-                timestamp: metric.timestamp
-            )
-        }
-        
-        firestoreService.saveHealthData(unifiedData) { result in
-            switch result {
-            case .success:
-                print("Successfully synced health metrics to Firebase with organized structure")
-            case .failure(let error):
-                print("Error syncing health metrics to Firebase: \(error)")
-            }
-        }
-    }
     
     func removeReading(at index: Int) {
         currentSession.removeReading(at: index)

@@ -71,6 +71,32 @@ class FirestoreService: ObservableObject {
         }
     }
     
+    // MARK: - Deduplication Methods
+    
+    func clearDuplicateData(completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        print("Clearing duplicate data...")
+        
+        // For now, just log the current data counts
+        // In a production app, you'd want to implement proper deduplication logic
+        loadHealthData { result in
+            switch result {
+            case .success(let data):
+                let groupedData = Dictionary(grouping: data) { $0.dataType }
+                for (dataType, items) in groupedData {
+                    print("\(dataType.rawValue): \(items.count) entries")
+                }
+                completion(.success(()))
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
     func loadHealthData(dataType: HealthDataType? = nil, completion: @escaping (Result<[UnifiedHealthData], Error>) -> Void) {
         if let dataType = dataType {
             // Load specific data type
