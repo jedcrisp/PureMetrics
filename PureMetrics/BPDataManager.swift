@@ -1,5 +1,7 @@
 import Foundation
 import SwiftUI
+import FirebaseAuth
+import FirebaseFirestore
 
 // MARK: - BP Category Enum
 
@@ -75,11 +77,19 @@ class BPDataManager: ObservableObject {
     @Published var sessions: [BPSession] = []
     @Published var currentFitnessSession: FitnessSession
     @Published var fitnessSessions: [FitnessSession] = []
+    @Published var userProfile: UserProfile?
+    @Published var isSyncing = false
+    @Published var syncError: String?
     
     private let maxReadingsPerSession = Int.max
     private let userDefaults = UserDefaults.standard
     private let sessionsKey = "BPSessions"
     private let fitnessSessionsKey = "FitnessSessions"
+    
+    // Firebase services
+    private let firestoreService = FirestoreService()
+    private let storageService = StorageService()
+    private let authService = AuthService()
     
     init() {
         self.currentSession = BPSession()
@@ -414,6 +424,101 @@ class BPDataManager: ObservableObject {
         }
     }
     
+    // MARK: - Firebase Sync
+    
+    func syncToFirebase() {
+        guard authService.isAuthenticated else { return }
+        
+        isSyncing = true
+        syncError = nil
+        
+        // Create or update user profile
+        let profile = UserProfile(
+            id: authService.currentUser?.uid ?? "",
+            email: authService.currentUser?.email ?? "",
+            displayName: authService.currentUser?.displayName,
+            photoURL: authService.currentUser?.photoURL?.absoluteString
+        )
+        
+        firestoreService.syncAllData(
+            bpSessions: sessions,
+            fitnessSessions: fitnessSessions,
+            userProfile: profile
+        )
+        
+        isSyncing = false
+    }
+    
+    func loadFromFirebase() {
+        guard authService.isAuthenticated else { return }
+        
+        isSyncing = true
+        syncError = nil
+        
+        firestoreService.loadAllData { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isSyncing = false
+                
+                switch result {
+                case .success(let data):
+                    self?.sessions = data.bpSessions
+                    self?.fitnessSessions = data.fitnessSessions
+                    self?.userProfile = data.userProfile
+                    self?.saveSessions() // Update local storage
+                    self?.saveFitnessSessions()
+                case .failure(let error):
+                    self?.syncError = error.localizedDescription
+                }
+            }
+        }
+    }
+    
+    func uploadProfileImage(_ image: UIImage) {
+        storageService.uploadProfileImage(image) { [weak self] result in
+            switch result {
+            case .success(let urlString):
+                // Update user profile with new photo URL
+                self?.authService.updateProfile(displayName: nil, photoURL: URL(string: urlString)) { _ in }
+            case .failure(let error):
+                self?.syncError = error.localizedDescription
+            }
+        }
+    }
+    
+    func uploadWorkoutImage(_ image: UIImage, workoutID: String) {
+        storageService.uploadWorkoutImage(image, workoutID: workoutID) { [weak self] result in
+            switch result {
+            case .success(let urlString):
+                print("Workout image uploaded: \(urlString)")
+            case .failure(let error):
+                self?.syncError = error.localizedDescription
+            }
+        }
+    }
+    
+    func createDataBackup() {
+        let backupData = DataBackup(
+            bpSessions: sessions,
+            fitnessSessions: fitnessSessions,
+            userProfile: userProfile,
+            createdAt: Date()
+        )
+        
+        do {
+            let data = try JSONEncoder().encode(backupData)
+            storageService.uploadDataBackup(data) { [weak self] result in
+                switch result {
+                case .success(let urlString):
+                    print("Backup created: \(urlString)")
+                case .failure(let error):
+                    self?.syncError = error.localizedDescription
+                }
+            }
+        } catch {
+            syncError = "Failed to create backup: \(error.localizedDescription)"
+        }
+    }
+    
     // MARK: - Validation
     
     func isValidReading(systolic: Int, diastolic: Int, heartRate: Int? = nil) -> Bool {
@@ -452,4 +557,14 @@ enum TimeRange: String, CaseIterable {
     case month = "Month"
     case threeMonths = "3 Months"
     case year = "Year"
+}
+
+// MARK: - Data Backup Model
+
+struct DataBackup: Codable {
+    let bpSessions: [BPSession]
+    let fitnessSessions: [FitnessSession]
+    let userProfile: UserProfile?
+    let createdAt: Date
+    let version: String = "1.0"
 }

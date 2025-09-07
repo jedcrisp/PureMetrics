@@ -43,10 +43,9 @@ playground.xcworkspace
 # *.xcodeproj
 #
 # Xcode automatically generates this directory with a .xcworkspacedata file and xcuserdata
-# hence it is not needed unless you have added a package configuration file to your project
-# .swiftpm
-
-.build/
+# dir with the user's specific settings, so you should not add them to source control.
+# *.xcworkspace
+# *.xcworkspace/xcuserdata/
 
 # CocoaPods
 #
@@ -89,5 +88,94 @@ fastlane/test_output
 
 iOSInjectionProject/
 
+# Firebase Configuration Files
+GoogleService-Info.plist
+google-services.json
+GoogleService-Info-*.plist
+
+# Firebase Security Rules (if stored locally)
+firestore.rules
+storage.rules
+firebase.json
+.firebaserc
+
+# API Keys and Secrets
+*.apikey
+*.secret
+secrets.plist
+Config.plist
+
+# Environment Variables
+.env
+.env.local
+.env.development
+.env.production
+
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+
+# Temporary folders
+tmp/
+temp/

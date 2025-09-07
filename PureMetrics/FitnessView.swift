@@ -16,6 +16,7 @@ struct FitnessView: View {
     @State private var timer: Timer?
     @State private var timerUpdate: Int = 0
     @State private var isWorkoutTemplateLoaded: Bool = false
+    @State private var showingDeleteConfirmation: Bool = false
     
     var body: some View {
         NavigationView {
@@ -107,6 +108,16 @@ struct FitnessView: View {
                 isWorkoutTemplateLoaded = true
                 showingWorkoutSelector = false
             }
+        }
+        .alert("Delete Workout Template", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                dataManager.clearWorkoutTemplate()
+                exerciseSetInputs.removeAll()
+                isWorkoutTemplateLoaded = false
+            }
+        } message: {
+            Text("Are you sure you want to remove the current workout template? This will delete all exercises from the template.")
         }
     }
     
@@ -342,52 +353,20 @@ struct FitnessView: View {
                     .fontWeight(.bold)
                 
                 Spacer()
+                
+                // Delete Template Button (when template is loaded)
+                if isWorkoutTemplateLoaded {
+                    Button(action: {
+                        showingDeleteConfirmation = true
+                    }) {
+                        Image(systemName: "trash.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.red)
+                    }
+                }
             }
             
             VStack(spacing: 12) {
-                if isWorkoutTemplateLoaded {
-                    // Delete Template Button
-                    Button(action: {
-                        dataManager.clearWorkoutTemplate()
-                        exerciseSetInputs.removeAll()
-                        isWorkoutTemplateLoaded = false
-                    }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "trash.circle.fill")
-                                .font(.title3)
-                            Text("Delete Workout Template")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(
-                                    LinearGradient(colors: [Color.red, Color.red.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
-                                )
-                        )
-                        .foregroundColor(.white)
-                        .shadow(color: .red.opacity(0.3), radius: 8, x: 0, y: 4)
-                    }
-                    
-                    // Divider
-                    HStack {
-                        Rectangle()
-                            .fill(Color(.systemGray4))
-                            .frame(height: 1)
-                        
-                        Text("OR")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 12)
-                        
-                        Rectangle()
-                            .fill(Color(.systemGray4))
-                            .frame(height: 1)
-                    }
-                }
                 
                 // Pre-built Workout Button
                 Button(action: {
