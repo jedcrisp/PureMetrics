@@ -46,7 +46,7 @@ class FirestoreService: ObservableObject {
                     dataDict["updatedAt"] = Timestamp(date: Date())
                     
                     // Encrypt sensitive data
-                    if let encryptedData = try? encryptionService.encryptHealthData(healthData) {
+                    if let encryptedData = try? self.encryptionService.encryptHealthData(healthData) {
                         dataDict["encryptedData"] = encryptedData
                         dataDict["isEncrypted"] = true
                     }
@@ -111,7 +111,7 @@ class FirestoreService: ObservableObject {
                     if let isEncrypted = documentData["isEncrypted"] as? Bool, isEncrypted,
                        let encryptedString = documentData["encryptedData"] as? String {
                         // Decrypt the data
-                        let decryptedData = try encryptionService.decryptHealthData(encryptedString, as: UnifiedHealthData.self)
+                        let decryptedData = try self.encryptionService.decryptHealthData(encryptedString, as: UnifiedHealthData.self)
                         healthData.append(decryptedData)
                     } else {
                         // Fallback to regular decoding
