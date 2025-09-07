@@ -35,13 +35,7 @@ struct SessionView: View {
                             entryFormSection
                             
                             
-                            // Session Average
-                            if !dataManager.currentSession.readings.isEmpty {
-                                sessionAverageSection
-                            }
                             
-                            // Action Buttons
-                            actionButtonsSection
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
@@ -250,144 +244,7 @@ struct SessionView: View {
     }
     
     
-    // MARK: - Session Average Section
     
-    private var sessionAverageSection: some View {
-        VStack(spacing: 20) {
-            HStack {
-                Image(systemName: "chart.bar.fill")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                
-                Text("Session Average")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                
-                Spacer()
-            }
-            
-            HStack(spacing: 24) {
-                VStack(spacing: 8) {
-                    Text("\(Int(dataManager.currentSession.averageSystolic.rounded()))")
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    Text("Systolic")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white.opacity(0.9))
-                    Text("mmHg")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-                }
-                
-                Text("/")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(.white.opacity(0.8))
-                
-                VStack(spacing: 8) {
-                    Text("\(Int(dataManager.currentSession.averageDiastolic.rounded()))")
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    Text("Diastolic")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white.opacity(0.9))
-                    Text("mmHg")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-                }
-                
-                if let avgHeartRate = dataManager.currentSession.averageHeartRate {
-                    VStack(spacing: 8) {
-                        Text("\(Int(avgHeartRate.rounded()))")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        Text("Heart Rate")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.white.opacity(0.9))
-                        Text("bpm")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                }
-            }
-        }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [Color.blue, Color.purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .shadow(color: .blue.opacity(0.3), radius: 12, x: 0, y: 6)
-        )
-    }
-    
-    // MARK: - Action Buttons Section
-    
-    private var actionButtonsSection: some View {
-        VStack(spacing: 12) {
-            if dataManager.currentSession.isActive {
-                HStack(spacing: 12) {
-                    Button(action: stopSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "stop.circle.fill")
-                            Text("Stop Session")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.red)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                    }
-                    
-                    Button(action: saveSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                            Text("Save & Complete")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(canSaveSession ? Color.blue : Color.gray)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                    }
-                    .disabled(!canSaveSession)
-                }
-            }
-            
-            if !dataManager.currentSession.readings.isEmpty {
-                Button(action: clearSession) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "trash.circle.fill")
-                            .font(.title3)
-                        Text("Clear Session")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.orange)
-                    )
-                    .foregroundColor(.white)
-                    .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-            }
-        }
-    }
     
     // MARK: - Computed Properties
     
@@ -398,44 +255,20 @@ struct SessionView: View {
             
             let heartRateInt = heartRate.isEmpty ? nil : Int(heartRate)
             
-            return dataManager.isValidReading(systolic: systolicInt, diastolic: diastolicInt, heartRate: heartRateInt) &&
-                   dataManager.canAddReading()
+            return dataManager.isValidReading(systolic: systolicInt, diastolic: diastolicInt, heartRate: heartRateInt)
         } else {
             // For other health metrics, just check if we have a valid value
             let valueString = bindingForMetricType(selectedMetricType).wrappedValue
             guard let value = Double(valueString) else { return false }
             
             let metric = HealthMetric(type: selectedMetricType, value: value)
-            return metric.isValid && dataManager.canAddReading()
+            return metric.isValid
         }
     }
     
-    private var canSaveSession: Bool {
-        return !dataManager.currentSession.readings.isEmpty
-    }
     
     
     // MARK: - Actions
-    
-    private func startSession() {
-        dataManager.startSession()
-    }
-    
-    private func startNewSession() {
-        if dataManager.currentSession.isActive {
-            // If there are readings, save them first
-            if !dataManager.currentSession.readings.isEmpty {
-                dataManager.saveCurrentSession()
-            } else {
-                dataManager.clearCurrentSession()
-            }
-        }
-        dataManager.startSession()
-    }
-    
-    private func stopSession() {
-        dataManager.stopSession()
-    }
     
     private func addReading() {
         let timestamp = useManualTime ? combineDateAndTime(manualDate, manualTime) : nil
@@ -452,12 +285,9 @@ struct SessionView: View {
             
             if dataManager.addReading(systolic: systolicInt, diastolic: diastolicInt, heartRate: heartRateInt, timestamp: timestamp) {
                 clearForm()
+                dismissKeyboard()
             } else {
-                if dataManager.currentSession.readings.count >= 5 {
-                    showAlert("Maximum 5 readings per session allowed.")
-                } else {
-                    showAlert("Invalid reading values. Please check your input.")
-                }
+                showAlert("Invalid reading values. Please check your input.")
             }
         } else {
             // Handle other health metrics
@@ -469,6 +299,7 @@ struct SessionView: View {
             
             if dataManager.addHealthMetric(type: selectedMetricType, value: value, timestamp: timestamp) {
                 clearForm()
+                dismissKeyboard()
             } else {
                 showAlert("Invalid \(selectedMetricType.rawValue.lowercased()) value. Please check your input.")
             }
@@ -498,15 +329,6 @@ struct SessionView: View {
         manualTime = Date()
     }
     
-    private func clearSession() {
-        dataManager.clearCurrentSession()
-        clearForm()
-    }
-    
-    private func saveSession() {
-        dataManager.saveCurrentSession()
-        clearForm()
-    }
     
     private func showAlert(_ message: String) {
         alertMessage = message
@@ -527,10 +349,22 @@ struct SessionView: View {
     
     private func bindingForMetricType(_ type: MetricType) -> Binding<String> {
         switch type {
-        case .weight: return $weight
-        case .bloodSugar: return $bloodSugar
-        case .heartRate: return $additionalHeartRate
-        case .bloodPressure: return $systolic // This shouldn't be used
+        case .weight: return Binding(
+            get: { weight },
+            set: { weight = $0 }
+        )
+        case .bloodSugar: return Binding(
+            get: { bloodSugar },
+            set: { bloodSugar = $0 }
+        )
+        case .heartRate: return Binding(
+            get: { additionalHeartRate },
+            set: { additionalHeartRate = $0 }
+        )
+        case .bloodPressure: return Binding(
+            get: { systolic },
+            set: { systolic = $0 }
+        )
         }
     }
     
@@ -541,5 +375,9 @@ struct SessionView: View {
         weight = ""
         bloodSugar = ""
         additionalHeartRate = ""
+    }
+    
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }

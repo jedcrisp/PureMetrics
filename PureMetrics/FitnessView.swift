@@ -17,6 +17,7 @@ struct FitnessView: View {
     @State private var timerUpdate: Int = 0
     @State private var isWorkoutTemplateLoaded: Bool = false
     @State private var showingDeleteConfirmation: Bool = false
+    @State private var showingCompleteConfirmation: Bool = false
     
     var body: some View {
         NavigationView {
@@ -118,6 +119,14 @@ struct FitnessView: View {
             }
         } message: {
             Text("Are you sure you want to remove the current workout template? This will delete all exercises from the template.")
+        }
+        .alert("Complete Session", isPresented: $showingCompleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Complete", role: .none) {
+                saveFitnessSession()
+            }
+        } message: {
+            Text("Are you sure you want to complete and save this fitness session? This will end the current session and save all your progress.")
         }
     }
     
@@ -228,33 +237,7 @@ struct FitnessView: View {
     // MARK: - Session Info Section
     
     private var sessionInfoSection: some View {
-        HStack(spacing: 20) {
-            // Exercises Count
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.orange.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                    
-                    Text("\(dataManager.currentFitnessSession.totalExercises)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.orange)
-                }
-                
-                VStack(spacing: 2) {
-                    Text("Exercises")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    Text("Added")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
-            
+        HStack(spacing: 40) {
             // Sets Count
             VStack(spacing: 8) {
                 ZStack {
@@ -279,8 +262,6 @@ struct FitnessView: View {
                 }
             }
             
-            Spacer()
-            
             // Volume Count
             VStack(spacing: 8) {
                 ZStack {
@@ -304,8 +285,6 @@ struct FitnessView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
-            Spacer()
             
             // Cardio Time
             VStack(spacing: 8) {
@@ -882,100 +861,220 @@ struct FitnessView: View {
     // MARK: - Action Buttons Section
     
     private var actionButtonsSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 20) {
+            // Show Start Session button if there are exercises but no active session
+            if !dataManager.currentFitnessSession.exerciseSessions.isEmpty && !dataManager.currentFitnessSession.isActive && !dataManager.currentFitnessSession.isPaused {
+                Button(action: startFitnessSession) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "play.circle.fill")
+                            .font(.title3)
+                        Text("Start Session")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.green, Color.green.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
+                    )
+                    .foregroundColor(.white)
+                }
+            }
+            
             if dataManager.currentFitnessSession.isActive {
-                HStack(spacing: 12) {
-                    Button(action: pauseFitnessSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "pause.circle.fill")
-                            Text("Pause Session")
+                VStack(spacing: 16) {
+                    // Primary action buttons row
+                    HStack(spacing: 16) {
+                        Button(action: pauseFitnessSession) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "pause.circle.fill")
+                                    .font(.title3)
+                                Text("Pause")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.yellow, Color.yellow.opacity(0.8)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: .yellow.opacity(0.3), radius: 8, x: 0, y: 4)
+                            )
+                            .foregroundColor(.white)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.yellow)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
+                        
+                        Button(action: stopFitnessSession) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "stop.circle.fill")
+                                    .font(.title3)
+                                Text("Stop")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.red, Color.red.opacity(0.8)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: .red.opacity(0.3), radius: 8, x: 0, y: 4)
+                            )
+                            .foregroundColor(.white)
+                        }
                     }
                     
-                    Button(action: stopFitnessSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "stop.circle.fill")
-                            Text("Stop Session")
+                    // Secondary action buttons row
+                    HStack(spacing: 16) {
+                        Button(action: saveSessionWithoutClosing) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.title3)
+                                Text("Save Session")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: canSaveFitnessSession ? [Color.blue, Color.blue.opacity(0.8)] : [Color.gray, Color.gray.opacity(0.8)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: canSaveFitnessSession ? .blue.opacity(0.3) : .gray.opacity(0.3), radius: 8, x: 0, y: 4)
+                            )
+                            .foregroundColor(.white)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.red)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                    }
-                    
-                    Button(action: saveFitnessSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                            Text("Save & Complete")
+                        .disabled(!canSaveFitnessSession)
+                        
+                        Button(action: {
+                            showingCompleteConfirmation = true
+                        }) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.title3)
+                                Text("Complete")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: canSaveFitnessSession ? [Color.green, Color.green.opacity(0.8)] : [Color.gray, Color.gray.opacity(0.8)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: canSaveFitnessSession ? .green.opacity(0.3) : .gray.opacity(0.3), radius: 8, x: 0, y: 4)
+                            )
+                            .foregroundColor(.white)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(canSaveFitnessSession ? Color.orange : Color.gray)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
+                        .disabled(!canSaveFitnessSession)
                     }
-                    .disabled(!canSaveFitnessSession)
                 }
             } else if dataManager.currentFitnessSession.isPaused {
-                HStack(spacing: 12) {
-                    Button(action: resumeFitnessSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "play.circle.fill")
-                            Text("Resume Session")
+                VStack(spacing: 16) {
+                    // Primary action buttons row
+                    HStack(spacing: 16) {
+                        Button(action: resumeFitnessSession) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "play.circle.fill")
+                                    .font(.title3)
+                                Text("Resume")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.green, Color.green.opacity(0.8)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
+                            )
+                            .foregroundColor(.white)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.green)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
+                        
+                        Button(action: stopFitnessSession) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "stop.circle.fill")
+                                    .font(.title3)
+                                Text("Stop")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.red, Color.red.opacity(0.8)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: .red.opacity(0.3), radius: 8, x: 0, y: 4)
+                            )
+                            .foregroundColor(.white)
+                        }
                     }
                     
-                    Button(action: stopFitnessSession) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "stop.circle.fill")
-                            Text("Stop Session")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.red)
-                        )
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                    }
-                    
-                    Button(action: saveFitnessSession) {
-                        HStack(spacing: 8) {
+                    // Secondary action button
+                    Button(action: {
+                        showingCompleteConfirmation = true
+                    }) {
+                        HStack(spacing: 10) {
                             Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)
                             Text("Save & Complete")
+                                .font(.headline)
+                                .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, 16)
                         .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(canSaveFitnessSession ? Color.orange : Color.gray)
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(
+                                    LinearGradient(
+                                        colors: canSaveFitnessSession ? [Color.green, Color.green.opacity(0.8)] : [Color.gray, Color.gray.opacity(0.8)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .shadow(color: canSaveFitnessSession ? .green.opacity(0.3) : .gray.opacity(0.3), radius: 8, x: 0, y: 4)
                         )
                         .foregroundColor(.white)
-                        .fontWeight(.semibold)
                     }
                     .disabled(!canSaveFitnessSession)
                 }
@@ -983,7 +1082,7 @@ struct FitnessView: View {
             
             if !dataManager.currentFitnessSession.exerciseSessions.isEmpty {
                 Button(action: clearFitnessSession) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         Image(systemName: "trash.circle.fill")
                             .font(.title3)
                         Text("Clear Session")
@@ -994,10 +1093,16 @@ struct FitnessView: View {
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.red)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.red, Color.red.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .shadow(color: .red.opacity(0.3), radius: 8, x: 0, y: 4)
                     )
                     .foregroundColor(.white)
-                    .shadow(color: .red.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
             }
         }
@@ -1063,9 +1168,13 @@ struct FitnessView: View {
                 dataManager.clearCurrentFitnessSession()
             }
         }
-        dataManager.startFitnessSession()
+        // Don't auto-start the session - let user add exercises first
         isWorkoutTemplateLoaded = false
         exerciseSetInputs.removeAll()
+    }
+    
+    private func startFitnessSession() {
+        dataManager.startFitnessSession()
     }
     
     private func pauseFitnessSession() {
@@ -1108,6 +1217,37 @@ struct FitnessView: View {
         }
         
         dataManager.saveCurrentFitnessSession()
+    }
+    
+    private func saveSessionWithoutClosing() {
+        // Collect any sets that were entered in the UI and add them to the current session
+        for (exerciseIndex, exerciseSession) in dataManager.currentFitnessSession.exerciseSessions.enumerated() {
+            if let setInputs = exerciseSetInputs[exerciseIndex] {
+                var sets: [ExerciseSet] = []
+                for setInput in setInputs {
+                    if setInput.isValid {
+                        let repsInt = setInput.reps.isEmpty ? nil : Int(setInput.reps)
+                        let weightDouble = setInput.weight.isEmpty ? nil : Double(setInput.weight)
+                        let timeInterval = setInput.time.isEmpty ? nil : TimeInterval(setInput.time)
+                        
+                        let set = ExerciseSet(
+                            reps: repsInt,
+                            weight: weightDouble,
+                            time: timeInterval,
+                            timestamp: Date()
+                        )
+                        sets.append(set)
+                    }
+                }
+                
+                if !sets.isEmpty {
+                    dataManager.addSetsToCurrentSession(exerciseIndex: exerciseIndex, sets: sets)
+                }
+            }
+        }
+        
+        // Save the session data to Firestore without closing the session
+        dataManager.saveCurrentSessionToFirestore()
     }
     
     private func clearFitnessSession() {

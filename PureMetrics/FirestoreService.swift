@@ -6,6 +6,7 @@ import Combine
 class FirestoreService: ObservableObject {
     private let db = Firestore.firestore()
     private let authService = AuthService()
+    private let encryptionService = EncryptionService.shared
     
     // MARK: - Collection References
     
@@ -15,16 +16,259 @@ class FirestoreService: ObservableObject {
     
     private func userCollection() -> CollectionReference? {
         guard let userID = userID else { return nil }
-        return db.collection("users").document(userID).collection("data")
+        return db.collection("users").document(userID).collection("health_data")
     }
     
-    // MARK: - Blood Pressure Sessions
+    private func dataTypeCollection(_ dataType: HealthDataType) -> CollectionReference? {
+        guard let userID = userID else { return nil }
+        return db.collection("users").document(userID).collection("health_data").document(dataType.rawValue).collection("data")
+    }
+    
+    // MARK: - Unified Health Data Management
+    
+    func saveHealthData(_ data: [UnifiedHealthData], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        // Group data by type for organized storage
+        let groupedData = Dictionary(grouping: data) { $0.dataType }
+        
+        let batch = db.batch()
+        var totalDocuments = 0
+        
+        for (dataType, dataItems) in groupedData {
+            guard let collection = dataTypeCollection(dataType) else {
+                print("Error: No authenticated user for saving \(dataType.rawValue) data")
+                continue
+            }
+            
+            for (index, healthData) in dataItems.enumerated() {
+                do {
+                    var dataDict = try Firestore.Encoder().encode(healthData)
+                    dataDict["createdAt"] = Timestamp(date: healthData.timestamp)
+                    dataDict["updatedAt"] = Timestamp(date: Date())
+                    
+                    // Encrypt sensitive data
+                    if let encryptedData = try? encryptionService.encryptHealthData(healthData) {
+                        dataDict["encryptedData"] = encryptedData
+                        dataDict["isEncrypted"] = true
+                    }
+                    
+                    let docRef = collection.document(healthData.id.uuidString)
+                    batch.setData(dataDict, forDocument: docRef)
+                    totalDocuments += 1
+                } catch {
+                    print("Error encoding \(dataType.rawValue) data \(index): \(error)")
+                }
+            }
+        }
+        
+        batch.commit { error in
+            if let error = error {
+                print("Error saving health data: \(error)")
+                completion(.failure(error))
+            } else {
+                print("Successfully saved \(totalDocuments) health data entries across \(groupedData.count) data types")
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func loadHealthData(dataType: HealthDataType? = nil, completion: @escaping (Result<[UnifiedHealthData], Error>) -> Void) {
+        if let dataType = dataType {
+            // Load specific data type
+            loadSpecificDataType(dataType, completion: completion)
+        } else {
+            // Load all data types
+            loadAllDataTypes(completion: completion)
+        }
+    }
+    
+    private func loadSpecificDataType(_ dataType: HealthDataType, completion: @escaping (Result<[UnifiedHealthData], Error>) -> Void) {
+        guard let collection = dataTypeCollection(dataType) else {
+            print("Error: No authenticated user for loading \(dataType.rawValue) data")
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+            if let error = error {
+                print("Error loading \(dataType.rawValue) data: \(error)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let documents = snapshot?.documents else {
+                print("No \(dataType.rawValue) data found")
+                completion(.success([]))
+                return
+            }
+            
+            var healthData: [UnifiedHealthData] = []
+            
+            for document in documents {
+                do {
+                    let documentData = document.data()
+                    
+                    // Check if data is encrypted
+                    if let isEncrypted = documentData["isEncrypted"] as? Bool, isEncrypted,
+                       let encryptedString = documentData["encryptedData"] as? String {
+                        // Decrypt the data
+                        let decryptedData = try encryptionService.decryptHealthData(encryptedString, as: UnifiedHealthData.self)
+                        healthData.append(decryptedData)
+                    } else {
+                        // Fallback to regular decoding
+                        let data = try Firestore.Decoder().decode(UnifiedHealthData.self, from: documentData)
+                        healthData.append(data)
+                    }
+                } catch {
+                    print("Error decoding \(dataType.rawValue) data: \(error)")
+                }
+            }
+            
+            print("Successfully loaded \(healthData.count) \(dataType.rawValue) entries")
+            completion(.success(healthData))
+        }
+    }
+    
+    private func loadAllDataTypes(completion: @escaping (Result<[UnifiedHealthData], Error>) -> Void) {
+        let dispatchGroup = DispatchGroup()
+        var allHealthData: [UnifiedHealthData] = []
+        var hasError = false
+        var lastError: Error?
+        
+        for dataType in HealthDataType.allCases {
+            dispatchGroup.enter()
+            
+            loadSpecificDataType(dataType) { result in
+                switch result {
+                case .success(let data):
+                    allHealthData.append(contentsOf: data)
+                case .failure(let error):
+                    hasError = true
+                    lastError = error
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if hasError, let error = lastError {
+                completion(.failure(error))
+            } else {
+                // Sort by timestamp (newest first)
+                allHealthData.sort { $0.timestamp > $1.timestamp }
+                print("Successfully loaded \(allHealthData.count) total health data entries across all types")
+                completion(.success(allHealthData))
+            }
+        }
+    }
+    
+    // MARK: - Legacy Health Metrics (for backward compatibility)
+    
+    func saveHealthMetrics(_ metrics: [HealthMetric], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        // Group metrics by type for better organization
+        let groupedMetrics = Dictionary(grouping: metrics) { $0.type }
+        
+        let batch = db.batch()
+        var totalDocuments = 0
+        
+        for (metricType, metricList) in groupedMetrics {
+            let dataType: HealthDataType
+            switch metricType {
+            case .weight: dataType = .weight
+            case .bloodPressure: dataType = .bloodPressureSession
+            case .bloodSugar: dataType = .bloodSugar
+            case .heartRate: dataType = .heartRate
+            }
+            
+            guard let collection = dataTypeCollection(dataType) else {
+                print("Error: No authenticated user for saving \(dataType.rawValue) data")
+                continue
+            }
+            
+            for metric in metricList {
+                do {
+                    var metricData = try Firestore.Encoder().encode(metric)
+                    metricData["dataType"] = dataType.rawValue
+                    metricData["createdAt"] = Timestamp(date: metric.timestamp)
+                    metricData["updatedAt"] = Timestamp(date: Date())
+                    
+                    let docRef = collection.document(metric.id.uuidString)
+                    batch.setData(metricData, forDocument: docRef)
+                    totalDocuments += 1
+                } catch {
+                    print("Error encoding \(metricType.rawValue) metric: \(error)")
+                }
+            }
+        }
+        
+        batch.commit { error in
+            if let error = error {
+                print("Error saving health metrics: \(error)")
+                completion(.failure(error))
+            } else {
+                print("Successfully saved \(totalDocuments) health metrics across \(groupedMetrics.count) types")
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func loadHealthMetrics(completion: @escaping (Result<[HealthMetric], Error>) -> Void) {
+        let dispatchGroup = DispatchGroup()
+        var allMetrics: [HealthMetric] = []
+        var hasError = false
+        var lastError: Error?
+        
+        // Load from all metric-specific collections
+        let metricTypes: [HealthDataType] = [.weight, .bloodSugar, .heartRate]
+        
+        for dataType in metricTypes {
+            dispatchGroup.enter()
+            
+            guard let collection = dataTypeCollection(dataType) else {
+                print("Error: No authenticated user for loading \(dataType.rawValue) data")
+                hasError = true
+                lastError = FirestoreError.noUser
+                dispatchGroup.leave()
+                continue
+            }
+            
+            collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error loading \(dataType.rawValue) metrics: \(error)")
+                    hasError = true
+                    lastError = error
+                } else if let documents = snapshot?.documents {
+                    for document in documents {
+                        do {
+                            let metric = try Firestore.Decoder().decode(HealthMetric.self, from: document.data())
+                            allMetrics.append(metric)
+                        } catch {
+                            print("Error decoding \(dataType.rawValue) metric: \(error)")
+                        }
+                    }
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if hasError, let error = lastError {
+                completion(.failure(error))
+            } else {
+                // Sort by timestamp (newest first)
+                allMetrics.sort { $0.timestamp > $1.timestamp }
+                print("Successfully loaded \(allMetrics.count) health metrics across all types")
+                completion(.success(allMetrics))
+            }
+        }
+    }
+    
+    // MARK: - Blood Pressure Sessions (using unified structure)
     
     func saveBPSessions(_ sessions: [BPSession], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
-        guard let collection = userCollection() else { 
+        guard let collection = dataTypeCollection(.bloodPressureSession) else {
             print("Error: No authenticated user for saving BP sessions")
             completion(.failure(FirestoreError.noUser))
-            return 
+            return
         }
         
         let batch = db.batch()
@@ -32,12 +276,11 @@ class FirestoreService: ObservableObject {
         for (index, session) in sessions.enumerated() {
             do {
                 var sessionData = try Firestore.Encoder().encode(session)
-                sessionData["type"] = "bp_session"
-                sessionData["id"] = session.id.uuidString
+                sessionData["dataType"] = "bp_session"
                 sessionData["createdAt"] = Timestamp(date: session.startTime)
                 sessionData["updatedAt"] = Timestamp(date: Date())
                 
-                let docRef = collection.document("bp_session_\(session.id.uuidString)")
+                let docRef = collection.document(session.id.uuidString)
                 batch.setData(sessionData, forDocument: docRef)
             } catch {
                 print("Error encoding BP session \(index): \(error)")
@@ -49,19 +292,19 @@ class FirestoreService: ObservableObject {
                 print("Error saving BP sessions: \(error)")
                 completion(.failure(error))
             } else {
-                print("Successfully saved \(sessions.count) BP sessions to Firestore")
+                print("Successfully saved \(sessions.count) BP sessions to organized structure")
                 completion(.success(()))
             }
         }
     }
     
     func loadBPSessions(completion: @escaping (Result<[BPSession], Error>) -> Void) {
-        guard let collection = userCollection() else {
+        guard let collection = dataTypeCollection(.bloodPressureSession) else {
             completion(.failure(FirestoreError.noUser))
             return
         }
         
-        collection.whereField("type", isEqualTo: "bp_session").getDocuments { snapshot, error in
+        collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
             if let error = error {
                 completion(.failure(error))
                 return
@@ -76,7 +319,7 @@ class FirestoreService: ObservableObject {
                 do {
                     var data = document.data()
                     // Remove the extra fields we added for Firestore
-                    data.removeValue(forKey: "type")
+                    data.removeValue(forKey: "dataType")
                     data.removeValue(forKey: "createdAt")
                     data.removeValue(forKey: "updatedAt")
                     return try Firestore.Decoder().decode(BPSession.self, from: data)
@@ -86,98 +329,33 @@ class FirestoreService: ObservableObject {
                 }
             }
             
+            print("Successfully loaded \(sessions.count) BP sessions from organized structure")
             completion(.success(sessions))
         }
     }
     
-    // MARK: - Fitness Sessions
+    // MARK: - Fitness Sessions (using unified structure)
     
     func saveFitnessSessions(_ sessions: [FitnessSession], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
-        guard let collection = userCollection() else { 
+        guard let collection = dataTypeCollection(.fitnessSession) else {
             print("Error: No authenticated user for saving fitness sessions")
             completion(.failure(FirestoreError.noUser))
-            return 
+            return
         }
         
         let batch = db.batch()
         
         for (index, session) in sessions.enumerated() {
-            // Save the main fitness session document
-            let sessionDocRef = collection.document("fitness_sessions").collection("sessions").document(session.id.uuidString)
-            
-            var sessionData: [String: Any] = [:]
-            sessionData["type"] = "fitness_session"
-            sessionData["id"] = session.id.uuidString
-            sessionData["startTime"] = Timestamp(date: session.startTime)
-            sessionData["endTime"] = session.endTime != nil ? Timestamp(date: session.endTime!) : nil
-            sessionData["isActive"] = session.isActive
-            sessionData["isPaused"] = session.isPaused
-            sessionData["isCompleted"] = session.isCompleted
-            sessionData["createdAt"] = Timestamp(date: session.startTime)
-            sessionData["updatedAt"] = Timestamp(date: Date())
-            
-            batch.setData(sessionData, forDocument: sessionDocRef)
-            
-            // Debug: Print session data to see what's being saved
-            print("Saving fitness session \(index):")
-            print("- Session ID: \(session.id)")
-            print("- Exercise Sessions: \(session.exerciseSessions.count)")
-            
-            // Save each exercise as a subcollection under the fitness session
-            for exerciseSession in session.exerciseSessions {
-                let exerciseDocRef = sessionDocRef.collection("exercises").document(exerciseSession.id.uuidString)
+            do {
+                var sessionData = try Firestore.Encoder().encode(session)
+                sessionData["dataType"] = "fitness_session"
+                sessionData["createdAt"] = Timestamp(date: session.startTime)
+                sessionData["updatedAt"] = Timestamp(date: Date())
                 
-                var exerciseData: [String: Any] = [:]
-                exerciseData["id"] = exerciseSession.id.uuidString
-                exerciseData["exerciseType"] = exerciseSession.exerciseType.rawValue
-                exerciseData["startTime"] = Timestamp(date: exerciseSession.startTime)
-                exerciseData["endTime"] = exerciseSession.endTime != nil ? Timestamp(date: exerciseSession.endTime!) : nil
-                exerciseData["isCompleted"] = exerciseSession.isCompleted
-                exerciseData["createdAt"] = Timestamp(date: exerciseSession.startTime)
-                exerciseData["updatedAt"] = Timestamp(date: Date())
-                
-                // Include sets data in the exercise document for easier querying
-                print("  - DEBUG: Exercise has \(exerciseSession.sets.count) sets")
-                print("  - DEBUG: Sets array: \(exerciseSession.sets)")
-                
-                var setsData: [[String: Any]] = []
-                for (index, set) in exerciseSession.sets.enumerated() {
-                    print("  - DEBUG: Processing set \(index): \(set)")
-                    var setData: [String: Any] = [:]
-                    setData["id"] = set.id.uuidString
-                    setData["reps"] = set.reps
-                    setData["weight"] = set.weight
-                    setData["time"] = set.time
-                    setData["timestamp"] = Timestamp(date: set.timestamp)
-                    setsData.append(setData)
-                    print("  - DEBUG: Set data created: \(setData)")
-                }
-                exerciseData["sets"] = setsData
-                print("  - DEBUG: Final sets data for Firestore: \(setsData)")
-                
-                batch.setData(exerciseData, forDocument: exerciseDocRef)
-                
-                print("  - Exercise: \(exerciseSession.exerciseType.rawValue)")
-                print("  - Sets: \(exerciseSession.sets.count)")
-                
-                // Save each set as a subcollection under the exercise
-                for (setIndex, set) in exerciseSession.sets.enumerated() {
-                    let setDocRef = exerciseDocRef.collection("sets").document(set.id.uuidString)
-                    
-                    var setData: [String: Any] = [:]
-                    setData["id"] = set.id.uuidString
-                    setData["reps"] = set.reps
-                    setData["weight"] = set.weight
-                    setData["time"] = set.time
-                    setData["timestamp"] = Timestamp(date: set.timestamp)
-                    setData["createdAt"] = Timestamp(date: set.timestamp)
-                    setData["updatedAt"] = Timestamp(date: Date())
-                    
-                    batch.setData(setData, forDocument: setDocRef)
-                    
-                    print("    - Set \(setIndex): ID=\(set.id.uuidString), reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
-                    print("    - Set data being saved: \(setData)")
-                }
+                let docRef = collection.document(session.id.uuidString)
+                batch.setData(sessionData, forDocument: docRef)
+            } catch {
+                print("Error encoding fitness session \(index): \(error)")
             }
         }
         
@@ -186,7 +364,7 @@ class FirestoreService: ObservableObject {
                 print("Error saving fitness sessions: \(error)")
                 completion(.failure(error))
             } else {
-                print("Successfully saved \(sessions.count) fitness sessions to Firestore with hierarchical structure")
+                print("Successfully saved \(sessions.count) fitness sessions to organized structure")
                 completion(.success(()))
             }
         }
@@ -540,6 +718,66 @@ struct UserPreferences: Codable {
         self.notificationsEnabled = notificationsEnabled
         self.reminderTime = reminderTime
         self.theme = theme
+    }
+}
+
+// MARK: - Unified Health Data Models
+
+enum HealthDataType: String, CaseIterable, Codable {
+    case healthMetric = "health_metric"
+    case bloodPressureSession = "bp_session"
+    case fitnessSession = "fitness_session"
+    case weight = "weight"
+    case bloodSugar = "blood_sugar"
+    case heartRate = "heart_rate"
+}
+
+struct UnifiedHealthData: Codable, Identifiable {
+    let id: UUID
+    let dataType: HealthDataType
+    let timestamp: Date
+    
+    // Optional fields for different data types
+    let metricType: MetricType?
+    let value: Double?
+    let unit: String?
+    let bpSession: BPSession?
+    let fitnessSession: FitnessSession?
+    
+    // Health metric constructor
+    init(id: UUID, dataType: HealthDataType, metricType: MetricType, value: Double, unit: String, timestamp: Date) {
+        self.id = id
+        self.dataType = dataType
+        self.timestamp = timestamp
+        self.metricType = metricType
+        self.value = value
+        self.unit = unit
+        self.bpSession = nil
+        self.fitnessSession = nil
+    }
+    
+    // BP session constructor
+    init(id: UUID, dataType: HealthDataType, bpSession: BPSession, timestamp: Date) {
+        self.id = id
+        self.dataType = dataType
+        self.timestamp = timestamp
+        self.metricType = nil
+        self.value = nil
+        self.unit = nil
+        self.bpSession = bpSession
+        self.fitnessSession = nil
+    }
+    
+    // Fitness session constructor
+    init(id: UUID, dataType: HealthDataType, fitnessSession: FitnessSession, timestamp: Date) {
+        self.id = id
+        self.dataType = dataType
+        self.timestamp = timestamp
+        self.metricType = nil
+        self.value = nil
+        self.unit = nil
+        self.bpSession = nil
+        self.fitnessSession = fitnessSession
     }
 }
 

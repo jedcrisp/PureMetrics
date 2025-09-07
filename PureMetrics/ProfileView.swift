@@ -6,6 +6,7 @@ struct ProfileView: View {
     @State private var age = ""
     @State private var showingEditProfile = false
     @State private var showingDeleteAllConfirmation = false
+    @State private var showingLogoutConfirmation = false
     
     var body: some View {
         NavigationView {
@@ -38,13 +39,25 @@ struct ProfileView: View {
         .sheet(isPresented: $showingEditProfile) {
             EditProfileView(userName: $userName, age: $age)
         }
-        .alert("Delete All Data", isPresented: $showingDeleteAllConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete All", role: .destructive) {
-                dataManager.deleteAllSessions()
-            }
-        } message: {
-            Text("Are you sure you want to delete all your blood pressure data? This action cannot be undone and will remove all sessions and readings.")
+        .alert(isPresented: $showingDeleteAllConfirmation) {
+            Alert(
+                title: Text("Delete All Data"),
+                message: Text("Are you sure you want to delete all your blood pressure data? This action cannot be undone and will remove all sessions and readings."),
+                primaryButton: .destructive(Text("Delete All")) {
+                    dataManager.deleteAllSessions()
+                },
+                secondaryButton: .cancel(Text("Cancel"))
+            )
+        }
+        .alert(isPresented: $showingLogoutConfirmation) {
+            Alert(
+                title: Text("Sign Out"),
+                message: Text("Are you sure you want to sign out? You will need to sign in again to access your data."),
+                primaryButton: .destructive(Text("Sign Out")) {
+                    dataManager.signOut()
+                },
+                secondaryButton: .cancel(Text("Cancel"))
+            )
         }
         .onAppear {
             loadUserData()
@@ -196,6 +209,25 @@ struct ProfileView: View {
                 .padding(.horizontal)
             
             VStack(spacing: 12) {
+                // Logout Button
+                Button(action: { showingLogoutConfirmation = true }) {
+                    HStack {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.blue)
+                        Text("Sign Out")
+                            .foregroundColor(.blue)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Delete All Data Button
                 Button(action: { showingDeleteAllConfirmation = true }) {
                     HStack {
                         Image(systemName: "trash.fill")
@@ -213,7 +245,7 @@ struct ProfileView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 
-                Text("This will permanently delete all your blood pressure sessions and readings.")
+                Text("Sign out to switch accounts or delete all data to permanently remove your blood pressure sessions and readings.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.horizontal)

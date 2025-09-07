@@ -12,6 +12,8 @@ struct TrendsView: View {
         case systolic = "Systolic"
         case diastolic = "Diastolic"
         case heartRate = "Heart Rate"
+        case weight = "Weight"
+        case bloodSugar = "Blood Sugar"
         case fitness = "Fitness"
     }
     
@@ -40,8 +42,8 @@ struct TrendsView: View {
                                 exerciseTypeSelector
                             }
                             
-                            // Combined BP Chart
-                            if !filteredSessions.isEmpty {
+                            // Combined BP Chart (only show for BP metrics)
+                            if !filteredSessions.isEmpty && (selectedMetric == .systolic || selectedMetric == .diastolic) {
                                 combinedChartSection
                             }
                             
@@ -52,14 +54,14 @@ struct TrendsView: View {
                                 } else {
                                     fitnessEmptyStateView
                                 }
-                            } else if !filteredSessions.isEmpty {
+                            } else if !chartData.isEmpty {
                                 chartSection
                             } else {
                                 emptyStateView
                             }
                             
-                            // Rolling Averages
-                            if !dataManager.sessions.isEmpty {
+                            // Rolling Averages (only for BP metrics)
+                            if !dataManager.sessions.isEmpty && (selectedMetric == .systolic || selectedMetric == .diastolic) {
                                 rollingAveragesSection
                             }
                             
@@ -68,7 +70,7 @@ struct TrendsView: View {
                                 if !fitnessChartData.isEmpty {
                                     fitnessSummarySection
                                 }
-                            } else if !filteredSessions.isEmpty {
+                            } else if !chartData.isEmpty {
                                 statisticsSummary
                             }
                         }
@@ -79,6 +81,11 @@ struct TrendsView: View {
             }
             .navigationTitle("")
             .navigationBarHidden(true)
+            .onChange(of: availableExercises) { newExercises in
+                if !newExercises.isEmpty && !newExercises.contains(selectedExerciseType) {
+                    selectedExerciseType = newExercises.first!
+                }
+            }
         }
     }
     
@@ -102,7 +109,7 @@ struct TrendsView: View {
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                             
-                            Text("Blood Pressure Analysis")
+                            Text(headerSubtitle)
                                 .font(.subheadline)
                                 .foregroundColor(.white.opacity(0.9))
                         }
@@ -179,25 +186,33 @@ struct TrendsView: View {
     // MARK: - Metric Selector
     
     private var metricSelector: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.title3)
                     .foregroundColor(.blue)
                 
-                Text("Metric")
+                Text("Health Metrics")
                     .font(.headline)
                     .fontWeight(.semibold)
                 
                 Spacer()
             }
             
-            Picker("Metric", selection: $selectedMetric) {
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible())
+            ], spacing: 12) {
                 ForEach(Metric.allCases, id: \.self) { metric in
-                    Text(metric.rawValue).tag(metric)
+                    MetricCard(
+                        metric: metric,
+                        isSelected: selectedMetric == metric,
+                        color: metricColor(metric)
+                    ) {
+                        selectedMetric = metric
+                    }
                 }
             }
-            .pickerStyle(SegmentedPickerStyle())
         }
         .padding(20)
         .background(
@@ -221,14 +236,27 @@ struct TrendsView: View {
                     .fontWeight(.semibold)
                 
                 Spacer()
+                
+                Text("\(availableExercises.count) exercises")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
-            Picker("Exercise Type", selection: $selectedExerciseType) {
-                ForEach(ExerciseType.allCases, id: \.self) { exerciseType in
-                    Text(exerciseType.rawValue).tag(exerciseType)
+            if availableExercises.isEmpty {
+                Text("No fitness data available. Start tracking workouts to see trends.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+            } else {
+                Picker("Exercise Type", selection: $selectedExerciseType) {
+                    ForEach(availableExercises, id: \.self) { exerciseType in
+                        Text(exerciseType.rawValue).tag(exerciseType)
+                    }
                 }
+                .pickerStyle(MenuPickerStyle())
             }
-            .pickerStyle(MenuPickerStyle())
         }
         .padding(20)
         .background(
@@ -385,6 +413,7 @@ struct TrendsView: View {
                     }
                 }
             }
+            .chartYScale(domain: yAxisRange)
         }
         .padding(20)
         .background(
@@ -525,7 +554,7 @@ struct TrendsView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
             
-            Text("Start recording your blood pressure to see trends over time.")
+            Text(emptyStateMessage)
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -553,11 +582,19 @@ struct TrendsView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
             
-            Text("Start tracking your \(selectedExerciseType.rawValue.lowercased()) workouts to see progress over time.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            if availableExercises.isEmpty {
+                Text("Start tracking your workouts to see progress over time.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            } else {
+                Text("No \(selectedExerciseType.rawValue.lowercased()) data in the selected time range. Try a different exercise or time period.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -650,8 +687,8 @@ struct TrendsView: View {
                 )
                 
                 SummaryCard(
-                    title: "Sessions",
-                    value: "\(filteredSessions.count)",
+                    title: selectedMetric == .weight || selectedMetric == .bloodSugar ? "Readings" : "Sessions",
+                    value: "\(chartData.count)",
                     color: chartColor
                 )
             }
@@ -745,24 +782,67 @@ struct TrendsView: View {
     }
     
     private var chartData: [ChartDataPoint] {
-        filteredSessions.map { session in
-            let value: Double
-            switch selectedMetric {
-            case .systolic:
-                value = session.averageSystolic
-            case .diastolic:
-                value = session.averageDiastolic
-            case .heartRate:
-                value = session.averageHeartRate ?? 0
-            case .fitness:
-                value = 0 // Fitness data is handled separately
+        switch selectedMetric {
+        case .systolic, .diastolic, .heartRate:
+            // Use BP session data for these metrics
+            return filteredSessions.map { session in
+                let value: Double
+                switch selectedMetric {
+                case .systolic:
+                    value = session.averageSystolic
+                case .diastolic:
+                    value = session.averageDiastolic
+                case .heartRate:
+                    value = session.averageHeartRate ?? 0
+                default:
+                    value = 0
+                }
+                
+                return ChartDataPoint(
+                    date: session.startTime,
+                    value: value
+                )
+            }.sorted { $0.date < $1.date }
+            
+        case .weight, .bloodSugar:
+            // Use health metrics data for these metrics
+            let calendar = Calendar.current
+            let now = Date()
+            
+            let cutoffDate: Date
+            switch selectedTimeRange {
+            case .week:
+                cutoffDate = calendar.date(byAdding: .weekOfYear, value: -1, to: now) ?? now
+            case .month:
+                cutoffDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
+            case .threeMonths:
+                cutoffDate = calendar.date(byAdding: .month, value: -3, to: now) ?? now
+            case .year:
+                cutoffDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
             }
             
-            return ChartDataPoint(
-                date: session.startTime,
-                value: value
-            )
-        }.sorted { $0.date < $1.date }
+            let metricType: MetricType
+            switch selectedMetric {
+            case .weight:
+                metricType = .weight
+            case .bloodSugar:
+                metricType = .bloodSugar
+            default:
+                metricType = .weight
+            }
+            
+            return dataManager.getHealthMetricsForDateRange(cutoffDate, now)
+                .filter { $0.type == metricType }
+                .map { metric in
+                    ChartDataPoint(
+                        date: metric.timestamp,
+                        value: metric.value
+                    )
+                }.sorted { $0.date < $1.date }
+            
+        case .fitness:
+            return [] // Fitness data is handled separately
+        }
     }
     
     private var combinedChartData: [CombinedChartDataPoint] {
@@ -783,6 +863,10 @@ struct TrendsView: View {
             return .blue
         case .heartRate:
             return .green
+        case .weight:
+            return .purple
+        case .bloodSugar:
+            return .orange
         case .fitness:
             return .orange
         }
@@ -794,6 +878,28 @@ struct TrendsView: View {
     
     private var fitnessTrendAnalysis: FitnessTrendAnalysis? {
         dataManager.getFitnessTrendAnalysis(for: selectedExerciseType, timeRange: selectedTimeRange)
+    }
+    
+    private var availableExercises: [ExerciseType] {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        let cutoffDate: Date
+        switch selectedTimeRange {
+        case .week:
+            cutoffDate = calendar.date(byAdding: .weekOfYear, value: -1, to: now) ?? now
+        case .month:
+            cutoffDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
+        case .threeMonths:
+            cutoffDate = calendar.date(byAdding: .month, value: -3, to: now) ?? now
+        case .year:
+            cutoffDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
+        }
+        
+        let filteredSessions = dataManager.fitnessSessions.filter { $0.startTime >= cutoffDate }
+        let exerciseTypes = Set(filteredSessions.flatMap { $0.exerciseSessions.map { $0.exerciseType } })
+        
+        return Array(exerciseTypes).sorted { $0.rawValue < $1.rawValue }
     }
     
     private var averageValue: Double {
@@ -808,6 +914,69 @@ struct TrendsView: View {
     private var minValue: Double {
         chartData.map { $0.value }.min() ?? 0
     }
+    
+    private var yAxisRange: ClosedRange<Double> {
+        switch selectedMetric {
+        case .systolic, .diastolic:
+            return 60...180
+        case .heartRate:
+            return 40...120
+        case .weight:
+            let minWeight = minValue > 0 ? minValue - 10 : 100
+            let maxWeight = maxValue > 0 ? maxValue + 10 : 200
+            return minWeight...maxWeight
+        case .bloodSugar:
+            return 60...200
+        case .fitness:
+            return 0...100
+        }
+    }
+    
+    private var emptyStateMessage: String {
+        switch selectedMetric {
+        case .systolic, .diastolic, .heartRate:
+            return "Start recording your blood pressure to see trends over time."
+        case .weight:
+            return "Start recording your weight to see trends over time."
+        case .bloodSugar:
+            return "Start recording your blood sugar to see trends over time."
+        case .fitness:
+            return "Start tracking your workouts to see progress over time."
+        }
+    }
+    
+    private var headerSubtitle: String {
+        switch selectedMetric {
+        case .systolic, .diastolic:
+            return "Blood Pressure Analysis"
+        case .heartRate:
+            return "Heart Rate Tracking"
+        case .weight:
+            return "Weight Tracking"
+        case .bloodSugar:
+            return "Blood Sugar Monitoring"
+        case .fitness:
+            return "Fitness Progress"
+        }
+    }
+    
+    private func metricColor(_ metric: Metric) -> Color {
+        switch metric {
+        case .systolic:
+            return .red
+        case .diastolic:
+            return .blue
+        case .heartRate:
+            return .green
+        case .weight:
+            return .purple
+        case .bloodSugar:
+            return .orange
+        case .fitness:
+            return .orange
+        }
+    }
+    
 }
 
 // MARK: - Chart Data Point
@@ -945,6 +1114,41 @@ struct FitnessSummaryCard: View {
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
     }
+}
+
+// MARK: - Metric Card Component
+
+struct MetricCard: View {
+    let metric: TrendsView.Metric
+    let isSelected: Bool
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                // Label
+                Text(metric.rawValue)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(isSelected ? .white : .primary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? color : color.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(color, lineWidth: isSelected ? 0 : 1)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
 }
 
 // MARK: - Preview
