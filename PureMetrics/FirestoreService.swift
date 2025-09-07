@@ -136,6 +136,19 @@ class FirestoreService: ObservableObject {
                 exerciseData["createdAt"] = Timestamp(date: exerciseSession.startTime)
                 exerciseData["updatedAt"] = Timestamp(date: Date())
                 
+                // Include sets data in the exercise document for easier querying
+                var setsData: [[String: Any]] = []
+                for set in exerciseSession.sets {
+                    var setData: [String: Any] = [:]
+                    setData["id"] = set.id.uuidString
+                    setData["reps"] = set.reps
+                    setData["weight"] = set.weight
+                    setData["time"] = set.time
+                    setData["timestamp"] = Timestamp(date: set.timestamp)
+                    setsData.append(setData)
+                }
+                exerciseData["sets"] = setsData
+                
                 batch.setData(exerciseData, forDocument: exerciseDocRef)
                 
                 print("  - Exercise: \(exerciseSession.exerciseType.rawValue)")
@@ -243,24 +256,17 @@ class FirestoreService: ObservableObject {
                         let exerciseStartTime = exerciseStartTimeTimestamp.dateValue()
                         let exerciseEndTime = (exerciseData["endTime"] as? Timestamp)?.dateValue()
                         
-                        // Load sets for this exercise
-                        let setsCollection = exerciseDoc.reference.collection("sets")
-                        setsCollection.getDocuments { setsSnapshot, setsError in
-                            if let setsError = setsError {
-                                print("Error loading sets: \(setsError)")
-                                exerciseDispatchGroup.leave()
-                                return
-                            }
-                            
-                            var sets: [ExerciseSet] = []
-                            for setDoc in setsSnapshot?.documents ?? [] {
-                                let setData = setDoc.data()
-                                print("    - Loading set data: \(setData)")
-                                
+                        // Load sets from the exercise document
+                        var sets: [ExerciseSet] = []
+                        
+                        // First try to load sets from the exercise document itself
+                        if let setsData = exerciseData["sets"] as? [[String: Any]] {
+                            print("    - Loading sets from exercise document: \(setsData.count) sets")
+                            for setData in setsData {
                                 guard let setIdString = setData["id"] as? String,
                                       let setId = UUID(uuidString: setIdString),
                                       let timestampTimestamp = setData["timestamp"] as? Timestamp else {
-                                    print("Error: Missing required fields in set data")
+                                    print("Error: Missing required fields in set data from exercise document")
                                     continue
                                 }
                                 
@@ -269,21 +275,62 @@ class FirestoreService: ObservableObject {
                                 let time = setData["time"] as? TimeInterval
                                 let timestamp = timestampTimestamp.dateValue()
                                 
-                                print("    - Parsed set: ID=\(setId), reps=\(reps ?? 0), weight=\(weight ?? 0), time=\(time ?? 0)")
+                                print("    - Parsed set from exercise doc: ID=\(setId), reps=\(reps ?? 0), weight=\(weight ?? 0), time=\(time ?? 0)")
                                 
                                 let set = ExerciseSet(id: setId, reps: reps, weight: weight, time: time, timestamp: timestamp)
                                 sets.append(set)
                             }
-                            
-                            var exerciseSession = ExerciseSession(exerciseType: exerciseType, startTime: exerciseStartTime)
-                            exerciseSession.id = exerciseId
-                            exerciseSession.sets = sets
-                            exerciseSession.endTime = exerciseEndTime
-                            exerciseSession.isCompleted = exerciseIsCompleted
-                            exerciseSessions.append(exerciseSession)
-                            
-                            exerciseDispatchGroup.leave()
+                        } else {
+                            // Fallback: Load sets from subcollection if not in exercise document
+                            print("    - No sets found in exercise document, trying subcollection...")
+                            let setsCollection = exerciseDoc.reference.collection("sets")
+                            setsCollection.getDocuments { setsSnapshot, setsError in
+                                if let setsError = setsError {
+                                    print("Error loading sets from subcollection: \(setsError)")
+                                } else {
+                                    for setDoc in setsSnapshot?.documents ?? [] {
+                                        let setData = setDoc.data()
+                                        print("    - Loading set data from subcollection: \(setData)")
+                                        
+                                        guard let setIdString = setData["id"] as? String,
+                                              let setId = UUID(uuidString: setIdString),
+                                              let timestampTimestamp = setData["timestamp"] as? Timestamp else {
+                                            print("Error: Missing required fields in set data from subcollection")
+                                            continue
+                                        }
+                                        
+                                        let reps = setData["reps"] as? Int
+                                        let weight = setData["weight"] as? Double
+                                        let time = setData["time"] as? TimeInterval
+                                        let timestamp = timestampTimestamp.dateValue()
+                                        
+                                        print("    - Parsed set from subcollection: ID=\(setId), reps=\(reps ?? 0), weight=\(weight ?? 0), time=\(time ?? 0)")
+                                        
+                                        let set = ExerciseSet(id: setId, reps: reps, weight: weight, time: time, timestamp: timestamp)
+                                        sets.append(set)
+                                    }
+                                }
+                                
+                                var exerciseSession = ExerciseSession(exerciseType: exerciseType, startTime: exerciseStartTime)
+                                exerciseSession.id = exerciseId
+                                exerciseSession.sets = sets
+                                exerciseSession.endTime = exerciseEndTime
+                                exerciseSession.isCompleted = exerciseIsCompleted
+                                exerciseSessions.append(exerciseSession)
+                                
+                                exerciseDispatchGroup.leave()
+                            }
+                            return
                         }
+                        
+                        var exerciseSession = ExerciseSession(exerciseType: exerciseType, startTime: exerciseStartTime)
+                        exerciseSession.id = exerciseId
+                        exerciseSession.sets = sets
+                        exerciseSession.endTime = exerciseEndTime
+                        exerciseSession.isCompleted = exerciseIsCompleted
+                        exerciseSessions.append(exerciseSession)
+                        
+                        exerciseDispatchGroup.leave()
                     }
                     
                     exerciseDispatchGroup.notify(queue: .main) {
