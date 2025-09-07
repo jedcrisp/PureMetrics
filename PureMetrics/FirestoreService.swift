@@ -109,6 +109,18 @@ class FirestoreService: ObservableObject {
                 sessionData["createdAt"] = Timestamp(date: session.startTime)
                 sessionData["updatedAt"] = Timestamp(date: Date())
                 
+                // Debug: Print session data to see what's being saved
+                print("Saving fitness session \(index):")
+                print("- ID: \(session.id)")
+                print("- Exercise Sessions: \(session.exerciseSessions.count)")
+                for (exerciseIndex, exerciseSession) in session.exerciseSessions.enumerated() {
+                    print("  - Exercise \(exerciseIndex): \(exerciseSession.exerciseType.rawValue)")
+                    print("  - Sets: \(exerciseSession.sets.count)")
+                    for (setIndex, set) in exerciseSession.sets.enumerated() {
+                        print("    - Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
+                    }
+                }
+                
                 let docRef = collection.document("fitness_session_\(index)")
                 batch.setData(sessionData, forDocument: docRef)
             } catch {

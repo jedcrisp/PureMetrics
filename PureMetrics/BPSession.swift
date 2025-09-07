@@ -1,7 +1,7 @@
 import Foundation
 
 struct BPSession: Codable, Identifiable {
-    let id = UUID()
+    let id: UUID
     var readings: [BloodPressureReading]
     var healthMetrics: [HealthMetric] // New: support for additional health metrics
     let startTime: Date
@@ -9,10 +9,11 @@ struct BPSession: Codable, Identifiable {
     var isActive: Bool
     
     enum CodingKeys: String, CodingKey {
-        case readings, healthMetrics, startTime, endTime, isActive
+        case id, readings, healthMetrics, startTime, endTime, isActive
     }
     
     init() {
+        self.id = UUID()
         self.readings = []
         self.healthMetrics = []
         self.startTime = Date()
@@ -21,6 +22,7 @@ struct BPSession: Codable, Identifiable {
     }
     
     init(startTime: Date) {
+        self.id = UUID()
         self.readings = []
         self.healthMetrics = []
         self.startTime = startTime

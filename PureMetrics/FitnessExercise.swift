@@ -245,17 +245,18 @@ enum ExerciseType: String, CaseIterable, Codable {
 // MARK: - Exercise Set Model
 
 struct ExerciseSet: Codable, Identifiable {
-    let id = UUID()
+    let id: UUID
     let reps: Int?
     let weight: Double?
     let time: TimeInterval? // in seconds
     let timestamp: Date
     
     enum CodingKeys: String, CodingKey {
-        case reps, weight, time, timestamp
+        case id, reps, weight, time, timestamp
     }
     
     init(reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, timestamp: Date? = nil) {
+        self.id = UUID()
         self.reps = reps
         self.weight = weight
         self.time = time
@@ -294,7 +295,7 @@ struct ExerciseSet: Codable, Identifiable {
 // MARK: - Exercise Session Model
 
 struct ExerciseSession: Codable, Identifiable {
-    let id = UUID()
+    let id: UUID
     let exerciseType: ExerciseType
     var sets: [ExerciseSet]
     let startTime: Date
@@ -302,10 +303,11 @@ struct ExerciseSession: Codable, Identifiable {
     var isCompleted: Bool = false
     
     enum CodingKeys: String, CodingKey {
-        case exerciseType, sets, startTime, endTime, isCompleted
+        case id, exerciseType, sets, startTime, endTime, isCompleted
     }
     
     init(exerciseType: ExerciseType, startTime: Date? = nil) {
+        self.id = UUID()
         self.exerciseType = exerciseType
         self.sets = []
         self.startTime = startTime ?? Date()
@@ -379,7 +381,7 @@ struct ExerciseSession: Codable, Identifiable {
 // MARK: - Fitness Session Model (Collection of Exercise Sessions)
 
 struct FitnessSession: Codable, Identifiable {
-    let id = UUID()
+    let id: UUID
     var exerciseSessions: [ExerciseSession]
     let startTime: Date
     var endTime: Date?
@@ -388,10 +390,11 @@ struct FitnessSession: Codable, Identifiable {
     var isCompleted: Bool = false
     
     enum CodingKeys: String, CodingKey {
-        case exerciseSessions, startTime, endTime, isActive, isPaused, isCompleted
+        case id, exerciseSessions, startTime, endTime, isActive, isPaused, isCompleted
     }
     
     init(startTime: Date? = nil) {
+        self.id = UUID()
         self.exerciseSessions = []
         self.startTime = startTime ?? Date()
     }
