@@ -255,8 +255,8 @@ struct ExerciseSet: Codable, Identifiable {
         case id, reps, weight, time, timestamp
     }
     
-    init(reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, timestamp: Date? = nil) {
-        self.id = UUID()
+    init(id: UUID = UUID(), reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, timestamp: Date? = nil) {
+        self.id = id
         self.reps = reps
         self.weight = weight
         self.time = time

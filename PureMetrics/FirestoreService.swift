@@ -156,7 +156,8 @@ class FirestoreService: ObservableObject {
                     
                     batch.setData(setData, forDocument: setDocRef)
                     
-                    print("    - Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
+                    print("    - Set \(setIndex): ID=\(set.id.uuidString), reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
+                    print("    - Set data being saved: \(setData)")
                 }
             }
         }
@@ -254,8 +255,10 @@ class FirestoreService: ObservableObject {
                             var sets: [ExerciseSet] = []
                             for setDoc in setsSnapshot?.documents ?? [] {
                                 let setData = setDoc.data()
+                                print("    - Loading set data: \(setData)")
+                                
                                 guard let setIdString = setData["id"] as? String,
-                                      let _ = UUID(uuidString: setIdString),
+                                      let setId = UUID(uuidString: setIdString),
                                       let timestampTimestamp = setData["timestamp"] as? Timestamp else {
                                     print("Error: Missing required fields in set data")
                                     continue
@@ -266,7 +269,9 @@ class FirestoreService: ObservableObject {
                                 let time = setData["time"] as? TimeInterval
                                 let timestamp = timestampTimestamp.dateValue()
                                 
-                                let set = ExerciseSet(reps: reps, weight: weight, time: time, timestamp: timestamp)
+                                print("    - Parsed set: ID=\(setId), reps=\(reps ?? 0), weight=\(weight ?? 0), time=\(time ?? 0)")
+                                
+                                let set = ExerciseSet(id: setId, reps: reps, weight: weight, time: time, timestamp: timestamp)
                                 sets.append(set)
                             }
                             
