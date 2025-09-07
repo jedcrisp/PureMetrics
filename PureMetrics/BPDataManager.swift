@@ -315,13 +315,26 @@ class BPDataManager: ObservableObject {
     }
     
     func addExerciseSet(to exerciseIndex: Int, set: ExerciseSet) -> Bool {
+        print("=== BPDataManager addExerciseSet ===")
+        print("Exercise Index: \(exerciseIndex)")
+        print("Current fitness session exercise count: \(currentFitnessSession.exerciseSessions.count)")
+        print("Set being added: \(set)")
+        print("Set valid: \(set.isValid)")
+        
         guard exerciseIndex >= 0 && exerciseIndex < currentFitnessSession.exerciseSessions.count else {
+            print("Invalid exercise index")
             return false
         }
         
-        guard set.isValid else { return false }
+        guard set.isValid else { 
+            print("Set is not valid")
+            return false 
+        }
         
+        print("Before adding set - exercise has \(currentFitnessSession.exerciseSessions[exerciseIndex].sets.count) sets")
         currentFitnessSession.exerciseSessions[exerciseIndex].addSet(set)
+        print("After adding set - exercise has \(currentFitnessSession.exerciseSessions[exerciseIndex].sets.count) sets")
+        print("=== End BPDataManager addExerciseSet ===")
         return true
     }
     

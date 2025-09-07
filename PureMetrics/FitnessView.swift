@@ -809,13 +809,23 @@ struct FitnessView: View {
     }
     
     private func addSetToExercise(exerciseIndex: Int, setInput: SetInput) {
-        guard setInput.isValid else { return }
+        print("=== Adding Set to Exercise ===")
+        print("Exercise Index: \(exerciseIndex)")
+        print("Set Input: reps='\(setInput.reps)', weight='\(setInput.weight)', time='\(setInput.time)'")
+        print("Set Input Valid: \(setInput.isValid)")
+        
+        guard setInput.isValid else { 
+            print("Set input is not valid, returning")
+            return 
+        }
         
         let repsInt = setInput.reps.isEmpty ? nil : Int(setInput.reps)
         let weightDouble = setInput.weight.isEmpty ? nil : Double(setInput.weight)
         let timeInterval = setInput.time.isEmpty ? nil : TimeInterval(setInput.time)
         
         let timestamp = useManualTime ? combineDateAndTime(manualDate, manualTime) : nil
+        
+        print("Parsed values: reps=\(repsInt ?? 0), weight=\(weightDouble ?? 0), time=\(timeInterval ?? 0)")
         
         let set = ExerciseSet(
             reps: repsInt,
@@ -824,12 +834,18 @@ struct FitnessView: View {
             timestamp: timestamp
         )
         
-        _ = dataManager.addExerciseSet(to: exerciseIndex, set: set)
+        print("Created ExerciseSet: \(set)")
+        print("ExerciseSet valid: \(set.isValid)")
+        
+        let success = dataManager.addExerciseSet(to: exerciseIndex, set: set)
+        print("Add exercise set result: \(success)")
         
         // Clear the input after adding
         if let index = getSetInputs(for: exerciseIndex).firstIndex(where: { $0.id == setInput.id }) {
             exerciseSetInputs[exerciseIndex]?[index] = SetInput()
         }
+        
+        print("=== End Adding Set ===")
     }
     
     private func updateExerciseIndices() {

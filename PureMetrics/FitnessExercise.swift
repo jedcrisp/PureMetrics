@@ -314,7 +314,12 @@ struct ExerciseSession: Codable, Identifiable {
     }
     
     mutating func addSet(_ set: ExerciseSet) {
+        print("=== ExerciseSession addSet ===")
+        print("Adding set: \(set)")
+        print("Sets before: \(sets.count)")
         sets.append(set)
+        print("Sets after: \(sets.count)")
+        print("=== End ExerciseSession addSet ===")
     }
     
     mutating func removeSet(at index: Int) {
