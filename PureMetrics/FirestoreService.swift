@@ -37,7 +37,7 @@ class FirestoreService: ObservableObject {
                 sessionData["createdAt"] = Timestamp(date: session.startTime)
                 sessionData["updatedAt"] = Timestamp(date: Date())
                 
-                let docRef = collection.document("bp_session_\(index)")
+                let docRef = collection.document("bp_session_\(session.id.uuidString)")
                 batch.setData(sessionData, forDocument: docRef)
             } catch {
                 print("Error encoding BP session \(index): \(error)")
@@ -121,7 +121,7 @@ class FirestoreService: ObservableObject {
                     }
                 }
                 
-                let docRef = collection.document("fitness_session_\(index)")
+                let docRef = collection.document("fitness_session_\(session.id.uuidString)")
                 batch.setData(sessionData, forDocument: docRef)
             } catch {
                 print("Error encoding fitness session \(index): \(error)")
