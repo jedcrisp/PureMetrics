@@ -344,6 +344,193 @@ class PreBuiltWorkoutManager: ObservableObject {
                 ],
                 estimatedDuration: 60,
                 difficulty: .advanced
+            ),
+            
+            // HIIT Workouts
+            PreBuiltWorkout(
+                name: "Tabata Blast",
+                category: .hiit,
+                description: "Classic Tabata protocol - 20 seconds work, 10 seconds rest",
+                exercises: [
+                    WorkoutExercise(exerciseType: .burpees, sets: 8, reps: nil, weight: nil, time: 20, restTime: 10, notes: "All out effort"),
+                    WorkoutExercise(exerciseType: .mountainClimbers, sets: 8, reps: nil, weight: nil, time: 20, restTime: 10, notes: "Fast pace"),
+                    WorkoutExercise(exerciseType: .jumpingJacks, sets: 8, reps: nil, weight: nil, time: 20, restTime: 10, notes: "Keep moving"),
+                    WorkoutExercise(exerciseType: .highKnees, sets: 8, reps: nil, weight: nil, time: 20, restTime: 10, notes: "Knees to chest")
+                ],
+                estimatedDuration: 16,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "EMOM Hell",
+                category: .hiit,
+                description: "Every Minute On the Minute - complete reps within 60 seconds",
+                exercises: [
+                    WorkoutExercise(exerciseType: .thruster, sets: 10, reps: 10, weight: nil, time: nil, restTime: 0, notes: "Moderate weight"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 10, reps: 8, weight: nil, time: nil, restTime: 0, notes: "Full body"),
+                    WorkoutExercise(exerciseType: .pullUps, sets: 10, reps: 6, weight: nil, time: nil, restTime: 0, notes: "Strict form"),
+                    WorkoutExercise(exerciseType: .kettlebellSwing, sets: 10, reps: 15, weight: nil, time: nil, restTime: 0, notes: "Hip drive")
+                ],
+                estimatedDuration: 40,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "AMRAP Madness",
+                category: .hiit,
+                description: "As Many Rounds As Possible in 20 minutes",
+                exercises: [
+                    WorkoutExercise(exerciseType: .boxJumps, sets: 1, reps: 15, weight: nil, time: nil, restTime: 0, notes: "Explosive power"),
+                    WorkoutExercise(exerciseType: .wallBall, sets: 1, reps: 20, weight: nil, time: nil, restTime: 0, notes: "Full squat"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 1, reps: 10, weight: nil, time: nil, restTime: 0, notes: "Chest to ground"),
+                    WorkoutExercise(exerciseType: .kettlebellSwing, sets: 1, reps: 25, weight: nil, time: nil, restTime: 0, notes: "Hip snap")
+                ],
+                estimatedDuration: 20,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Death by Burpees",
+                category: .hiit,
+                description: "Progressive burpee challenge - add 1 burpee each minute",
+                exercises: [
+                    WorkoutExercise(exerciseType: .burpees, sets: 1, reps: 1, weight: nil, time: nil, restTime: 0, notes: "Minute 1: 1 burpee"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 1, reps: 2, weight: nil, time: nil, restTime: 0, notes: "Minute 2: 2 burpees"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 1, reps: 3, weight: nil, time: nil, restTime: 0, notes: "Minute 3: 3 burpees"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 1, reps: 4, weight: nil, time: nil, restTime: 0, notes: "Continue until failure")
+                ],
+                estimatedDuration: 15,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "HIIT Core Crusher",
+                category: .hiit,
+                description: "High intensity core-focused workout",
+                exercises: [
+                    WorkoutExercise(exerciseType: .mountainClimbers, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Fast pace"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 4, reps: 30, weight: nil, time: nil, restTime: 15, notes: "Full rotation"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 4, reps: nil, weight: nil, time: 30, restTime: 15, notes: "Core engaged"),
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 4, reps: nil, weight: nil, time: 30, restTime: 15, notes: "Hold steady"),
+                    WorkoutExercise(exerciseType: .hangingLegRaise, sets: 4, reps: 15, weight: nil, time: nil, restTime: 15, notes: "Controlled movement")
+                ],
+                estimatedDuration: 25,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Sprint & Strength",
+                category: .hiit,
+                description: "Alternating sprint intervals with strength exercises",
+                exercises: [
+                    WorkoutExercise(exerciseType: .sprint, sets: 5, reps: nil, weight: nil, time: 30, restTime: 30, notes: "All out sprint"),
+                    WorkoutExercise(exerciseType: .thruster, sets: 5, reps: 12, weight: nil, time: nil, restTime: 30, notes: "Moderate weight"),
+                    WorkoutExercise(exerciseType: .sprint, sets: 5, reps: nil, weight: nil, time: 30, restTime: 30, notes: "Recovery sprint"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 5, reps: 10, weight: nil, time: nil, restTime: 30, notes: "Full body")
+                ],
+                estimatedDuration: 20,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Kettlebell HIIT",
+                category: .hiit,
+                description: "High intensity kettlebell workout",
+                exercises: [
+                    WorkoutExercise(exerciseType: .kettlebellSwing, sets: 4, reps: nil, weight: nil, time: 40, restTime: 20, notes: "Hip drive"),
+                    WorkoutExercise(exerciseType: .kettlebellGobletSquat, sets: 4, reps: 15, weight: nil, time: nil, restTime: 20, notes: "Deep squats"),
+                    WorkoutExercise(exerciseType: .kettlebellTurkishGetUp, sets: 4, reps: 5, weight: nil, time: nil, restTime: 20, notes: "Slow and controlled"),
+                    WorkoutExercise(exerciseType: .kettlebellSwing, sets: 4, reps: nil, weight: nil, time: 30, restTime: 20, notes: "Power swings")
+                ],
+                estimatedDuration: 30,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Bodyweight Blitz",
+                category: .hiit,
+                description: "No equipment needed - pure bodyweight HIIT",
+                exercises: [
+                    WorkoutExercise(exerciseType: .burpees, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Full movement"),
+                    WorkoutExercise(exerciseType: .mountainClimbers, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Fast pace"),
+                    WorkoutExercise(exerciseType: .jumpingJacks, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Keep moving"),
+                    WorkoutExercise(exerciseType: .highKnees, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Knees up"),
+                    WorkoutExercise(exerciseType: .pushUps, sets: 4, reps: 15, weight: nil, time: nil, restTime: 15, notes: "Chest to ground")
+                ],
+                estimatedDuration: 25,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "Metabolic Mayhem",
+                category: .hiit,
+                description: "High metabolic demand workout",
+                exercises: [
+                    WorkoutExercise(exerciseType: .thruster, sets: 5, reps: 15, weight: nil, time: nil, restTime: 60, notes: "Moderate weight"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 5, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Full body"),
+                    WorkoutExercise(exerciseType: .kettlebellSwing, sets: 5, reps: 20, weight: nil, time: nil, restTime: 60, notes: "Hip drive"),
+                    WorkoutExercise(exerciseType: .boxJumps, sets: 5, reps: 15, weight: nil, time: nil, restTime: 60, notes: "Explosive power")
+                ],
+                estimatedDuration: 35,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Quick HIIT",
+                category: .hiit,
+                description: "Fast 10-minute HIIT session",
+                exercises: [
+                    WorkoutExercise(exerciseType: .burpees, sets: 3, reps: nil, weight: nil, time: 30, restTime: 30, notes: "All out effort"),
+                    WorkoutExercise(exerciseType: .mountainClimbers, sets: 3, reps: nil, weight: nil, time: 30, restTime: 30, notes: "Fast pace"),
+                    WorkoutExercise(exerciseType: .jumpingJacks, sets: 3, reps: nil, weight: nil, time: 30, restTime: 30, notes: "Keep moving"),
+                    WorkoutExercise(exerciseType: .highKnees, sets: 3, reps: nil, weight: nil, time: 30, restTime: 30, notes: "Knees to chest")
+                ],
+                estimatedDuration: 10,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "HIIT Upper Body",
+                category: .hiit,
+                description: "High intensity upper body focused workout",
+                exercises: [
+                    WorkoutExercise(exerciseType: .pushUps, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "As many as possible"),
+                    WorkoutExercise(exerciseType: .pullUps, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Strict form"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Full movement"),
+                    WorkoutExercise(exerciseType: .dips, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Controlled descent")
+                ],
+                estimatedDuration: 20,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "HIIT Lower Body",
+                category: .hiit,
+                description: "High intensity lower body focused workout",
+                exercises: [
+                    WorkoutExercise(exerciseType: .squat, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Bodyweight squats"),
+                    WorkoutExercise(exerciseType: .lunges, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Alternating legs"),
+                    WorkoutExercise(exerciseType: .jumpingJacks, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Keep moving"),
+                    WorkoutExercise(exerciseType: .highKnees, sets: 4, reps: nil, weight: nil, time: 45, restTime: 15, notes: "Knees to chest"),
+                    WorkoutExercise(exerciseType: .gluteBridge, sets: 4, reps: 20, weight: nil, time: nil, restTime: 15, notes: "Squeeze glutes")
+                ],
+                estimatedDuration: 25,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "HIIT Cardio Blast",
+                category: .hiit,
+                description: "Pure cardio high intensity workout",
+                exercises: [
+                    WorkoutExercise(exerciseType: .burpees, sets: 5, reps: nil, weight: nil, time: 30, restTime: 30, notes: "All out effort"),
+                    WorkoutExercise(exerciseType: .mountainClimbers, sets: 5, reps: nil, weight: nil, time: 30, restTime: 30, notes: "Fast pace"),
+                    WorkoutExercise(exerciseType: .jumpingJacks, sets: 5, reps: nil, weight: nil, time: 30, restTime: 30, notes: "Keep moving"),
+                    WorkoutExercise(exerciseType: .highKnees, sets: 5, reps: nil, weight: nil, time: 30, restTime: 30, notes: "Knees to chest"),
+                    WorkoutExercise(exerciseType: .sprint, sets: 5, reps: nil, weight: nil, time: 30, restTime: 30, notes: "All out sprint")
+                ],
+                estimatedDuration: 30,
+                difficulty: .intermediate
             )
         ]
     }
@@ -375,4 +562,8 @@ extension ExerciseType {
     static let planche = ExerciseType.weightedPlank
     static let frontLever = ExerciseType.hangingLegRaise
     static let humanFlag = ExerciseType.sideBend
+    static let wallBall = ExerciseType.kettlebellSwing
+    static let kettlebellGobletSquat = ExerciseType.squat
+    static let dips = ExerciseType.tricepsKickback
+    static let gluteBridge = ExerciseType.hipThrust
 }
