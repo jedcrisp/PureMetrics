@@ -494,7 +494,7 @@ class BPDataManager: ObservableObject {
     }
     
     func startFitnessSession() {
-        currentFitnessSession = FitnessSession()
+        currentFitnessSession.start()
     }
     
     func pauseFitnessSession() {
