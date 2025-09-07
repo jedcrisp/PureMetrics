@@ -20,17 +20,17 @@ struct ContentView: View {
                 }
                 .tag(1)
             
-            DailyReadingsView(dataManager: dataManager)
-                .tabItem {
-                    Image(systemName: "calendar")
-                    Text("Daily")
-                }
-                .tag(2)
-            
             TrendsView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                     Text("Trends")
+                }
+                .tag(2)
+            
+            NutritionView(dataManager: dataManager)
+                .tabItem {
+                    Image(systemName: "fork.knife")
+                    Text("Nutrition")
                 }
                 .tag(3)
             

@@ -93,11 +93,17 @@ class BPDataManager: ObservableObject {
     // Custom workouts storage
     @Published var customWorkouts: [CustomWorkout] = []
     
+    // Nutrition storage
+    @Published var nutritionEntries: [NutritionEntry] = []
+    @Published var nutritionGoals: NutritionGoals = NutritionGoals()
+    
     private let maxReadingsPerSession = Int.max
     private let userDefaults = UserDefaults.standard
     private let sessionsKey = "BPSessions"
     private let fitnessSessionsKey = "FitnessSessions"
     private let customWorkoutsKey = "CustomWorkouts"
+    private let nutritionEntriesKey = "NutritionEntries"
+    private let nutritionGoalsKey = "NutritionGoals"
     
     // Firebase services
     private let firestoreService = FirestoreService()
@@ -111,6 +117,8 @@ class BPDataManager: ObservableObject {
         loadFitnessSessions()
         loadHealthMetrics()
         loadCustomWorkouts()
+        loadNutritionEntries()
+        loadNutritionGoals()
         
         // Listen for authentication changes
         NotificationCenter.default.addObserver(
@@ -663,6 +671,70 @@ class BPDataManager: ObservableObject {
         } catch {
             print("Error loading custom workouts: \(error)")
             customWorkouts = []
+        }
+    }
+    
+    // MARK: - Nutrition Management
+    
+    func addNutritionEntry(_ entry: NutritionEntry) {
+        nutritionEntries.append(entry)
+        saveNutritionEntries()
+    }
+    
+    func updateNutritionEntry(_ entry: NutritionEntry) {
+        if let index = nutritionEntries.firstIndex(where: { $0.id == entry.id }) {
+            nutritionEntries[index] = entry
+            saveNutritionEntries()
+        }
+    }
+    
+    func deleteNutritionEntry(_ entry: NutritionEntry) {
+        nutritionEntries.removeAll { $0.id == entry.id }
+        saveNutritionEntries()
+    }
+    
+    func updateNutritionGoals(_ goals: NutritionGoals) {
+        nutritionGoals = goals
+        saveNutritionGoals()
+    }
+    
+    private func saveNutritionEntries() {
+        do {
+            let data = try JSONEncoder().encode(nutritionEntries)
+            userDefaults.set(data, forKey: nutritionEntriesKey)
+        } catch {
+            print("Error saving nutrition entries: \(error)")
+        }
+    }
+    
+    private func loadNutritionEntries() {
+        guard let data = userDefaults.data(forKey: nutritionEntriesKey) else { return }
+        
+        do {
+            nutritionEntries = try JSONDecoder().decode([NutritionEntry].self, from: data)
+        } catch {
+            print("Error loading nutrition entries: \(error)")
+            nutritionEntries = []
+        }
+    }
+    
+    private func saveNutritionGoals() {
+        do {
+            let data = try JSONEncoder().encode(nutritionGoals)
+            userDefaults.set(data, forKey: nutritionGoalsKey)
+        } catch {
+            print("Error saving nutrition goals: \(error)")
+        }
+    }
+    
+    private func loadNutritionGoals() {
+        guard let data = userDefaults.data(forKey: nutritionGoalsKey) else { return }
+        
+        do {
+            nutritionGoals = try JSONDecoder().decode(NutritionGoals.self, from: data)
+        } catch {
+            print("Error loading nutrition goals: \(error)")
+            nutritionGoals = NutritionGoals()
         }
     }
     

@@ -42,6 +42,9 @@ struct TrendsView: View {
                                 exerciseTypeSelector
                             }
                             
+                            // Daily Readings Section
+                            dailyReadingsSection
+                            
                             // Combined BP Chart (only show for BP metrics)
                             if !filteredSessions.isEmpty && (selectedMetric == .systolic || selectedMetric == .diastolic) {
                                 combinedChartSection
@@ -542,6 +545,25 @@ struct TrendsView: View {
     }
     
     // MARK: - Empty State View
+    
+    // MARK: - Daily Readings Section
+    
+    private var dailyReadingsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Daily Readings")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            DailyReadingsView(dataManager: dataManager)
+                .frame(height: 300)
+        }
+        .padding(.horizontal, 20)
+    }
     
     private var emptyStateView: some View {
         VStack(spacing: 20) {
