@@ -88,7 +88,20 @@ class FirestoreService: ObservableObject {
             return
         }
         
+        var isCompleted = false
+        
+        // Add timeout for individual requests
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            guard !isCompleted else { return }
+            isCompleted = true
+            print("Timeout loading \(dataType.rawValue) data")
+            completion(.failure(FirestoreError.timeout))
+        }
+        
         collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+            guard !isCompleted else { return }
+            isCompleted = true
+            
             if let error = error {
                 print("Error loading \(dataType.rawValue) data: \(error)")
                 completion(.failure(error))
@@ -133,11 +146,14 @@ class FirestoreService: ObservableObject {
         var allHealthData: [UnifiedHealthData] = []
         var hasError = false
         var lastError: Error?
+        var isCompleted = false
         
         for dataType in HealthDataType.allCases {
             dispatchGroup.enter()
             
             loadSpecificDataType(dataType) { result in
+                guard !isCompleted else { return }
+                
                 switch result {
                 case .success(let data):
                     allHealthData.append(contentsOf: data)
@@ -149,7 +165,25 @@ class FirestoreService: ObservableObject {
             }
         }
         
+        // Add timeout to prevent hanging
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
+            guard !isCompleted else { return }
+            isCompleted = true
+            
+            if allHealthData.isEmpty {
+                completion(.failure(lastError ?? FirestoreError.timeout))
+            } else {
+                // Sort by timestamp (newest first)
+                allHealthData.sort { $0.timestamp > $1.timestamp }
+                print("Successfully loaded \(allHealthData.count) total health data entries across all types (with timeout)")
+                completion(.success(allHealthData))
+            }
+        }
+        
         dispatchGroup.notify(queue: .main) {
+            guard !isCompleted else { return }
+            isCompleted = true
+            
             if hasError, let error = lastError {
                 completion(.failure(error))
             } else {
@@ -788,6 +822,7 @@ enum FirestoreError: LocalizedError {
     case encodingError
     case decodingError
     case networkError
+    case timeout
     case unknown
     
     var errorDescription: String? {
@@ -800,6 +835,8 @@ enum FirestoreError: LocalizedError {
             return "Error decoding data"
         case .networkError:
             return "Network error occurred"
+        case .timeout:
+            return "Request timed out"
         case .unknown:
             return "An unknown error occurred"
         }

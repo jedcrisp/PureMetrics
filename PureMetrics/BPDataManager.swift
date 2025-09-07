@@ -141,6 +141,20 @@ class BPDataManager: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.loadFromFirebase()
         }
+        
+        // Add a timeout to prevent indefinite hanging
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60) { [weak self] in
+            if self?.isSyncing == true {
+                print("Sync timeout - forcing completion")
+                self?.isSyncing = false
+                self?.syncError = "Sync timed out - using local data"
+                
+                // Load local data as fallback
+                self?.loadSessions()
+                self?.loadFitnessSessions()
+                self?.loadHealthMetrics()
+            }
+        }
     }
     
     @objc private func userDidSignOut() {
@@ -835,72 +849,83 @@ class BPDataManager: ObservableObject {
         isSyncing = true
         syncError = nil
         
-        // Load all health data using unified structure
-        firestoreService.loadHealthData { [weak self] result in
-            DispatchQueue.main.async {
-                self?.isSyncing = false
-                
-                switch result {
-                case .success(let healthData):
-                    // Separate data by type
-                    var bpSessions: [BPSession] = []
-                    var fitnessSessions: [FitnessSession] = []
-                    var healthMetrics: [HealthMetric] = []
+        // Run sync on background queue to prevent UI blocking
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            // Load all health data using unified structure
+            self?.firestoreService.loadHealthData { result in
+                DispatchQueue.main.async {
+                    self?.isSyncing = false
                     
-                    for data in healthData {
-                        switch data.dataType {
-                        case .bloodPressureSession:
-                            if let session = data.bpSession {
-                                bpSessions.append(session)
+                    switch result {
+                    case .success(let healthData):
+                        // Separate data by type
+                        var bpSessions: [BPSession] = []
+                        var fitnessSessions: [FitnessSession] = []
+                        var healthMetrics: [HealthMetric] = []
+                        
+                        for data in healthData {
+                            switch data.dataType {
+                            case .bloodPressureSession:
+                                if let session = data.bpSession {
+                                    bpSessions.append(session)
+                                }
+                            case .fitnessSession:
+                                if let session = data.fitnessSession {
+                                    fitnessSessions.append(session)
+                                }
+                            case .weight, .bloodSugar, .heartRate:
+                                if let metricType = data.metricType,
+                                   let value = data.value {
+                                    let metric = HealthMetric(
+                                        type: metricType,
+                                        value: value,
+                                        timestamp: data.timestamp
+                                    )
+                                    healthMetrics.append(metric)
+                                }
+                            default:
+                                break
                             }
-                        case .fitnessSession:
-                            if let session = data.fitnessSession {
-                                fitnessSessions.append(session)
-                            }
-                        case .weight, .bloodSugar, .heartRate:
-                            if let metricType = data.metricType,
-                               let value = data.value {
-                                let metric = HealthMetric(
-                                    type: metricType,
-                                    value: value,
-                                    timestamp: data.timestamp
-                                )
-                                healthMetrics.append(metric)
-                            }
-                        default:
-                            break
                         }
+                        
+                        // Update local data
+                        self?.sessions = bpSessions
+                        self?.fitnessSessions = fitnessSessions
+                        self?.healthMetrics = healthMetrics
+                        
+                        // Save to local storage
+                        self?.saveSessions()
+                        self?.saveFitnessSessions()
+                        self?.saveHealthMetrics()
+                        
+                        print("Successfully loaded all data from Firebase using unified structure")
+                        print("- BP Sessions: \(bpSessions.count)")
+                        print("- Fitness Sessions: \(fitnessSessions.count)")
+                        print("- Health Metrics: \(healthMetrics.count)")
+                        
+                    case .failure(let error):
+                        self?.syncError = error.localizedDescription
+                        print("Error loading from Firebase: \(error)")
+                        
+                        // Fallback to local data if Firebase fails
+                        print("Falling back to local data...")
+                        self?.loadSessions()
+                        self?.loadFitnessSessions()
+                        self?.loadHealthMetrics()
                     }
-                    
-                    // Update local data
-                    self?.sessions = bpSessions
-                    self?.fitnessSessions = fitnessSessions
-                    self?.healthMetrics = healthMetrics
-                    
-                    // Save to local storage
-                    self?.saveSessions()
-                    self?.saveFitnessSessions()
-                    self?.saveHealthMetrics()
-                    
-                    print("Successfully loaded all data from Firebase using unified structure")
-                    print("- BP Sessions: \(bpSessions.count)")
-                    print("- Fitness Sessions: \(fitnessSessions.count)")
-                    print("- Health Metrics: \(healthMetrics.count)")
-                    
-                case .failure(let error):
-                    self?.syncError = error.localizedDescription
-                    print("Error loading from Firebase: \(error)")
                 }
             }
-        }
-        
-        // Also load user profile
-        firestoreService.loadUserProfile { [weak self] result in
-            switch result {
-            case .success(let profile):
-                self?.userProfile = profile
-            case .failure(let error):
-                print("Error loading user profile: \(error)")
+            
+            // Also load user profile
+            self?.firestoreService.loadUserProfile { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let profile):
+                        self?.userProfile = profile
+                    case .failure(let error):
+                        print("Error loading user profile: \(error)")
+                    }
+                }
             }
         }
     }
