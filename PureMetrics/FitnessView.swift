@@ -764,6 +764,10 @@ struct FitnessView: View {
             
             // Add Set Button
             Button(action: {
+                print("=== ADD SET BUTTON TAPPED ===")
+                print("Exercise Index: \(exerciseIndex)")
+                print("Set Input: \(setInput)")
+                print("Set Input Valid: \(setInput.isValid)")
                 addSetToExercise(exerciseIndex: exerciseIndex, setInput: setInput)
             }) {
                 Image(systemName: "plus.circle.fill")
