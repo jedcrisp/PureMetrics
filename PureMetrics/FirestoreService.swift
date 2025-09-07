@@ -137,8 +137,12 @@ class FirestoreService: ObservableObject {
                 exerciseData["updatedAt"] = Timestamp(date: Date())
                 
                 // Include sets data in the exercise document for easier querying
+                print("  - DEBUG: Exercise has \(exerciseSession.sets.count) sets")
+                print("  - DEBUG: Sets array: \(exerciseSession.sets)")
+                
                 var setsData: [[String: Any]] = []
-                for set in exerciseSession.sets {
+                for (index, set) in exerciseSession.sets.enumerated() {
+                    print("  - DEBUG: Processing set \(index): \(set)")
                     var setData: [String: Any] = [:]
                     setData["id"] = set.id.uuidString
                     setData["reps"] = set.reps
@@ -146,8 +150,10 @@ class FirestoreService: ObservableObject {
                     setData["time"] = set.time
                     setData["timestamp"] = Timestamp(date: set.timestamp)
                     setsData.append(setData)
+                    print("  - DEBUG: Set data created: \(setData)")
                 }
                 exerciseData["sets"] = setsData
+                print("  - DEBUG: Final sets data for Firestore: \(setsData)")
                 
                 batch.setData(exerciseData, forDocument: exerciseDocRef)
                 

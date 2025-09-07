@@ -487,6 +487,19 @@ class BPDataManager: ObservableObject {
     // MARK: - Fitness Data Persistence
     
     private func saveFitnessSessions() {
+        print("=== SAVING FITNESS SESSIONS ===")
+        print("Total fitness sessions: \(fitnessSessions.count)")
+        for (index, session) in fitnessSessions.enumerated() {
+            print("Session \(index): \(session.exerciseSessions.count) exercises")
+            for (exIndex, exercise) in session.exerciseSessions.enumerated() {
+                print("  Exercise \(exIndex) (\(exercise.exerciseType.rawValue)): \(exercise.sets.count) sets")
+                for (setIndex, set) in exercise.sets.enumerated() {
+                    print("    Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
+                }
+            }
+        }
+        print("=== END SAVING FITNESS SESSIONS ===")
+        
         do {
             let data = try JSONEncoder().encode(fitnessSessions)
             userDefaults.set(data, forKey: fitnessSessionsKey)
