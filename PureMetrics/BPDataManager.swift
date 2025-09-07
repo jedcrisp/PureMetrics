@@ -90,10 +90,14 @@ class BPDataManager: ObservableObject {
     // Health metrics storage
     @Published var healthMetrics: [HealthMetric] = []
     
+    // Custom workouts storage
+    @Published var customWorkouts: [CustomWorkout] = []
+    
     private let maxReadingsPerSession = Int.max
     private let userDefaults = UserDefaults.standard
     private let sessionsKey = "BPSessions"
     private let fitnessSessionsKey = "FitnessSessions"
+    private let customWorkoutsKey = "CustomWorkouts"
     
     // Firebase services
     private let firestoreService = FirestoreService()
@@ -106,6 +110,7 @@ class BPDataManager: ObservableObject {
         loadSessions()
         loadFitnessSessions()
         loadHealthMetrics()
+        loadCustomWorkouts()
         
         // Listen for authentication changes
         NotificationCenter.default.addObserver(
@@ -591,6 +596,74 @@ class BPDataManager: ObservableObject {
     func clearWorkoutTemplate() {
         // Clear all exercises from current session
         currentFitnessSession.exerciseSessions.removeAll()
+    }
+    
+    // MARK: - Custom Workout Management
+    
+    func saveCustomWorkout(_ workout: CustomWorkout) {
+        customWorkouts.append(workout)
+        saveCustomWorkouts()
+    }
+    
+    func updateCustomWorkout(_ workout: CustomWorkout) {
+        if let index = customWorkouts.firstIndex(where: { $0.id == workout.id }) {
+            customWorkouts[index] = workout
+            saveCustomWorkouts()
+        }
+    }
+    
+    func deleteCustomWorkout(_ workout: CustomWorkout) {
+        customWorkouts.removeAll { $0.id == workout.id }
+        saveCustomWorkouts()
+    }
+    
+    func toggleCustomWorkoutFavorite(_ workout: CustomWorkout) {
+        if let index = customWorkouts.firstIndex(where: { $0.id == workout.id }) {
+            customWorkouts[index].isFavorite.toggle()
+            saveCustomWorkouts()
+        }
+    }
+    
+    func loadCustomWorkout(_ workout: CustomWorkout) {
+        // Clear current session if it has exercises
+        if !currentFitnessSession.exerciseSessions.isEmpty {
+            saveCurrentFitnessSession()
+        }
+        
+        // Clear current session
+        clearCurrentFitnessSession()
+        
+        // Add exercises from custom workout
+        for workoutExercise in workout.exercises {
+            _ = addExerciseSession(workoutExercise.exerciseType)
+        }
+        
+        // Update use count and last used
+        if let index = customWorkouts.firstIndex(where: { $0.id == workout.id }) {
+            customWorkouts[index].useCount += 1
+            customWorkouts[index].lastUsed = Date()
+            saveCustomWorkouts()
+        }
+    }
+    
+    private func saveCustomWorkouts() {
+        do {
+            let data = try JSONEncoder().encode(customWorkouts)
+            userDefaults.set(data, forKey: customWorkoutsKey)
+        } catch {
+            print("Error saving custom workouts: \(error)")
+        }
+    }
+    
+    private func loadCustomWorkouts() {
+        guard let data = userDefaults.data(forKey: customWorkoutsKey) else { return }
+        
+        do {
+            customWorkouts = try JSONDecoder().decode([CustomWorkout].self, from: data)
+        } catch {
+            print("Error loading custom workouts: \(error)")
+            customWorkouts = []
+        }
     }
     
     // MARK: - Fitness Data Analysis

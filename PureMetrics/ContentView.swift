@@ -42,12 +42,20 @@ struct ContentView: View {
                 }
                 .tag(4)
             
+            CustomWorkoutsLibrary()
+                .environmentObject(dataManager)
+                .tabItem {
+                    Image(systemName: "book.fill")
+                    Text("Library")
+                }
+                .tag(5)
+            
             ProfileView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "person.circle.fill")
                     Text("Profile")
                 }
-                .tag(5)
+                .tag(6)
         }
         .accentColor(.blue)
     }

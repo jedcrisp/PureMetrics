@@ -18,6 +18,7 @@ struct FitnessView: View {
     @State private var isWorkoutTemplateLoaded: Bool = false
     @State private var showingDeleteConfirmation: Bool = false
     @State private var showingCompleteConfirmation: Bool = false
+    @State private var showingCustomWorkoutBuilder: Bool = false
     
     var body: some View {
         NavigationView {
@@ -113,6 +114,9 @@ struct FitnessView: View {
                 showingWorkoutSelector = false
             }
         }
+        .sheet(isPresented: $showingCustomWorkoutBuilder) {
+            CustomWorkoutBuilder()
+        }
         .alert("Delete Workout Template", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -163,6 +167,16 @@ struct FitnessView: View {
                         Spacer()
                         
                         HStack(spacing: 16) {
+                            // Custom Workout Button
+                            Button(action: {
+                                showingCustomWorkoutBuilder = true
+                            }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                            }
+                            
                             // Live Session Timer
                             if dataManager.currentFitnessSession.isActive || dataManager.currentFitnessSession.isPaused {
                                 VStack(alignment: .trailing, spacing: 4) {
