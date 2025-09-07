@@ -41,6 +41,10 @@ struct PureMetricsApp: App {
                     FirebaseApp.configure()
                 }
             }
+            .onOpenURL { url in
+                // Handle Google Sign-In URL
+                GIDSignIn.sharedInstance.handle(url)
+            }
         }
     }
 }
