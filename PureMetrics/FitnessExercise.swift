@@ -295,7 +295,7 @@ struct ExerciseSet: Codable, Identifiable {
 // MARK: - Exercise Session Model
 
 struct ExerciseSession: Codable, Identifiable {
-    let id: UUID
+    var id: UUID
     let exerciseType: ExerciseType
     var sets: [ExerciseSet]
     let startTime: Date
@@ -381,7 +381,7 @@ struct ExerciseSession: Codable, Identifiable {
 // MARK: - Fitness Session Model (Collection of Exercise Sessions)
 
 struct FitnessSession: Codable, Identifiable {
-    let id: UUID
+    var id: UUID
     var exerciseSessions: [ExerciseSession]
     let startTime: Date
     var endTime: Date?

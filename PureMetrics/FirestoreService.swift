@@ -102,30 +102,60 @@ class FirestoreService: ObservableObject {
         let batch = db.batch()
         
         for (index, session) in sessions.enumerated() {
-            do {
-                var sessionData = try Firestore.Encoder().encode(session)
-                sessionData["type"] = "fitness_session"
-                sessionData["id"] = session.id.uuidString
-                sessionData["createdAt"] = Timestamp(date: session.startTime)
-                sessionData["updatedAt"] = Timestamp(date: Date())
+            // Manually encode the fitness session data to ensure all nested data is preserved
+            var sessionData: [String: Any] = [:]
+            
+            // Basic session data
+            sessionData["type"] = "fitness_session"
+            sessionData["id"] = session.id.uuidString
+            sessionData["startTime"] = Timestamp(date: session.startTime)
+            sessionData["endTime"] = session.endTime != nil ? Timestamp(date: session.endTime!) : nil
+            sessionData["isActive"] = session.isActive
+            sessionData["isPaused"] = session.isPaused
+            sessionData["isCompleted"] = session.isCompleted
+            sessionData["createdAt"] = Timestamp(date: session.startTime)
+            sessionData["updatedAt"] = Timestamp(date: Date())
+            
+            // Encode exercise sessions
+            var exerciseSessionsData: [[String: Any]] = []
+            for exerciseSession in session.exerciseSessions {
+                var exerciseData: [String: Any] = [:]
+                exerciseData["id"] = exerciseSession.id.uuidString
+                exerciseData["exerciseType"] = exerciseSession.exerciseType.rawValue
+                exerciseData["startTime"] = Timestamp(date: exerciseSession.startTime)
+                exerciseData["endTime"] = exerciseSession.endTime != nil ? Timestamp(date: exerciseSession.endTime!) : nil
+                exerciseData["isCompleted"] = exerciseSession.isCompleted
                 
-                // Debug: Print session data to see what's being saved
-                print("Saving fitness session \(index):")
-                print("- ID: \(session.id)")
-                print("- Exercise Sessions: \(session.exerciseSessions.count)")
-                for (exerciseIndex, exerciseSession) in session.exerciseSessions.enumerated() {
-                    print("  - Exercise \(exerciseIndex): \(exerciseSession.exerciseType.rawValue)")
-                    print("  - Sets: \(exerciseSession.sets.count)")
-                    for (setIndex, set) in exerciseSession.sets.enumerated() {
-                        print("    - Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
-                    }
+                // Encode sets
+                var setsData: [[String: Any]] = []
+                for set in exerciseSession.sets {
+                    var setData: [String: Any] = [:]
+                    setData["id"] = set.id.uuidString
+                    setData["reps"] = set.reps
+                    setData["weight"] = set.weight
+                    setData["time"] = set.time
+                    setData["timestamp"] = Timestamp(date: set.timestamp)
+                    setsData.append(setData)
                 }
-                
-                let docRef = collection.document("fitness_session_\(session.id.uuidString)")
-                batch.setData(sessionData, forDocument: docRef)
-            } catch {
-                print("Error encoding fitness session \(index): \(error)")
+                exerciseData["sets"] = setsData
+                exerciseSessionsData.append(exerciseData)
             }
+            sessionData["exerciseSessions"] = exerciseSessionsData
+            
+            // Debug: Print session data to see what's being saved
+            print("Saving fitness session \(index):")
+            print("- ID: \(session.id)")
+            print("- Exercise Sessions: \(session.exerciseSessions.count)")
+            for (exerciseIndex, exerciseSession) in session.exerciseSessions.enumerated() {
+                print("  - Exercise \(exerciseIndex): \(exerciseSession.exerciseType.rawValue)")
+                print("  - Sets: \(exerciseSession.sets.count)")
+                for (setIndex, set) in exerciseSession.sets.enumerated() {
+                    print("    - Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
+                }
+            }
+            
+            let docRef = collection.document("fitness_session_\(session.id.uuidString)")
+            batch.setData(sessionData, forDocument: docRef)
         }
         
         batch.commit { error in
@@ -156,18 +186,77 @@ class FirestoreService: ObservableObject {
                 return
             }
             
-            let sessions = documents.compactMap { document in
-                do {
-                    var data = document.data()
-                    // Remove the extra fields we added for Firestore
-                    data.removeValue(forKey: "type")
-                    data.removeValue(forKey: "createdAt")
-                    data.removeValue(forKey: "updatedAt")
-                    return try Firestore.Decoder().decode(FitnessSession.self, from: data)
-                } catch {
-                    print("Error decoding fitness session: \(error)")
+            let sessions: [FitnessSession] = documents.compactMap { document in
+                let data = document.data()
+                
+                // Manually decode the fitness session data
+                guard let idString = data["id"] as? String,
+                      let id = UUID(uuidString: idString),
+                      let startTimeTimestamp = data["startTime"] as? Timestamp,
+                      let isActive = data["isActive"] as? Bool,
+                      let isPaused = data["isPaused"] as? Bool,
+                      let isCompleted = data["isCompleted"] as? Bool,
+                      let exerciseSessionsData = data["exerciseSessions"] as? [[String: Any]] else {
+                    print("Error: Missing required fields in fitness session data")
                     return nil
                 }
+                
+                let startTime = startTimeTimestamp.dateValue()
+                let endTime = (data["endTime"] as? Timestamp)?.dateValue()
+                
+                // Decode exercise sessions
+                var exerciseSessions: [ExerciseSession] = []
+                for exerciseData in exerciseSessionsData {
+                    guard let exerciseIdString = exerciseData["id"] as? String,
+                          let exerciseId = UUID(uuidString: exerciseIdString),
+                          let exerciseTypeString = exerciseData["exerciseType"] as? String,
+                          let exerciseType = ExerciseType(rawValue: exerciseTypeString),
+                          let exerciseStartTimeTimestamp = exerciseData["startTime"] as? Timestamp,
+                          let exerciseIsCompleted = exerciseData["isCompleted"] as? Bool,
+                          let setsData = exerciseData["sets"] as? [[String: Any]] else {
+                        print("Error: Missing required fields in exercise session data")
+                        continue
+                    }
+                    
+                    let exerciseStartTime = exerciseStartTimeTimestamp.dateValue()
+                    let exerciseEndTime = (exerciseData["endTime"] as? Timestamp)?.dateValue()
+                    
+                    // Decode sets
+                    var sets: [ExerciseSet] = []
+                    for setData in setsData {
+                        guard let setIdString = setData["id"] as? String,
+                              let setId = UUID(uuidString: setIdString),
+                              let timestampTimestamp = setData["timestamp"] as? Timestamp else {
+                            print("Error: Missing required fields in set data")
+                            continue
+                        }
+                        
+                        let reps = setData["reps"] as? Int
+                        let weight = setData["weight"] as? Double
+                        let time = setData["time"] as? TimeInterval
+                        let timestamp = timestampTimestamp.dateValue()
+                        
+                        let set = ExerciseSet(reps: reps, weight: weight, time: time, timestamp: timestamp)
+                        sets.append(set)
+                    }
+                    
+                    var exerciseSession = ExerciseSession(exerciseType: exerciseType, startTime: exerciseStartTime)
+                    exerciseSession.id = exerciseId
+                    exerciseSession.sets = sets
+                    exerciseSession.endTime = exerciseEndTime
+                    exerciseSession.isCompleted = exerciseIsCompleted
+                    exerciseSessions.append(exerciseSession)
+                }
+                
+                var fitnessSession = FitnessSession(startTime: startTime)
+                fitnessSession.id = id
+                fitnessSession.exerciseSessions = exerciseSessions
+                fitnessSession.endTime = endTime
+                fitnessSession.isActive = isActive
+                fitnessSession.isPaused = isPaused
+                fitnessSession.isCompleted = isCompleted
+                
+                return fitnessSession
             }
             
             completion(.success(sessions))
