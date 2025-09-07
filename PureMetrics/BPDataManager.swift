@@ -5,6 +5,7 @@ import FirebaseFirestore
 
 extension Notification.Name {
     static let userDidSignIn = Notification.Name("userDidSignIn")
+    static let userDidSignOut = Notification.Name("userDidSignOut")
 }
 
 // MARK: - BP Category Enum
@@ -84,6 +85,7 @@ class BPDataManager: ObservableObject {
     @Published var userProfile: UserProfile?
     @Published var isSyncing = false
     @Published var syncError: String?
+    private var hasSyncedForCurrentSession = false
     
     // Health metrics storage
     @Published var healthMetrics: [HealthMetric] = []
@@ -112,6 +114,13 @@ class BPDataManager: ObservableObject {
             name: .userDidSignIn,
             object: nil
         )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(userDidSignOut),
+            name: .userDidSignOut,
+            object: nil
+        )
     }
     
     deinit {
@@ -119,8 +128,26 @@ class BPDataManager: ObservableObject {
     }
     
     @objc private func userDidSignIn() {
+        // Prevent multiple simultaneous syncs or repeated syncs for same session
+        guard !isSyncing && !hasSyncedForCurrentSession else {
+            print("Sync already in progress or completed for this session, skipping...")
+            return
+        }
+        
         print("User signed in, syncing data to Firebase...")
-        loadFromFirebase()
+        hasSyncedForCurrentSession = true
+        
+        // Add a small delay to prevent rapid-fire sync attempts
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.loadFromFirebase()
+        }
+    }
+    
+    @objc private func userDidSignOut() {
+        print("User signed out, resetting sync state...")
+        hasSyncedForCurrentSession = false
+        isSyncing = false
+        syncError = nil
     }
     
     // MARK: - Session Management

@@ -38,6 +38,11 @@ class AuthService: ObservableObject {
                 if !wasAuthenticated && user != nil {
                     NotificationCenter.default.post(name: .userDidSignIn, object: nil)
                 }
+                
+                // Post notification when user signs out
+                if wasAuthenticated && user == nil {
+                    NotificationCenter.default.post(name: .userDidSignOut, object: nil)
+                }
             }
         }
     }
