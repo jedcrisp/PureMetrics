@@ -390,6 +390,19 @@ class BPDataManager: ObservableObject {
         print("=== END SAVING CURRENT FITNESS SESSION ===")
     }
     
+    // Add this function to collect sets from UI and add them to current session
+    func addSetsToCurrentSession(exerciseIndex: Int, sets: [ExerciseSet]) {
+        guard exerciseIndex >= 0 && exerciseIndex < currentFitnessSession.exerciseSessions.count else {
+            print("Invalid exercise index for adding sets")
+            return
+        }
+        
+        print("Adding \(sets.count) sets to exercise \(exerciseIndex)")
+        for set in sets {
+            currentFitnessSession.exerciseSessions[exerciseIndex].addSet(set)
+        }
+    }
+    
     func clearCurrentFitnessSession() {
         currentFitnessSession = FitnessSession()
     }

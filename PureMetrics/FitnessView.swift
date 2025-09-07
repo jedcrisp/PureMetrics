@@ -1081,6 +1081,32 @@ struct FitnessView: View {
     }
     
     private func saveFitnessSession() {
+        // Collect any sets that were entered in the UI and add them to the current session
+        for (exerciseIndex, exerciseSession) in dataManager.currentFitnessSession.exerciseSessions.enumerated() {
+            if let setInputs = exerciseSetInputs[exerciseIndex] {
+                var sets: [ExerciseSet] = []
+                for setInput in setInputs {
+                    if setInput.isValid {
+                        let repsInt = setInput.reps.isEmpty ? nil : Int(setInput.reps)
+                        let weightDouble = setInput.weight.isEmpty ? nil : Double(setInput.weight)
+                        let timeInterval = setInput.time.isEmpty ? nil : TimeInterval(setInput.time)
+                        
+                        let set = ExerciseSet(
+                            reps: repsInt,
+                            weight: weightDouble,
+                            time: timeInterval,
+                            timestamp: Date()
+                        )
+                        sets.append(set)
+                    }
+                }
+                
+                if !sets.isEmpty {
+                    dataManager.addSetsToCurrentSession(exerciseIndex: exerciseIndex, sets: sets)
+                }
+            }
+        }
+        
         dataManager.saveCurrentFitnessSession()
     }
     
