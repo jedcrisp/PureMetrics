@@ -390,7 +390,7 @@ struct FitnessSession: Codable, Identifiable {
     var exerciseSessions: [ExerciseSession]
     let startTime: Date
     var endTime: Date?
-    var isActive: Bool = true
+    var isActive: Bool = false
     var isPaused: Bool = false
     var isCompleted: Bool = false
     

@@ -122,9 +122,10 @@ struct FitnessView: View {
         }
         .alert("Complete Session", isPresented: $showingCompleteConfirmation) {
             Button("Cancel", role: .cancel) { }
-            Button("Complete", role: .none) {
+            Button("Complete") {
                 saveFitnessSession()
             }
+            .foregroundColor(.green)
         } message: {
             Text("Are you sure you want to complete and save this fitness session? This will end the current session and save all your progress.")
         }
