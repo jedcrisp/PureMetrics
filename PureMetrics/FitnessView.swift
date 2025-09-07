@@ -55,7 +55,10 @@ struct FitnessView: View {
             .navigationTitle("")
             .navigationBarHidden(true)
             .onAppear {
-                startTimer()
+                // Only start timer if session is already active
+                if dataManager.currentFitnessSession.isActive && !dataManager.currentFitnessSession.isPaused {
+                    startTimer()
+                }
             }
             .onDisappear {
                 stopTimer()

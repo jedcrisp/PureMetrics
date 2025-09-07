@@ -393,9 +393,11 @@ struct FitnessSession: Codable, Identifiable {
     var isActive: Bool = true
     var isPaused: Bool = false
     var isCompleted: Bool = false
+    var pausedTime: TimeInterval = 0  // Total time spent paused
+    var lastPauseTime: Date?  // When the session was last paused
     
     enum CodingKeys: String, CodingKey {
-        case id, exerciseSessions, startTime, endTime, isActive, isPaused, isCompleted
+        case id, exerciseSessions, startTime, endTime, isActive, isPaused, isCompleted, pausedTime, lastPauseTime
     }
     
     init(startTime: Date? = nil) {
@@ -422,18 +424,28 @@ struct FitnessSession: Codable, Identifiable {
     mutating func pause() {
         isPaused = true
         isActive = false
+        lastPauseTime = Date()
     }
     
     mutating func resume() {
         isPaused = false
         isActive = true
+        if let pauseTime = lastPauseTime {
+            pausedTime += Date().timeIntervalSince(pauseTime)
+        }
+        lastPauseTime = nil
     }
     
     mutating func complete() {
+        // Add any remaining paused time before completing
+        if let pauseTime = lastPauseTime {
+            pausedTime += Date().timeIntervalSince(pauseTime)
+        }
         endTime = Date()
         isActive = false
         isPaused = false
         isCompleted = true
+        lastPauseTime = nil
     }
     
     var totalExercises: Int {
@@ -449,8 +461,22 @@ struct FitnessSession: Codable, Identifiable {
     }
     
     var duration: TimeInterval {
-        let end = endTime ?? Date()
-        return end.timeIntervalSince(startTime)
+        if isActive && !isPaused {
+            // Session is currently active and running
+            let currentTime = Date()
+            let totalPausedTime = pausedTime + (lastPauseTime != nil ? currentTime.timeIntervalSince(lastPauseTime!) : 0)
+            return currentTime.timeIntervalSince(startTime) - totalPausedTime
+        } else if isPaused {
+            // Session is paused, return time up to when it was paused
+            let pauseTime = lastPauseTime ?? Date()
+            return pauseTime.timeIntervalSince(startTime) - pausedTime
+        } else if let end = endTime {
+            // Session is completed, return total duration minus paused time
+            return end.timeIntervalSince(startTime) - pausedTime
+        } else {
+            // Session is inactive, return 0
+            return 0
+        }
     }
     
     var displayString: String {
