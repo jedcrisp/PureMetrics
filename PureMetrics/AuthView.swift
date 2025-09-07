@@ -137,27 +137,30 @@ struct AuthView: View {
                             
                             // Google Sign In Button
                             Button(action: handleGoogleSignIn) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "globe")
-                                        .font(.title3)
-                                        .foregroundColor(.white)
+                                HStack(spacing: 16) {
+                                    // Google Logo
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white)
+                                            .frame(width: 24, height: 24)
+                                        
+                                        Text("G")
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundColor(.red)
+                                    }
                                     
                                     Text("Continue with Google")
                                         .font(.headline)
                                         .fontWeight(.semibold)
-                                        .foregroundColor(.white)
+                                        .foregroundColor(.black)
                                 }
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
+                                .padding(.vertical, 18)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.2))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                        )
+                                        .fill(Color.white)
+                                        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
                                 )
-                                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                             }
                             .disabled(authService.isLoading)
                             .opacity(authService.isLoading ? 0.6 : 1.0)
@@ -251,12 +254,15 @@ struct AuthView: View {
     }
     
     private func handleGoogleSignIn() {
+        print("Google Sign-In button tapped")
         authService.signInWithGoogle { result in
             switch result {
             case .success(let user):
                 print("Google Sign-In successful: \(user.uid)")
             case .failure(let error):
                 print("Google Sign-In failed: \(error.localizedDescription)")
+                alertMessage = error.localizedDescription
+                showingAlert = true
             }
         }
     }

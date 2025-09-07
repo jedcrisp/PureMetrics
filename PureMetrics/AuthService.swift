@@ -140,7 +140,17 @@ class AuthService: ObservableObject {
     // MARK: - Google Sign In
     
     func signInWithGoogle(completion: @escaping (Result<User, Error>) -> Void) {
+        print("Starting Google Sign-In process...")
+        
+        // Check if GoogleSignIn is available
+        guard NSClassFromString("GIDSignIn") != nil else {
+            print("GoogleSignIn module not available")
+            completion(.failure(AuthError.googleSignInFailed))
+            return
+        }
+        
         guard let presentingViewController = UIApplication.shared.windows.first?.rootViewController else {
+            print("No presenting view controller found")
             completion(.failure(AuthError.noPresentingViewController))
             return
         }
@@ -148,11 +158,13 @@ class AuthService: ObservableObject {
         isLoading = true
         errorMessage = nil
         
+        print("Calling GIDSignIn.sharedInstance.signIn...")
         GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController) { [weak self] result, error in
             DispatchQueue.main.async {
                 self?.isLoading = false
                 
                 if let error = error {
+                    print("Google Sign-In error: \(error.localizedDescription)")
                     self?.errorMessage = error.localizedDescription
                     completion(.failure(error))
                     return
@@ -160,18 +172,22 @@ class AuthService: ObservableObject {
                 
                 guard let user = result?.user,
                       let idToken = user.idToken?.tokenString else {
+                    print("Failed to get Google ID token")
                     self?.errorMessage = "Failed to get Google ID token"
                     completion(.failure(AuthError.googleSignInFailed))
                     return
                 }
                 
+                print("Got Google ID token, creating Firebase credential...")
                 let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: user.accessToken.tokenString)
                 
                 Auth.auth().signIn(with: credential) { authResult, error in
                     if let error = error {
+                        print("Firebase auth error: \(error.localizedDescription)")
                         self?.errorMessage = error.localizedDescription
                         completion(.failure(error))
                     } else if let authUser = authResult?.user {
+                        print("Firebase auth successful: \(authUser.uid)")
                         self?.currentUser = authUser
                         self?.isAuthenticated = true
                         completion(.success(authUser))
