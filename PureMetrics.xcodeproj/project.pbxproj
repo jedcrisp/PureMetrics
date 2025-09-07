@@ -54,6 +54,7 @@
 		799BE8412E6D236100FE40EB /* FirestoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreService.swift; sourceTree = "<group>"; };
 		799BE8422E6D236100FE40EB /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		799BE8432E6D236100FE40EB /* StorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageService.swift; sourceTree = "<group>"; };
+		799BE84B2E6D275C00FE40EB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		89C404E822DE439E9DEEB53 /* ExerciseCategorySelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCategorySelector.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F67891 /* PureMetricsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureMetricsApp.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F67893 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -101,6 +102,7 @@
 		A1B2C3D4E5F678AF /* PureMetrics */ = {
 			isa = PBXGroup;
 			children = (
+				799BE84B2E6D275C00FE40EB /* Info.plist */,
 				799BE83E2E6D236100FE40EB /* AuthService.swift */,
 				799BE83F2E6D236100FE40EB /* AuthView.swift */,
 				799BE8402E6D236100FE40EB /* FirebaseConfig.swift */,
@@ -382,14 +384,8 @@
 				DEVELOPMENT_TEAM = HN6CFCKN72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = "GoogleSignIn";
-						CFBundleURLSchemes = (
-							"com.googleusercontent.apps.648441755880-ufqhb40a3a4m0sdlc202hm0hguuq75f4"
-						);
-					}
-				);
+				INFOPLIST_FILE = PureMetrics/Info.plist;
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = GoogleSignIn;\n    CFBundleURLSchemes =     (\n        \"com.googleusercontent.apps.648441755880-ufqhb40a3a4m0sdlc202hm0hguuq75f4\"\n    );\n}";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -420,14 +416,8 @@
 				DEVELOPMENT_TEAM = HN6CFCKN72;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = "GoogleSignIn";
-						CFBundleURLSchemes = (
-							"com.googleusercontent.apps.648441755880-ufqhb40a3a4m0sdlc202hm0hguuq75f4"
-						);
-					}
-				);
+				INFOPLIST_FILE = PureMetrics/Info.plist;
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = GoogleSignIn;\n    CFBundleURLSchemes =     (\n        \"com.googleusercontent.apps.648441755880-ufqhb40a3a4m0sdlc202hm0hguuq75f4\"\n    );\n}";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
