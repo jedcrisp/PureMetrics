@@ -64,7 +64,11 @@ struct TrendsView: View {
                             }
                             
                             // Statistics Summary
-                            if !filteredSessions.isEmpty {
+                            if selectedMetric == .fitness {
+                                if !fitnessChartData.isEmpty {
+                                    fitnessSummarySection
+                                }
+                            } else if !filteredSessions.isEmpty {
                                 statisticsSummary
                             }
                         }
@@ -404,23 +408,59 @@ struct TrendsView: View {
                     .fontWeight(.bold)
                 
                 Spacer()
+                
+                // Trend indicator
+                if let analysis = fitnessTrendAnalysis {
+                    HStack(spacing: 4) {
+                        Image(systemName: analysis.overallTrend.icon)
+                            .foregroundColor(analysis.overallTrend.color)
+                        Text(analysis.weightChangeString)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(analysis.overallTrend.color)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(analysis.overallTrend.color.opacity(0.1))
+                    )
+                }
             }
             
             Chart {
                 ForEach(fitnessChartData, id: \.date) { dataPoint in
+                    // Average Weight Line
                     LineMark(
                         x: .value("Date", dataPoint.date),
-                        y: .value("Weight", dataPoint.averageWeight)
+                        y: .value("Average Weight", dataPoint.averageWeight)
                     )
                     .foregroundStyle(.orange)
                     .lineStyle(StrokeStyle(lineWidth: 3))
                     
                     PointMark(
                         x: .value("Date", dataPoint.date),
-                        y: .value("Weight", dataPoint.averageWeight)
+                        y: .value("Average Weight", dataPoint.averageWeight)
                     )
                     .foregroundStyle(.orange)
                     .symbolSize(50)
+                    
+                    // Max Weight Line
+                    if dataPoint.maxWeight > dataPoint.averageWeight {
+                        LineMark(
+                            x: .value("Date", dataPoint.date),
+                            y: .value("Max Weight", dataPoint.maxWeight)
+                        )
+                        .foregroundStyle(.red)
+                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
+                        
+                        PointMark(
+                            x: .value("Date", dataPoint.date),
+                            y: .value("Max Weight", dataPoint.maxWeight)
+                        )
+                        .foregroundStyle(.red)
+                        .symbolSize(40)
+                    }
                 }
             }
             .frame(height: 200)
@@ -439,6 +479,29 @@ struct TrendsView: View {
                         }
                     }
                 }
+            }
+            
+            // Legend
+            HStack(spacing: 20) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 12, height: 12)
+                    Text("Average Weight")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 12, height: 12)
+                    Text("Max Weight")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                
+                Spacer()
             }
         }
         .padding(20)
@@ -601,6 +664,65 @@ struct TrendsView: View {
         )
     }
     
+    // MARK: - Fitness Summary Section
+    
+    private var fitnessSummarySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "dumbbell.fill")
+                    .font(.title2)
+                    .foregroundColor(.orange)
+                
+                Text("\(selectedExerciseType.rawValue) Summary")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                
+                Spacer()
+            }
+            
+            if let analysis = fitnessTrendAnalysis {
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 16) {
+                    FitnessSummaryCard(
+                        title: "Average Weight",
+                        value: String(format: "%.1f", analysis.averageWeight),
+                        subtitle: "lbs",
+                        color: .orange
+                    )
+                    
+                    FitnessSummaryCard(
+                        title: "Max Weight",
+                        value: String(format: "%.1f", analysis.maxWeight),
+                        subtitle: "lbs",
+                        color: .red
+                    )
+                    
+                    FitnessSummaryCard(
+                        title: "Weight Change",
+                        value: analysis.weightChangeString,
+                        subtitle: analysis.overallTrend.description,
+                        color: analysis.overallTrend.color
+                    )
+                    
+                    FitnessSummaryCard(
+                        title: "Sessions",
+                        value: "\(analysis.totalSessions)",
+                        subtitle: "workouts",
+                        color: .blue
+                    )
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
     // MARK: - Computed Properties
     
     private var filteredSessions: [BPSession] {
@@ -668,6 +790,10 @@ struct TrendsView: View {
     
     private var fitnessChartData: [FitnessTrendData] {
         dataManager.getFitnessTrends(for: selectedExerciseType, timeRange: selectedTimeRange)
+    }
+    
+    private var fitnessTrendAnalysis: FitnessTrendAnalysis? {
+        dataManager.getFitnessTrendAnalysis(for: selectedExerciseType, timeRange: selectedTimeRange)
     }
     
     private var averageValue: Double {
@@ -770,6 +896,49 @@ struct SummaryCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        )
+    }
+}
+
+// MARK: - Fitness Summary Card Component
+
+struct FitnessSummaryCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.1))
+                    .frame(width: 50, height: 50)
+                
+                Text(value)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemBackground))

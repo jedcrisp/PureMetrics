@@ -400,9 +400,52 @@ class BPDataManager: ObservableObject {
                 totalReps: session.totalReps,
                 averageWeight: session.averageWeight ?? 0,
                 maxWeight: session.maxWeight ?? 0,
-                totalTime: session.totalTime
+                totalTime: session.totalTime,
+                sets: session.sets.count
             )
         }.sorted { $0.date < $1.date }
+    }
+    
+    func getFitnessTrendAnalysis(for exerciseType: ExerciseType, timeRange: TimeRange) -> FitnessTrendAnalysis {
+        let trends = getFitnessTrends(for: exerciseType, timeRange: timeRange)
+        
+        guard trends.count >= 2 else {
+            return FitnessTrendAnalysis(
+                overallTrend: .stable,
+                weightChange: 0,
+                averageWeight: trends.first?.averageWeight ?? 0,
+                maxWeight: trends.first?.maxWeight ?? 0,
+                totalSessions: trends.count,
+                improvementPercentage: 0
+            )
+        }
+        
+        let firstWeight = trends.first?.averageWeight ?? 0
+        let lastWeight = trends.last?.averageWeight ?? 0
+        let weightChange = lastWeight - firstWeight
+        
+        let overallTrend: WeightTrend
+        if weightChange > 5 {
+            overallTrend = .increasing
+        } else if weightChange < -5 {
+            overallTrend = .decreasing
+        } else {
+            overallTrend = .stable
+        }
+        
+        let averageWeight = trends.map { $0.averageWeight }.reduce(0, +) / Double(trends.count)
+        let maxWeight = trends.map { $0.maxWeight }.max() ?? 0
+        
+        let improvementPercentage = firstWeight > 0 ? (weightChange / firstWeight) * 100 : 0
+        
+        return FitnessTrendAnalysis(
+            overallTrend: overallTrend,
+            weightChange: weightChange,
+            averageWeight: averageWeight,
+            maxWeight: maxWeight,
+            totalSessions: trends.count,
+            improvementPercentage: improvementPercentage
+        )
     }
     
     func getExerciseStats(for exerciseType: ExerciseType) -> ExerciseStats {
@@ -581,6 +624,83 @@ struct FitnessTrendData: Identifiable {
     let averageWeight: Double
     let maxWeight: Double
     let totalTime: TimeInterval
+    let sets: Int
+    
+    var weightTrend: WeightTrend {
+        if averageWeight > 0 {
+            return .increasing // This will be calculated in the view
+        } else {
+            return .stable
+        }
+    }
+}
+
+enum WeightTrend {
+    case increasing
+    case decreasing
+    case stable
+    
+    var icon: String {
+        switch self {
+        case .increasing:
+            return "arrow.up.circle.fill"
+        case .decreasing:
+            return "arrow.down.circle.fill"
+        case .stable:
+            return "minus.circle.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .increasing:
+            return .green
+        case .decreasing:
+            return .red
+        case .stable:
+            return .orange
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .increasing:
+            return "Weight Increasing"
+        case .decreasing:
+            return "Weight Decreasing"
+        case .stable:
+            return "Weight Stable"
+        }
+    }
+}
+
+struct FitnessTrendAnalysis {
+    let overallTrend: WeightTrend
+    let weightChange: Double
+    let averageWeight: Double
+    let maxWeight: Double
+    let totalSessions: Int
+    let improvementPercentage: Double
+    
+    var weightChangeString: String {
+        if weightChange > 0 {
+            return "+\(String(format: "%.1f", weightChange)) lbs"
+        } else if weightChange < 0 {
+            return "\(String(format: "%.1f", weightChange)) lbs"
+        } else {
+            return "No change"
+        }
+    }
+    
+    var improvementString: String {
+        if improvementPercentage > 0 {
+            return "+\(String(format: "%.1f", improvementPercentage))%"
+        } else if improvementPercentage < 0 {
+            return "\(String(format: "%.1f", improvementPercentage))%"
+        } else {
+            return "0%"
+        }
+    }
 }
 
 // MARK: - Exercise Stats
