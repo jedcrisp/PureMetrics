@@ -169,7 +169,7 @@ struct MetricTypeSelector: View {
     let availableTypes: [MetricType]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "heart.text.square.fill")
                     .font(.title3)
@@ -185,7 +185,7 @@ struct MetricTypeSelector: View {
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 12) {
+            ], spacing: 8) {
                 ForEach(availableTypes, id: \.self) { type in
                     MetricTypeCard(
                         type: type,
@@ -205,39 +205,39 @@ struct MetricTypeCard: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 // Icon with background
                 ZStack {
                     Circle()
                         .fill(isSelected ? colorForType(type) : colorForType(type).opacity(0.1))
-                        .frame(width: 50, height: 50)
+                        .frame(width: 40, height: 40)
                     
                     Image(systemName: type.icon)
-                        .font(.title2)
+                        .font(.title3)
                         .foregroundColor(isSelected ? .white : colorForType(type))
                 }
                 
                 // Title
                 Text(type.rawValue)
-                    .font(.subheadline)
+                    .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
                 
                 // Unit
                 Text(type.unit)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 8)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 12)
                     .fill(isSelected ? colorForType(type).opacity(0.1) : Color(.systemGray6))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(isSelected ? colorForType(type) : Color.clear, lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isSelected ? colorForType(type) : Color.clear, lineWidth: 1.5)
                     )
             )
             .scaleEffect(isSelected ? 1.02 : 1.0)

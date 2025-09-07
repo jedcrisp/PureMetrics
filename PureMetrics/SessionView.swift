@@ -7,8 +7,6 @@ struct SessionView: View {
     @State private var heartRate = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
-    @State private var sessionTimer: Timer?
-    @State private var sessionDuration: TimeInterval = 0
     @State private var useManualTime = false
     @State private var manualDate = Date()
     @State private var manualTime = Date()
@@ -33,9 +31,6 @@ struct SessionView: View {
                         
                         // Session Content (always visible)
                         VStack(spacing: 24) {
-                            // Session Info
-                            sessionInfoSection
-                            
                             // Entry Form - Made more prominent
                             entryFormSection
                             
@@ -55,21 +50,6 @@ struct SessionView: View {
             }
             .navigationTitle("")
             .navigationBarHidden(true)
-        }
-        .onAppear {
-            if dataManager.currentSession.isActive {
-                startSessionTimer()
-            }
-        }
-        .onDisappear {
-            stopSessionTimer()
-        }
-        .onChange(of: dataManager.currentSession.isActive) { isActive in
-            if isActive {
-                startSessionTimer()
-            } else {
-                stopSessionTimer()
-            }
         }
         .alert("Invalid Reading", isPresented: $showingAlert) {
             Button("OK") { }
@@ -106,57 +86,6 @@ struct SessionView: View {
                         
                         Spacer()
                         
-                        HStack(spacing: 16) {
-                            if dataManager.currentSession.isActive {
-                                VStack(alignment: .trailing, spacing: 4) {
-                                    HStack(spacing: 6) {
-                                        Circle()
-                                            .fill(Color.green)
-                                            .frame(width: 8, height: 8)
-                                        Text("Active")
-                                            .font(.caption)
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(.white)
-                                    }
-                                    
-                                    Text(formatDuration(sessionDuration))
-                                        .font(.caption)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.white)
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.15))
-                                )
-                            }
-                            
-                            // New Session Button - back to top right
-                            Button(action: startNewSession) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.subheadline)
-                                    Text("New")
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 18)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [Color.green, Color.green.opacity(0.8)],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .shadow(color: .green.opacity(0.3), radius: 6, x: 0, y: 3)
-                                )
-                            }
-                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
@@ -181,139 +110,6 @@ struct SessionView: View {
     }
     
     
-    // MARK: - Session Info Section
-    
-    private var sessionInfoSection: some View {
-        HStack(spacing: 24) {
-            // Readings Count - Enhanced design
-            VStack(spacing: 12) {
-                ZStack {
-                    // Outer ring for progress indication
-                    Circle()
-                        .stroke(Color.blue.opacity(0.2), lineWidth: 3)
-                        .frame(width: 60, height: 60)
-                    
-                    // Progress ring
-                    Circle()
-                        .trim(from: 0, to: CGFloat(dataManager.currentSession.readings.count) / 5.0)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.blue, Color.blue.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                        )
-                        .frame(width: 60, height: 60)
-                        .rotationEffect(.degrees(-90))
-                    
-                    // Inner circle with count
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.blue.opacity(0.1), Color.blue.opacity(0.05)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 50, height: 50)
-                    
-                    VStack(spacing: 2) {
-                        Text("\(dataManager.currentSession.readings.count)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.blue)
-                        Text("of 5")
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .foregroundColor(.blue.opacity(0.7))
-                    }
-                }
-                
-                Text("Readings")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.5)
-            }
-            
-            // Divider
-            Rectangle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(width: 1, height: 60)
-            
-            // Session Status - Enhanced design
-            VStack(spacing: 12) {
-                ZStack {
-                    // Status indicator background
-                    Circle()
-                        .fill(
-                            dataManager.currentSession.isActive ? 
-                            LinearGradient(
-                                colors: [Color.green.opacity(0.15), Color.green.opacity(0.05)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ) :
-                            LinearGradient(
-                                colors: [Color.gray.opacity(0.15), Color.gray.opacity(0.05)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 60, height: 60)
-                    
-                    // Status icon with subtle animation
-                    Image(systemName: dataManager.currentSession.isActive ? "play.circle.fill" : "pause.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(dataManager.currentSession.isActive ? .green : .gray)
-                        .scaleEffect(dataManager.currentSession.isActive ? 1.1 : 1.0)
-                        .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: dataManager.currentSession.isActive)
-                }
-                
-                VStack(spacing: 4) {
-                    Text("Status")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                    
-                    Text(dataManager.currentSession.isActive ? "Active" : "Ready")
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .foregroundColor(dataManager.currentSession.isActive ? .green : .gray)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(
-                                    dataManager.currentSession.isActive ? 
-                                    Color.green.opacity(0.1) : 
-                                    Color.gray.opacity(0.1)
-                                )
-                        )
-                }
-            }
-        }
-        .padding(28)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color(.systemBackground))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.05)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        )
-    }
     
     // MARK: - Entry Form Section
     
@@ -618,11 +414,11 @@ struct SessionView: View {
         return !dataManager.currentSession.readings.isEmpty
     }
     
+    
     // MARK: - Actions
     
     private func startSession() {
         dataManager.startSession()
-        startSessionTimer()
     }
     
     private func startNewSession() {
@@ -635,12 +431,10 @@ struct SessionView: View {
             }
         }
         dataManager.startSession()
-        startSessionTimer()
     }
     
     private func stopSession() {
         dataManager.stopSession()
-        stopSessionTimer()
     }
     
     private func addReading() {
@@ -719,24 +513,6 @@ struct SessionView: View {
         showingAlert = true
     }
     
-    // MARK: - Timer Functions
-    
-    private func startSessionTimer() {
-        sessionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            sessionDuration = Date().timeIntervalSince(dataManager.currentSession.startTime)
-        }
-    }
-    
-    private func stopSessionTimer() {
-        sessionTimer?.invalidate()
-        sessionTimer = nil
-    }
-    
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
     
     // MARK: - Helper Functions for Health Metrics
     

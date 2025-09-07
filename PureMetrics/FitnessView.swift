@@ -2,13 +2,20 @@ import SwiftUI
 
 struct FitnessView: View {
     @ObservedObject var dataManager: BPDataManager
-    @State private var selectedExerciseType: ExerciseType = .benchPress
+    @StateObject private var workoutManager = PreBuiltWorkoutManager()
+    @State private var selectedExerciseType: ExerciseType? = .benchPress
     @State private var showingExerciseSelector = false
+    @State private var showingCategorySelector = false
+    @State private var showingWorkoutSelector = false
+    @State private var selectedCategory: ExerciseCategory?
     @State private var selectedExerciseIndices: Set<Int> = []
     @State private var useManualTime = false
     @State private var manualDate = Date()
     @State private var manualTime = Date()
     @State private var exerciseSetInputs: [Int: [SetInput]] = [:]
+    @State private var timer: Timer?
+    @State private var timerUpdate: Int = 0
+    @State private var isWorkoutTemplateLoaded: Bool = false
     
     var body: some View {
         NavigationView {
@@ -45,14 +52,60 @@ struct FitnessView: View {
             }
             .navigationTitle("")
             .navigationBarHidden(true)
+            .onAppear {
+                startTimer()
+            }
+            .onDisappear {
+                stopTimer()
+            }
+            .onChange(of: dataManager.currentFitnessSession.isActive) { isActive in
+                if isActive {
+                    startTimer()
+                } else {
+                    stopTimer()
+                }
+            }
+            .onChange(of: dataManager.currentFitnessSession.isPaused) { isPaused in
+                if isPaused {
+                    stopTimer()
+                } else if dataManager.currentFitnessSession.isActive {
+                    startTimer()
+                }
+            }
+        }
+        .sheet(isPresented: $showingCategorySelector) {
+            ExerciseCategorySelector(selectedCategory: $selectedCategory) { category in
+                selectedCategory = category
+                showingCategorySelector = false
+                showingExerciseSelector = true
+            }
         }
         .sheet(isPresented: $showingExerciseSelector) {
-            ExerciseSelectorView(selectedExercise: $selectedExerciseType) { exerciseType in
-                dataManager.addExerciseSession(exerciseType)
-                // Initialize set inputs for the new exercise
-                let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
-                exerciseSetInputs[newExerciseIndex] = [SetInput()]
-                showingExerciseSelector = false
+            if let category = selectedCategory {
+                ExerciseSelector(
+                    category: category,
+                    selectedExercise: $selectedExerciseType
+                ) { exerciseType in
+                    _ = dataManager.addExerciseSession(exerciseType)
+                    // Initialize set inputs for the new exercise
+                    let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
+                    exerciseSetInputs[newExerciseIndex] = [SetInput()]
+                    showingExerciseSelector = false
+                }
+            }
+        }
+        .sheet(isPresented: $showingWorkoutSelector) {
+            WorkoutSelector(
+                workoutManager: workoutManager,
+                selectedWorkout: .constant(nil)
+            ) { workout in
+                _ = dataManager.loadPreBuiltWorkout(workout)
+                // Initialize set inputs for all exercises
+                for i in 0..<dataManager.currentFitnessSession.exerciseSessions.count {
+                    exerciseSetInputs[i] = [SetInput()]
+                }
+                isWorkoutTemplateLoaded = true
+                showingWorkoutSelector = false
             }
         }
     }
@@ -86,13 +139,14 @@ struct FitnessView: View {
                         Spacer()
                         
                         HStack(spacing: 16) {
-                            if dataManager.currentFitnessSession.isActive {
+                            // Live Session Timer
+                            if dataManager.currentFitnessSession.isActive || dataManager.currentFitnessSession.isPaused {
                                 VStack(alignment: .trailing, spacing: 4) {
                                     HStack(spacing: 6) {
                                         Circle()
-                                            .fill(Color.green)
+                                            .fill(dataManager.currentFitnessSession.isActive ? Color.green : Color.yellow)
                                             .frame(width: 8, height: 8)
-                                        Text("Active")
+                                        Text(dataManager.currentFitnessSession.isActive ? "Active" : "Paused")
                                             .font(.caption)
                                             .fontWeight(.semibold)
                                             .foregroundColor(.white)
@@ -102,6 +156,7 @@ struct FitnessView: View {
                                         .font(.caption)
                                         .fontWeight(.bold)
                                         .foregroundColor(.white)
+                                        .id(timerUpdate) // Force update when timer changes
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 6)
@@ -196,7 +251,7 @@ struct FitnessView: View {
                         .fill(Color.blue.opacity(0.1))
                         .frame(width: 50, height: 50)
                     
-                    Text("\(dataManager.currentFitnessSession.totalSets)")
+                    Text("\(totalSetsCount)")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
@@ -215,24 +270,50 @@ struct FitnessView: View {
             
             Spacer()
             
-            // Session Status
+            // Volume Count
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .fill(dataManager.currentFitnessSession.isActive ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
+                        .fill(Color.green.opacity(0.1))
                         .frame(width: 50, height: 50)
                     
-                    Image(systemName: dataManager.currentFitnessSession.isActive ? "play.circle.fill" : "pause.circle.fill")
-                        .font(.title3)
-                        .foregroundColor(dataManager.currentFitnessSession.isActive ? .green : .gray)
+                    Text("\(Int(totalVolume))")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.green)
                 }
                 
                 VStack(spacing: 2) {
-                    Text("Status")
+                    Text("Volume")
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
-                    Text(dataManager.currentFitnessSession.isActive ? "Active" : "Ready")
+                    Text("lbs")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            // Cardio Time
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(Color.purple.opacity(0.1))
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: "heart.fill")
+                        .font(.title3)
+                        .foregroundColor(.purple)
+                }
+                
+                VStack(spacing: 2) {
+                    Text("Cardio")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    Text(formatDuration(currentSessionCardioTime))
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
@@ -263,26 +344,113 @@ struct FitnessView: View {
                 Spacer()
             }
             
-            Button(action: {
-                showingExerciseSelector = true
-            }) {
-                HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title3)
-                    Text("Add Exercise")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(
-                            LinearGradient(colors: [Color.orange, Color.orange.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+            VStack(spacing: 12) {
+                if isWorkoutTemplateLoaded {
+                    // Delete Template Button
+                    Button(action: {
+                        dataManager.clearWorkoutTemplate()
+                        exerciseSetInputs.removeAll()
+                        isWorkoutTemplateLoaded = false
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "trash.circle.fill")
+                                .font(.title3)
+                            Text("Delete Workout Template")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(
+                                    LinearGradient(colors: [Color.red, Color.red.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                                )
                         )
-                )
-                .foregroundColor(.white)
-                .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                        .foregroundColor(.white)
+                        .shadow(color: .red.opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    
+                    // Divider
+                    HStack {
+                        Rectangle()
+                            .fill(Color(.systemGray4))
+                            .frame(height: 1)
+                        
+                        Text("OR")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 12)
+                        
+                        Rectangle()
+                            .fill(Color(.systemGray4))
+                            .frame(height: 1)
+                    }
+                }
+                
+                // Pre-built Workout Button
+                Button(action: {
+                    showingWorkoutSelector = true
+                }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "list.bullet.rectangle")
+                            .font(.title3)
+                        Text(isWorkoutTemplateLoaded ? "Choose Different Workout" : "Choose Pre-Built Workout")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(colors: [Color.blue, Color.blue.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                            )
+                    )
+                    .foregroundColor(.white)
+                    .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                
+                // Divider
+                HStack {
+                    Rectangle()
+                        .fill(Color(.systemGray4))
+                        .frame(height: 1)
+                    
+                    Text("OR")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 12)
+                    
+                    Rectangle()
+                        .fill(Color(.systemGray4))
+                        .frame(height: 1)
+                }
+                
+                // Add Individual Exercise Button
+                Button(action: {
+                    showingCategorySelector = true
+                }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                        Text("Add Individual Exercise")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(colors: [Color.orange, Color.orange.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                            )
+                    )
+                    .foregroundColor(.white)
+                    .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
             }
         }
         .padding(28)
@@ -677,7 +845,7 @@ struct FitnessView: View {
             timestamp: timestamp
         )
         
-        dataManager.addExerciseSet(to: exerciseIndex, set: set)
+        _ = dataManager.addExerciseSet(to: exerciseIndex, set: set)
         
         // Clear the input after adding
         if let index = getSetInputs(for: exerciseIndex).firstIndex(where: { $0.id == setInput.id }) {
@@ -718,6 +886,69 @@ struct FitnessView: View {
         VStack(spacing: 12) {
             if dataManager.currentFitnessSession.isActive {
                 HStack(spacing: 12) {
+                    Button(action: pauseFitnessSession) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "pause.circle.fill")
+                            Text("Pause Session")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.yellow)
+                        )
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                    }
+                    
+                    Button(action: stopFitnessSession) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "stop.circle.fill")
+                            Text("Stop Session")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.red)
+                        )
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                    }
+                    
+                    Button(action: saveFitnessSession) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Save & Complete")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(canSaveFitnessSession ? Color.orange : Color.gray)
+                        )
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                    }
+                    .disabled(!canSaveFitnessSession)
+                }
+            } else if dataManager.currentFitnessSession.isPaused {
+                HStack(spacing: 12) {
+                    Button(action: resumeFitnessSession) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "play.circle.fill")
+                            Text("Resume Session")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.green)
+                        )
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                    }
+                    
                     Button(action: stopFitnessSession) {
                         HStack(spacing: 8) {
                             Image(systemName: "stop.circle.fill")
@@ -779,6 +1010,50 @@ struct FitnessView: View {
         return !dataManager.currentFitnessSession.exerciseSessions.isEmpty
     }
     
+    
+    private var totalSetsCount: Int {
+        // Count saved sets from data manager
+        let savedSets = dataManager.currentFitnessSession.totalSets
+        
+        // Count current set inputs that have valid data
+        let currentSetInputs = exerciseSetInputs.values.flatMap { $0 }.filter { $0.isValid }.count
+        
+        return savedSets + currentSetInputs
+    }
+    
+    private var totalVolume: Double {
+        // Calculate volume from saved sets
+        let savedVolume = dataManager.currentFitnessSession.exerciseSessions.flatMap { $0.sets }.compactMap { set in
+            guard let reps = set.reps, let weight = set.weight else { return nil }
+            return Double(reps) * weight
+        }.reduce(0.0) { $0 + $1 }
+        
+        // Calculate volume from current set inputs
+        let currentVolume = exerciseSetInputs.values.flatMap { $0 }.compactMap { setInput in
+            guard let reps = Int(setInput.reps), let weight = Double(setInput.weight) else { return nil }
+            return Double(reps) * weight
+        }.reduce(0.0) { $0 + $1 }
+        
+        return savedVolume + currentVolume
+    }
+    
+    
+    private var currentSessionCardioTime: TimeInterval {
+        // Calculate total cardio time from current session's sets (saved + current inputs)
+        let savedCardioTime = dataManager.currentFitnessSession.exerciseSessions.reduce(0) { total, exerciseSession in
+            exerciseSession.sets.reduce(0) { exerciseTotal, set in
+                exerciseTotal + (set.time ?? 0)
+            }
+        }
+        
+        let currentInputCardioTime = exerciseSetInputs.values.flatMap { $0 }.reduce(0) { total, setInput in
+            let timeInSeconds = setInput.time.isEmpty ? 0 : TimeInterval(setInput.time) ?? 0
+            return total + timeInSeconds
+        }
+        
+        return savedCardioTime + currentInputCardioTime
+    }
+    
     // MARK: - Actions
     
     private func startNewFitnessSession() {
@@ -790,6 +1065,16 @@ struct FitnessView: View {
             }
         }
         dataManager.startFitnessSession()
+        isWorkoutTemplateLoaded = false
+        exerciseSetInputs.removeAll()
+    }
+    
+    private func pauseFitnessSession() {
+        dataManager.pauseFitnessSession()
+    }
+    
+    private func resumeFitnessSession() {
+        dataManager.resumeFitnessSession()
     }
     
     private func stopFitnessSession() {
@@ -802,6 +1087,8 @@ struct FitnessView: View {
     
     private func clearFitnessSession() {
         dataManager.clearCurrentFitnessSession()
+        isWorkoutTemplateLoaded = false
+        exerciseSetInputs.removeAll()
     }
     
     
@@ -820,6 +1107,21 @@ struct FitnessView: View {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    private func startTimer() {
+        guard dataManager.currentFitnessSession.isActive && !dataManager.currentFitnessSession.isPaused else { return }
+        
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            // Force UI update by incrementing timer update counter
+            timerUpdate += 1
+        }
+    }
+    
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
 }
 

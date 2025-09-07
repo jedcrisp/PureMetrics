@@ -7,8 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6668A787C17F4E6E93C6CC2D /* ExerciseSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6668A787C17F4E6E93C6CC2E /* ExerciseSelector.swift */; };
 		796CC9702E6CEB1600391532 /* FitnessExercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC96E2E6CEB1600391532 /* FitnessExercise.swift */; };
 		796CC9712E6CEB1600391532 /* FitnessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC96F2E6CEB1600391532 /* FitnessView.swift */; };
+		796CC9762E6D1D2200391532 /* PreBuiltWorkouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC9752E6D1D2200391532 /* PreBuiltWorkouts.swift */; };
+		796CC9782E6D1D3500391532 /* WorkoutSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC9772E6D1D3500391532 /* WorkoutSelector.swift */; };
+		89C404E822DE439E9DEEB52 /* ExerciseCategorySelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89C404E822DE439E9DEEB53 /* ExerciseCategorySelector.swift */; };
 		A1B2C3D4E5F67890 /* PureMetricsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67891 /* PureMetricsApp.swift */; };
 		A1B2C3D4E5F67892 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67893 /* ContentView.swift */; };
 		A1B2C3D4E5F67894 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67895 /* Assets.xcassets */; };
@@ -26,8 +30,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		6668A787C17F4E6E93C6CC2E /* ExerciseSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSelector.swift; sourceTree = "<group>"; };
 		796CC96E2E6CEB1600391532 /* FitnessExercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessExercise.swift; sourceTree = "<group>"; };
 		796CC96F2E6CEB1600391532 /* FitnessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessView.swift; sourceTree = "<group>"; };
+		796CC9752E6D1D2200391532 /* PreBuiltWorkouts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreBuiltWorkouts.swift; sourceTree = "<group>"; };
+		796CC9772E6D1D3500391532 /* WorkoutSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSelector.swift; sourceTree = "<group>"; };
+		89C404E822DE439E9DEEB53 /* ExerciseCategorySelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCategorySelector.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F67891 /* PureMetricsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureMetricsApp.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F67893 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F67895 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -67,8 +75,12 @@
 		A1B2C3D4E5F678AF /* PureMetrics */ = {
 			isa = PBXGroup;
 			children = (
+				796CC9772E6D1D3500391532 /* WorkoutSelector.swift */,
+				796CC9752E6D1D2200391532 /* PreBuiltWorkouts.swift */,
 				796CC96E2E6CEB1600391532 /* FitnessExercise.swift */,
 				796CC96F2E6CEB1600391532 /* FitnessView.swift */,
+				89C404E822DE439E9DEEB53 /* ExerciseCategorySelector.swift */,
+				6668A787C17F4E6E93C6CC2E /* ExerciseSelector.swift */,
 				A1B2C3D4E5F67891 /* PureMetricsApp.swift */,
 				A1B2C3D4E5F67893 /* ContentView.swift */,
 				A1B2C3D4E5F67899 /* BloodPressureReading.swift */,
@@ -181,7 +193,11 @@
 				A1B2C3D4E5F678A4 /* TrendsView.swift in Sources */,
 				796CC9702E6CEB1600391532 /* FitnessExercise.swift in Sources */,
 				796CC9712E6CEB1600391532 /* FitnessView.swift in Sources */,
+				89C404E822DE439E9DEEB52 /* ExerciseCategorySelector.swift in Sources */,
+				796CC9762E6D1D2200391532 /* PreBuiltWorkouts.swift in Sources */,
+				6668A787C17F4E6E93C6CC2D /* ExerciseSelector.swift in Sources */,
 				A1B2C3D4E5F678A6 /* DailyReadingsView.swift in Sources */,
+				796CC9782E6D1D3500391532 /* WorkoutSelector.swift in Sources */,
 				A1B2C3D4E5F678A8 /* HealthMetric.swift in Sources */,
 				A1B2C3D4E5F678AA /* HealthMetricInput.swift in Sources */,
 				A1B2C3D4E5F67890 /* PureMetricsApp.swift in Sources */,

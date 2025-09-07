@@ -76,7 +76,7 @@ class BPDataManager: ObservableObject {
     @Published var currentFitnessSession: FitnessSession
     @Published var fitnessSessions: [FitnessSession] = []
     
-    private let maxReadingsPerSession = 5
+    private let maxReadingsPerSession = Int.max
     private let userDefaults = UserDefaults.standard
     private let sessionsKey = "BPSessions"
     private let fitnessSessionsKey = "FitnessSessions"
@@ -265,6 +265,19 @@ class BPDataManager: ObservableObject {
         return true
     }
     
+    func loadPreBuiltWorkout(_ workout: PreBuiltWorkout) -> Bool {
+        // Clear current session and start new one
+        currentFitnessSession = FitnessSession()
+        
+        // Add all exercises from the workout
+        for workoutExercise in workout.exercises {
+            let exerciseSession = ExerciseSession(exerciseType: workoutExercise.exerciseType)
+            currentFitnessSession.addExerciseSession(exerciseSession)
+        }
+        
+        return true
+    }
+    
     func addExerciseSet(to exerciseIndex: Int, set: ExerciseSet) -> Bool {
         guard exerciseIndex >= 0 && exerciseIndex < currentFitnessSession.exerciseSessions.count else {
             return false
@@ -294,6 +307,14 @@ class BPDataManager: ObservableObject {
         currentFitnessSession = FitnessSession()
     }
     
+    func pauseFitnessSession() {
+        currentFitnessSession.pause()
+    }
+    
+    func resumeFitnessSession() {
+        currentFitnessSession.resume()
+    }
+    
     func stopFitnessSession() {
         currentFitnessSession.complete()
     }
@@ -309,6 +330,11 @@ class BPDataManager: ObservableObject {
     
     func clearCurrentFitnessSession() {
         currentFitnessSession = FitnessSession()
+    }
+    
+    func clearWorkoutTemplate() {
+        // Clear all exercises from current session
+        currentFitnessSession.exerciseSessions.removeAll()
     }
     
     // MARK: - Fitness Data Analysis

@@ -1,64 +1,226 @@
 import Foundation
 
-// MARK: - Exercise Types
+// MARK: - Exercise Categories
 
-enum ExerciseType: String, CaseIterable, Codable {
-    case benchPress = "Bench Press"
-    case squat = "Squat"
-    case deadlift = "Deadlift"
-    case powerClean = "Power Clean"
-    case jumpRope = "Jump Rope"
-    case pullUps = "Pull-ups"
-    case pushUps = "Push-ups"
-    case overheadPress = "Overhead Press"
-    case barbellRow = "Barbell Row"
-    case lunges = "Lunges"
-    case planks = "Planks"
-    case burpees = "Burpees"
-    case running = "Running"
-    case cycling = "Cycling"
-    case swimming = "Swimming"
+enum ExerciseCategory: String, CaseIterable, Codable {
+    case upperBody = "Upper Body"
+    case lowerBody = "Lower Body"
+    case coreAbs = "Core / Abs"
+    case fullBody = "Full Body & Power"
+    case machineBased = "Machine-Based"
     
     var icon: String {
         switch self {
-        case .benchPress: return "dumbbell.fill"
-        case .squat: return "figure.strengthtraining.traditional"
-        case .deadlift: return "figure.strengthtraining.traditional"
-        case .powerClean: return "figure.strengthtraining.traditional"
-        case .jumpRope: return "figure.jumprope"
-        case .pullUps: return "figure.pullups"
-        case .pushUps: return "figure.push"
-        case .overheadPress: return "figure.strengthtraining.traditional"
-        case .barbellRow: return "figure.strengthtraining.traditional"
-        case .lunges: return "figure.strengthtraining.traditional"
-        case .planks: return "figure.core.training"
-        case .burpees: return "figure.strengthtraining.traditional"
-        case .running: return "figure.run"
-        case .cycling: return "figure.outdoor.cycle"
-        case .swimming: return "figure.pool.swim"
+        case .upperBody: return "figure.arms.open"
+        case .lowerBody: return "figure.strengthtraining.traditional"
+        case .coreAbs: return "figure.core.training"
+        case .fullBody: return "figure.strengthtraining.traditional"
+        case .machineBased: return "dumbbell.fill"
         }
     }
     
     var color: String {
         switch self {
-        case .benchPress, .squat, .deadlift, .powerClean, .overheadPress, .barbellRow:
-            return "blue"
-        case .jumpRope, .pullUps, .pushUps, .lunges, .planks, .burpees:
-            return "green"
-        case .running, .cycling, .swimming:
-            return "orange"
+        case .upperBody: return "blue"
+        case .lowerBody: return "green"
+        case .coreAbs: return "orange"
+        case .fullBody: return "purple"
+        case .machineBased: return "red"
+        }
+    }
+}
+
+// MARK: - Exercise Types
+
+enum ExerciseType: String, CaseIterable, Codable {
+    // Upper Body - Chest
+    case benchPress = "Bench Press"
+    case inclineBenchPress = "Incline Bench Press"
+    case declineBenchPress = "Decline Bench Press"
+    case chestFly = "Chest Fly"
+    case weightedPushUps = "Weighted Push-Ups"
+    case squeezePress = "Squeeze Press"
+    
+    // Upper Body - Back
+    case deadlifts = "Deadlifts"
+    case bentOverRows = "Bent-Over Rows"
+    case pendlayRow = "Pendlay Row"
+    case sealRow = "Seal Row"
+    case singleArmDumbbellRow = "Single-Arm Dumbbell Row"
+    case invertedRow = "Inverted Row"
+    case latPulldown = "Lat Pulldown"
+    case pullUps = "Pull-ups / Chin-ups"
+    case tBarRow = "T-Bar Row"
+    case meadowsRow = "Meadows Row"
+    
+    // Upper Body - Shoulders
+    case overheadPress = "Overhead Press"
+    case pushPress = "Push Press"
+    case arnoldPress = "Arnold Press"
+    case lateralRaise = "Lateral Raise"
+    case frontRaise = "Front Raise"
+    case rearDeltFly = "Rear Delt Fly"
+    case uprightRow = "Upright Row"
+    case zPress = "Z-Press"
+    
+    // Upper Body - Biceps
+    case barbellCurl = "Barbell Curl"
+    case dumbbellCurl = "Dumbbell Curl"
+    case concentrationCurl = "Concentration Curl"
+    case preacherCurl = "Preacher Curl"
+    case cableCurl = "Cable Curl"
+    case spiderCurl = "Spider Curl"
+    case zottmanCurl = "Zottman Curl"
+    
+    // Upper Body - Triceps
+    case closeGripBenchPress = "Close-Grip Bench Press"
+    case skullCrushers = "Skull Crushers"
+    case overheadTricepsExtension = "Overhead Triceps Extension"
+    case tricepsKickback = "Triceps Kickback"
+    case cablePushdowns = "Cable Pushdowns"
+    case tatePress = "Tate Press"
+    case weightedDips = "Weighted Dips"
+    
+    // Lower Body - Quadriceps
+    case squat = "Squat"
+    case splitSquats = "Split Squats"
+    case stepUps = "Step-Ups"
+    case legPress = "Leg Press"
+    case sissySquat = "Sissy Squat"
+    case lunges = "Lunges"
+    
+    // Lower Body - Hamstrings & Glutes
+    case romanianDeadlift = "Romanian Deadlift"
+    case goodMorning = "Good Morning"
+    case hipThrust = "Hip Thrust"
+    case gluteBridge = "Glute Bridge"
+    case nordicCurl = "Nordic Curl"
+    case kettlebellSwing = "Kettlebell Swing"
+    case cablePullThrough = "Cable Pull-Through"
+    case singleLegDeadlift = "Single-Leg Deadlift"
+    
+    // Lower Body - Calves
+    case standingCalfRaise = "Standing Calf Raise"
+    case seatedCalfRaise = "Seated Calf Raise"
+    case donkeyCalfRaise = "Donkey Calf Raise"
+    
+    // Core / Abs
+    case weightedSitUps = "Weighted Sit-Ups"
+    case weightedCrunch = "Weighted Crunch"
+    case weightedPlank = "Weighted Plank"
+    case abRollout = "Ab Rollout"
+    case hangingLegRaise = "Hanging Leg Raise"
+    case cableCrunch = "Cable Crunch"
+    case russianTwist = "Russian Twist"
+    case turkishGetUp = "Turkish Get-Up"
+    case sideBend = "Side Bend"
+    
+    // Full Body & Power
+    case cleanAndPress = "Clean & Press"
+    case powerClean = "Power Clean"
+    case snatch = "Snatch"
+    case jerk = "Jerk"
+    case thruster = "Thruster"
+    case manMaker = "Man-Maker"
+    case farmersCarry = "Farmer's Carry"
+    case suitcaseCarry = "Suitcase Carry"
+    case overheadCarry = "Overhead Carry"
+    case zercherCarry = "Zercher Carry"
+    case sandbagLifts = "Sandbag Lifts"
+    
+    // Machine-Based
+    case chestPress = "Chest Press"
+    case pecDeck = "Pec Deck"
+    case latPulldownMachine = "Lat Pulldown Machine"
+    case rowMachine = "Row Machine"
+    case shoulderPressMachine = "Shoulder Press Machine"
+    case bicepsCurlMachine = "Biceps Curl Machine"
+    case tricepsExtensionMachine = "Triceps Extension Machine"
+    case legExtension = "Leg Extension"
+    case legCurl = "Leg Curl"
+    case hackSquatMachine = "Hack Squat Machine"
+    case smithMachine = "Smith Machine"
+    case cableFunctionalTrainer = "Cable Functional Trainer"
+    
+    var category: ExerciseCategory {
+        switch self {
+        // Upper Body
+        case .benchPress, .inclineBenchPress, .declineBenchPress, .chestFly, .weightedPushUps, .squeezePress,
+             .deadlifts, .bentOverRows, .pendlayRow, .sealRow, .singleArmDumbbellRow, .invertedRow, .latPulldown, .pullUps, .tBarRow, .meadowsRow,
+             .overheadPress, .pushPress, .arnoldPress, .lateralRaise, .frontRaise, .rearDeltFly, .uprightRow, .zPress,
+             .barbellCurl, .dumbbellCurl, .concentrationCurl, .preacherCurl, .cableCurl, .spiderCurl, .zottmanCurl,
+             .closeGripBenchPress, .skullCrushers, .overheadTricepsExtension, .tricepsKickback, .cablePushdowns, .tatePress, .weightedDips:
+            return .upperBody
+            
+        // Lower Body
+        case .squat, .splitSquats, .stepUps, .legPress, .sissySquat, .lunges,
+             .romanianDeadlift, .goodMorning, .hipThrust, .gluteBridge, .nordicCurl, .kettlebellSwing, .cablePullThrough, .singleLegDeadlift,
+             .standingCalfRaise, .seatedCalfRaise, .donkeyCalfRaise:
+            return .lowerBody
+            
+        // Core / Abs
+        case .weightedSitUps, .weightedCrunch, .weightedPlank, .abRollout, .hangingLegRaise, .cableCrunch, .russianTwist, .turkishGetUp, .sideBend:
+            return .coreAbs
+            
+        // Full Body & Power
+        case .cleanAndPress, .powerClean, .snatch, .jerk, .thruster, .manMaker, .farmersCarry, .suitcaseCarry, .overheadCarry, .zercherCarry, .sandbagLifts:
+            return .fullBody
+            
+        // Machine-Based
+        case .chestPress, .pecDeck, .latPulldownMachine, .rowMachine, .shoulderPressMachine, .bicepsCurlMachine, .tricepsExtensionMachine, .legExtension, .legCurl, .hackSquatMachine, .smithMachine, .cableFunctionalTrainer:
+            return .machineBased
         }
     }
     
-    var unit: String {
+    var icon: String {
         switch self {
-        case .benchPress, .squat, .deadlift, .powerClean, .overheadPress, .barbellRow:
-            return "lbs"
-        case .jumpRope, .pullUps, .pushUps, .lunges, .planks, .burpees:
-            return "reps"
-        case .running, .cycling, .swimming:
-            return "min"
+        // Upper Body - Chest
+        case .benchPress, .inclineBenchPress, .declineBenchPress: return "dumbbell.fill"
+        case .chestFly, .squeezePress: return "figure.arms.open"
+        case .weightedPushUps: return "figure.push"
+        
+        // Upper Body - Back
+        case .deadlifts, .bentOverRows, .pendlayRow, .sealRow, .singleArmDumbbellRow, .tBarRow, .meadowsRow: return "figure.strengthtraining.traditional"
+        case .invertedRow, .latPulldown, .pullUps: return "figure.pullups"
+        
+        // Upper Body - Shoulders
+        case .overheadPress, .pushPress, .arnoldPress, .zPress: return "figure.strengthtraining.traditional"
+        case .lateralRaise, .frontRaise, .rearDeltFly, .uprightRow: return "figure.arms.open"
+        
+        // Upper Body - Biceps
+        case .barbellCurl, .dumbbellCurl, .concentrationCurl, .preacherCurl, .cableCurl, .spiderCurl, .zottmanCurl: return "figure.arms.open"
+        
+        // Upper Body - Triceps
+        case .closeGripBenchPress, .skullCrushers, .overheadTricepsExtension, .tricepsKickback, .cablePushdowns, .tatePress, .weightedDips: return "figure.arms.open"
+        
+        // Lower Body - Quadriceps
+        case .squat, .splitSquats, .stepUps, .legPress, .sissySquat, .lunges: return "figure.strengthtraining.traditional"
+        
+        // Lower Body - Hamstrings & Glutes
+        case .romanianDeadlift, .goodMorning, .hipThrust, .gluteBridge, .nordicCurl, .kettlebellSwing, .cablePullThrough, .singleLegDeadlift: return "figure.strengthtraining.traditional"
+        
+        // Lower Body - Calves
+        case .standingCalfRaise, .seatedCalfRaise, .donkeyCalfRaise: return "figure.strengthtraining.traditional"
+        
+        // Core / Abs
+        case .weightedSitUps, .weightedCrunch, .weightedPlank, .abRollout, .hangingLegRaise, .cableCrunch, .russianTwist, .turkishGetUp, .sideBend: return "figure.core.training"
+        
+        // Full Body & Power
+        case .cleanAndPress, .powerClean, .snatch, .jerk, .thruster, .manMaker: return "figure.strengthtraining.traditional"
+        case .farmersCarry, .suitcaseCarry, .overheadCarry, .zercherCarry, .sandbagLifts: return "figure.strengthtraining.traditional"
+        
+        // Machine-Based
+        case .chestPress, .pecDeck, .latPulldownMachine, .rowMachine, .shoulderPressMachine, .bicepsCurlMachine, .tricepsExtensionMachine, .legExtension, .legCurl, .hackSquatMachine, .smithMachine, .cableFunctionalTrainer: return "dumbbell.fill"
         }
+    }
+    
+    var color: String {
+        return category.color
+    }
+    
+    var unit: String {
+        // All exercises support both reps and weight
+        return "lbs"
     }
     
     var supportsWeight: Bool {
@@ -66,8 +228,9 @@ enum ExerciseType: String, CaseIterable, Codable {
     }
     
     var supportsTime: Bool {
+        // Most exercises can be timed (holds, isometric exercises, etc.)
         switch self {
-        case .running, .cycling, .swimming, .planks, .jumpRope:
+        case .weightedPlank, .turkishGetUp, .farmersCarry, .suitcaseCarry, .overheadCarry, .zercherCarry:
             return true
         default:
             return false
@@ -221,10 +384,11 @@ struct FitnessSession: Codable, Identifiable {
     let startTime: Date
     var endTime: Date?
     var isActive: Bool = true
+    var isPaused: Bool = false
     var isCompleted: Bool = false
     
     enum CodingKeys: String, CodingKey {
-        case exerciseSessions, startTime, endTime, isActive, isCompleted
+        case exerciseSessions, startTime, endTime, isActive, isPaused, isCompleted
     }
     
     init(startTime: Date? = nil) {
@@ -241,9 +405,20 @@ struct FitnessSession: Codable, Identifiable {
         exerciseSessions.remove(at: index)
     }
     
+    mutating func pause() {
+        isPaused = true
+        isActive = false
+    }
+    
+    mutating func resume() {
+        isPaused = false
+        isActive = true
+    }
+    
     mutating func complete() {
         endTime = Date()
         isActive = false
+        isPaused = false
         isCompleted = true
     }
     
