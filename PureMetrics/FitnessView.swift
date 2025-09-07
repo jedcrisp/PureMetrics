@@ -190,30 +190,6 @@ struct FitnessView: View {
                                 )
                             }
                             
-                            // New Session Button
-                            Button(action: startNewFitnessSession) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.subheadline)
-                                    Text("New")
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 18)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [Color.green, Color.green.opacity(0.8)],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .shadow(color: .green.opacity(0.3), radius: 6, x: 0, y: 3)
-                                )
-                            }
                         }
                     }
                     .padding(.horizontal, 20)
@@ -1164,18 +1140,6 @@ struct FitnessView: View {
     
     // MARK: - Actions
     
-    private func startNewFitnessSession() {
-        if dataManager.currentFitnessSession.isActive {
-            if !dataManager.currentFitnessSession.exerciseSessions.isEmpty {
-                dataManager.saveCurrentFitnessSession()
-            } else {
-                dataManager.clearCurrentFitnessSession()
-            }
-        }
-        // Don't auto-start the session - let user add exercises first
-        isWorkoutTemplateLoaded = false
-        exerciseSetInputs.removeAll()
-    }
     
     private func startFitnessSession() {
         dataManager.startFitnessSession()
