@@ -388,7 +388,7 @@ struct ExerciseSession: Codable, Identifiable {
 struct FitnessSession: Codable, Identifiable {
     var id: UUID
     var exerciseSessions: [ExerciseSession]
-    let startTime: Date
+    var startTime: Date
     var endTime: Date?
     var isActive: Bool = true
     var isPaused: Bool = false
@@ -403,7 +403,7 @@ struct FitnessSession: Codable, Identifiable {
     init(startTime: Date? = nil) {
         self.id = UUID()
         self.exerciseSessions = []
-        self.startTime = startTime ?? Date()
+        self.startTime = Date()  // Will be updated when session actually starts
         self.isActive = false  // New sessions start as inactive
     }
     
@@ -414,6 +414,7 @@ struct FitnessSession: Codable, Identifiable {
     mutating func start() {
         isActive = true
         isPaused = false
+        startTime = Date()  // Set the actual start time when session begins
     }
     
     mutating func removeExerciseSession(at index: Int) {
