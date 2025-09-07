@@ -30,8 +30,14 @@ class AuthService: ObservableObject {
     private func setupAuthStateListener() {
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             DispatchQueue.main.async {
+                let wasAuthenticated = self?.isAuthenticated ?? false
                 self?.currentUser = user
                 self?.isAuthenticated = user != nil
+                
+                // Post notification when user signs in
+                if !wasAuthenticated && user != nil {
+                    NotificationCenter.default.post(name: .userDidSignIn, object: nil)
+                }
             }
         }
     }

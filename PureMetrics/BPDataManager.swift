@@ -3,6 +3,10 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 
+extension Notification.Name {
+    static let userDidSignIn = Notification.Name("userDidSignIn")
+}
+
 // MARK: - BP Category Enum
 
 enum BPCategory: String, CaseIterable {
@@ -96,6 +100,23 @@ class BPDataManager: ObservableObject {
         self.currentFitnessSession = FitnessSession()
         loadSessions()
         loadFitnessSessions()
+        
+        // Listen for authentication changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(userDidSignIn),
+            name: .userDidSignIn,
+            object: nil
+        )
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc private func userDidSignIn() {
+        print("User signed in, syncing data to Firebase...")
+        loadFromFirebase()
     }
     
     // MARK: - Session Management
@@ -246,6 +267,11 @@ class BPDataManager: ObservableObject {
         do {
             let data = try JSONEncoder().encode(sessions)
             userDefaults.set(data, forKey: sessionsKey)
+            
+            // Auto-sync to Firebase if user is authenticated
+            if authService.isAuthenticated {
+                syncToFirebase()
+            }
         } catch {
             print("Error saving sessions: \(error)")
         }
@@ -408,6 +434,11 @@ class BPDataManager: ObservableObject {
         do {
             let data = try JSONEncoder().encode(fitnessSessions)
             userDefaults.set(data, forKey: fitnessSessionsKey)
+            
+            // Auto-sync to Firebase if user is authenticated
+            if authService.isAuthenticated {
+                syncToFirebase()
+            }
         } catch {
             print("Error saving fitness sessions: \(error)")
         }
@@ -427,7 +458,10 @@ class BPDataManager: ObservableObject {
     // MARK: - Firebase Sync
     
     func syncToFirebase() {
-        guard authService.isAuthenticated else { return }
+        guard authService.isAuthenticated else { 
+            print("Cannot sync to Firebase: No authenticated user")
+            return 
+        }
         
         isSyncing = true
         syncError = nil
@@ -444,9 +478,20 @@ class BPDataManager: ObservableObject {
             bpSessions: sessions,
             fitnessSessions: fitnessSessions,
             userProfile: profile
-        )
-        
-        isSyncing = false
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isSyncing = false
+                
+                switch result {
+                case .success:
+                    print("Successfully synced all data to Firebase")
+                    self?.syncError = nil
+                case .failure(let error):
+                    print("Error syncing to Firebase: \(error)")
+                    self?.syncError = error.localizedDescription
+                }
+            }
+        }
     }
     
     func loadFromFirebase() {

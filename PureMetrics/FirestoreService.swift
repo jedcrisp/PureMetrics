@@ -20,23 +20,37 @@ class FirestoreService: ObservableObject {
     
     // MARK: - Blood Pressure Sessions
     
-    func saveBPSessions(_ sessions: [BPSession]) {
-        guard let collection = userCollection() else { return }
-        
-        let sessionsData = sessions.map { session in
-            try? Firestore.Encoder().encode(session)
-        }.compactMap { $0 }
+    func saveBPSessions(_ sessions: [BPSession], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let collection = userCollection() else { 
+            print("Error: No authenticated user for saving BP sessions")
+            completion(.failure(FirestoreError.noUser))
+            return 
+        }
         
         let batch = db.batch()
         
-        for (index, sessionData) in sessionsData.enumerated() {
-            let docRef = collection.document("bp_session_\(index)")
-            batch.setData(sessionData, forDocument: docRef)
+        for (index, session) in sessions.enumerated() {
+            do {
+                var sessionData = try Firestore.Encoder().encode(session)
+                sessionData["type"] = "bp_session"
+                sessionData["id"] = session.id.uuidString
+                sessionData["createdAt"] = Timestamp(date: session.startTime)
+                sessionData["updatedAt"] = Timestamp(date: Date())
+                
+                let docRef = collection.document("bp_session_\(index)")
+                batch.setData(sessionData, forDocument: docRef)
+            } catch {
+                print("Error encoding BP session \(index): \(error)")
+            }
         }
         
         batch.commit { error in
             if let error = error {
                 print("Error saving BP sessions: \(error)")
+                completion(.failure(error))
+            } else {
+                print("Successfully saved \(sessions.count) BP sessions to Firestore")
+                completion(.success(()))
             }
         }
     }
@@ -59,7 +73,17 @@ class FirestoreService: ObservableObject {
             }
             
             let sessions = documents.compactMap { document in
-                try? Firestore.Decoder().decode(BPSession.self, from: document.data())
+                do {
+                    var data = document.data()
+                    // Remove the extra fields we added for Firestore
+                    data.removeValue(forKey: "type")
+                    data.removeValue(forKey: "createdAt")
+                    data.removeValue(forKey: "updatedAt")
+                    return try Firestore.Decoder().decode(BPSession.self, from: data)
+                } catch {
+                    print("Error decoding BP session: \(error)")
+                    return nil
+                }
             }
             
             completion(.success(sessions))
@@ -68,23 +92,37 @@ class FirestoreService: ObservableObject {
     
     // MARK: - Fitness Sessions
     
-    func saveFitnessSessions(_ sessions: [FitnessSession]) {
-        guard let collection = userCollection() else { return }
-        
-        let sessionsData = sessions.map { session in
-            try? Firestore.Encoder().encode(session)
-        }.compactMap { $0 }
+    func saveFitnessSessions(_ sessions: [FitnessSession], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let collection = userCollection() else { 
+            print("Error: No authenticated user for saving fitness sessions")
+            completion(.failure(FirestoreError.noUser))
+            return 
+        }
         
         let batch = db.batch()
         
-        for (index, sessionData) in sessionsData.enumerated() {
-            let docRef = collection.document("fitness_session_\(index)")
-            batch.setData(sessionData, forDocument: docRef)
+        for (index, session) in sessions.enumerated() {
+            do {
+                var sessionData = try Firestore.Encoder().encode(session)
+                sessionData["type"] = "fitness_session"
+                sessionData["id"] = session.id.uuidString
+                sessionData["createdAt"] = Timestamp(date: session.startTime)
+                sessionData["updatedAt"] = Timestamp(date: Date())
+                
+                let docRef = collection.document("fitness_session_\(index)")
+                batch.setData(sessionData, forDocument: docRef)
+            } catch {
+                print("Error encoding fitness session \(index): \(error)")
+            }
         }
         
         batch.commit { error in
             if let error = error {
                 print("Error saving fitness sessions: \(error)")
+                completion(.failure(error))
+            } else {
+                print("Successfully saved \(sessions.count) fitness sessions to Firestore")
+                completion(.success(()))
             }
         }
     }
@@ -107,7 +145,17 @@ class FirestoreService: ObservableObject {
             }
             
             let sessions = documents.compactMap { document in
-                try? Firestore.Decoder().decode(FitnessSession.self, from: document.data())
+                do {
+                    var data = document.data()
+                    // Remove the extra fields we added for Firestore
+                    data.removeValue(forKey: "type")
+                    data.removeValue(forKey: "createdAt")
+                    data.removeValue(forKey: "updatedAt")
+                    return try Firestore.Decoder().decode(FitnessSession.self, from: data)
+                } catch {
+                    print("Error decoding fitness session: \(error)")
+                    return nil
+                }
             }
             
             completion(.success(sessions))
@@ -162,12 +210,49 @@ class FirestoreService: ObservableObject {
     
     // MARK: - Sync All Data
     
-    func syncAllData(bpSessions: [BPSession], fitnessSessions: [FitnessSession], userProfile: UserProfile?) {
-        saveBPSessions(bpSessions)
-        saveFitnessSessions(fitnessSessions)
+    func syncAllData(bpSessions: [BPSession], fitnessSessions: [FitnessSession], userProfile: UserProfile?, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        let group = DispatchGroup()
+        var hasError = false
+        var lastError: Error?
+        
+        group.enter()
+        saveBPSessions(bpSessions) { result in
+            switch result {
+            case .success:
+                print("BP sessions synced successfully")
+            case .failure(let error):
+                print("Error syncing BP sessions: \(error)")
+                hasError = true
+                lastError = error
+            }
+            group.leave()
+        }
+        
+        group.enter()
+        saveFitnessSessions(fitnessSessions) { result in
+            switch result {
+            case .success:
+                print("Fitness sessions synced successfully")
+            case .failure(let error):
+                print("Error syncing fitness sessions: \(error)")
+                hasError = true
+                lastError = error
+            }
+            group.leave()
+        }
         
         if let profile = userProfile {
+            group.enter()
             saveUserProfile(profile)
+            group.leave()
+        }
+        
+        group.notify(queue: .main) {
+            if hasError, let error = lastError {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
         }
     }
     
