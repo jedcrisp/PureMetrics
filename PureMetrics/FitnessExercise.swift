@@ -393,11 +393,12 @@ struct FitnessSession: Codable, Identifiable {
     var isActive: Bool = true
     var isPaused: Bool = false
     var isCompleted: Bool = false
+    var isFavorite: Bool = false  // For favoriting workouts
     var pausedTime: TimeInterval = 0  // Total time spent paused
     var lastPauseTime: Date?  // When the session was last paused
     
     enum CodingKeys: String, CodingKey {
-        case id, exerciseSessions, startTime, endTime, isActive, isPaused, isCompleted, pausedTime, lastPauseTime
+        case id, exerciseSessions, startTime, endTime, isActive, isPaused, isCompleted, isFavorite, pausedTime, lastPauseTime
     }
     
     init(startTime: Date? = nil) {
@@ -504,5 +505,15 @@ struct FitnessSession: Codable, Identifiable {
         }
         
         return components.isEmpty ? "No exercises" : components.joined(separator: " • ")
+    }
+    
+    var displayName: String {
+        if isFavorite {
+            return "⭐ \(exerciseSessions.first?.exerciseType.rawValue ?? "Workout")"
+        } else if !exerciseSessions.isEmpty {
+            return exerciseSessions.first?.exerciseType.rawValue ?? "Workout"
+        } else {
+            return "Empty Workout"
+        }
     }
 }

@@ -34,12 +34,20 @@ struct ContentView: View {
                 }
                 .tag(3)
             
+            WorkoutHistoryView()
+                .environmentObject(dataManager)
+                .tabItem {
+                    Image(systemName: "clock.arrow.circlepath")
+                    Text("History")
+                }
+                .tag(4)
+            
             ProfileView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "person.circle.fill")
                     Text("Profile")
                 }
-                .tag(4)
+                .tag(5)
         }
         .accentColor(.blue)
     }

@@ -581,6 +581,13 @@ class BPDataManager: ObservableObject {
         currentFitnessSession = FitnessSession()
     }
     
+    func toggleWorkoutFavorite(_ workout: FitnessSession) {
+        if let index = fitnessSessions.firstIndex(where: { $0.id == workout.id }) {
+            fitnessSessions[index].isFavorite.toggle()
+            saveFitnessSessions()
+        }
+    }
+    
     func clearWorkoutTemplate() {
         // Clear all exercises from current session
         currentFitnessSession.exerciseSessions.removeAll()
