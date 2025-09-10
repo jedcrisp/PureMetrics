@@ -8,14 +8,18 @@ enum ExerciseCategory: String, CaseIterable, Codable {
     case coreAbs = "Core / Abs"
     case fullBody = "Full Body & Power"
     case machineBased = "Machine-Based"
+    case cardio = "Cardio"
+    case olympic = "Olympic Movements"
     
     var icon: String {
         switch self {
         case .upperBody: return "figure.arms.open"
-        case .lowerBody: return "figure.strengthtraining.traditional"
+        case .lowerBody: return "figure.walk"
         case .coreAbs: return "figure.core.training"
         case .fullBody: return "figure.strengthtraining.traditional"
         case .machineBased: return "dumbbell.fill"
+        case .cardio: return "heart.fill"
+        case .olympic: return "medal.fill"
         }
     }
     
@@ -26,6 +30,8 @@ enum ExerciseCategory: String, CaseIterable, Codable {
         case .coreAbs: return "orange"
         case .fullBody: return "purple"
         case .machineBased: return "red"
+        case .cardio: return "pink"
+        case .olympic: return "yellow"
         }
     }
 }
@@ -142,6 +148,47 @@ enum ExerciseType: String, CaseIterable, Codable {
     case smithMachine = "Smith Machine"
     case cableFunctionalTrainer = "Cable Functional Trainer"
     
+    // Cardio
+    case running = "Running"
+    case cycling = "Cycling"
+    case rowing = "Rowing"
+    case elliptical = "Elliptical"
+    case stairClimber = "Stair Climber"
+    case treadmill = "Treadmill"
+    case jumpRope = "Jump Rope"
+    case burpees = "Burpees"
+    case mountainClimbers = "Mountain Climbers"
+    case highKnees = "High Knees"
+    case jumpingJacks = "Jumping Jacks"
+    case boxJumps = "Box Jumps"
+    case battleRopes = "Battle Ropes"
+    case swimming = "Swimming"
+    case walking = "Walking"
+    case hiking = "Hiking"
+    case dancing = "Dancing"
+    case kickboxing = "Kickboxing"
+    case spinning = "Spinning"
+    case crossTraining = "Cross Training"
+    
+    // Olympic Movements
+    case clean = "Clean"
+    case cleanAndJerk = "Clean & Jerk"
+    case hangClean = "Hang Clean"
+    case hangSnatch = "Hang Snatch"
+    case powerSnatch = "Power Snatch"
+    case muscleClean = "Muscle Clean"
+    case muscleSnatch = "Muscle Snatch"
+    case splitJerk = "Split Jerk"
+    case pushJerk = "Push Jerk"
+    case squatJerk = "Squat Jerk"
+    case frontSquat = "Front Squat"
+    case overheadSquat = "Overhead Squat"
+    case sotsPress = "Sots Press"
+    case windmill = "Windmill"
+    case kettlebellSnatch = "Kettlebell Snatch"
+    case kettlebellClean = "Kettlebell Clean"
+    case kettlebellJerk = "Kettlebell Jerk"
+    
     var category: ExerciseCategory {
         switch self {
         // Upper Body
@@ -163,12 +210,20 @@ enum ExerciseType: String, CaseIterable, Codable {
             return .coreAbs
             
         // Full Body & Power
-        case .cleanAndPress, .powerClean, .snatch, .jerk, .thruster, .manMaker, .farmersCarry, .suitcaseCarry, .overheadCarry, .zercherCarry, .sandbagLifts:
+        case .cleanAndPress, .jerk, .thruster, .manMaker, .powerClean, .snatch, .farmersCarry, .suitcaseCarry, .overheadCarry, .zercherCarry, .sandbagLifts:
             return .fullBody
             
         // Machine-Based
         case .chestPress, .pecDeck, .latPulldownMachine, .rowMachine, .shoulderPressMachine, .bicepsCurlMachine, .tricepsExtensionMachine, .legExtension, .legCurl, .hackSquatMachine, .smithMachine, .cableFunctionalTrainer:
             return .machineBased
+            
+        // Cardio
+        case .running, .cycling, .rowing, .elliptical, .stairClimber, .treadmill, .jumpRope, .burpees, .mountainClimbers, .highKnees, .jumpingJacks, .boxJumps, .battleRopes, .swimming, .walking, .hiking, .dancing, .kickboxing, .spinning, .crossTraining:
+            return .cardio
+            
+        // Olympic Movements
+        case .clean, .cleanAndJerk, .hangClean, .hangSnatch, .powerSnatch, .muscleClean, .muscleSnatch, .splitJerk, .pushJerk, .squatJerk, .frontSquat, .overheadSquat, .sotsPress, .windmill, .kettlebellSnatch, .kettlebellClean, .kettlebellJerk:
+            return .olympic
         }
     }
     
@@ -206,11 +261,32 @@ enum ExerciseType: String, CaseIterable, Codable {
         case .weightedSitUps, .weightedCrunch, .weightedPlank, .abRollout, .hangingLegRaise, .cableCrunch, .russianTwist, .turkishGetUp, .sideBend: return "figure.core.training"
         
         // Full Body & Power
-        case .cleanAndPress, .powerClean, .snatch, .jerk, .thruster, .manMaker: return "figure.strengthtraining.traditional"
+        case .cleanAndPress, .jerk, .thruster, .manMaker, .powerClean, .snatch: return "figure.strengthtraining.traditional"
         case .farmersCarry, .suitcaseCarry, .overheadCarry, .zercherCarry, .sandbagLifts: return "figure.strengthtraining.traditional"
         
         // Machine-Based
         case .chestPress, .pecDeck, .latPulldownMachine, .rowMachine, .shoulderPressMachine, .bicepsCurlMachine, .tricepsExtensionMachine, .legExtension, .legCurl, .hackSquatMachine, .smithMachine, .cableFunctionalTrainer: return "dumbbell.fill"
+        
+        // Cardio
+        case .running, .walking, .hiking: return "figure.walk"
+        case .cycling, .spinning: return "bicycle"
+        case .rowing: return "figure.rowing"
+        case .elliptical, .stairClimber, .treadmill: return "figure.step.training"
+        case .jumpRope, .jumpingJacks, .boxJumps: return "figure.jumprope"
+        case .burpees, .mountainClimbers, .highKnees: return "figure.strengthtraining.traditional"
+        case .battleRopes: return "waveform"
+        case .swimming: return "figure.pool.swim"
+        case .dancing: return "music.note"
+        case .kickboxing: return "figure.boxing"
+        case .crossTraining: return "figure.strengthtraining.traditional"
+        
+        // Olympic Movements
+        case .clean, .cleanAndJerk, .hangClean, .hangSnatch, .powerSnatch, .muscleClean, .muscleSnatch: return "trophy.fill"
+        case .splitJerk, .pushJerk, .squatJerk: return "figure.strengthtraining.traditional"
+        case .frontSquat, .overheadSquat: return "figure.strengthtraining.traditional"
+        case .sotsPress: return "figure.strengthtraining.traditional"
+        case .windmill: return "figure.strengthtraining.traditional"
+        case .kettlebellSnatch, .kettlebellClean, .kettlebellJerk: return "figure.strengthtraining.traditional"
         }
     }
     
@@ -232,6 +308,9 @@ enum ExerciseType: String, CaseIterable, Codable {
         switch self {
         case .weightedPlank, .turkishGetUp, .farmersCarry, .suitcaseCarry, .overheadCarry, .zercherCarry:
             return true
+        // Cardio exercises are primarily time-based
+        case .running, .cycling, .rowing, .elliptical, .stairClimber, .treadmill, .jumpRope, .burpees, .mountainClimbers, .highKnees, .jumpingJacks, .boxJumps, .battleRopes, .swimming, .walking, .hiking, .dancing, .kickboxing, .spinning, .crossTraining:
+            return true
         default:
             return false
         }
@@ -249,22 +328,24 @@ struct ExerciseSet: Codable, Identifiable {
     let reps: Int?
     let weight: Double?
     let time: TimeInterval? // in seconds
+    let distance: Double? // in miles
     let timestamp: Date
     
     enum CodingKeys: String, CodingKey {
-        case id, reps, weight, time, timestamp
+        case id, reps, weight, time, distance, timestamp
     }
     
-    init(id: UUID = UUID(), reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, timestamp: Date? = nil) {
+    init(id: UUID = UUID(), reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, distance: Double? = nil, timestamp: Date? = nil) {
         self.id = id
         self.reps = reps
         self.weight = weight
         self.time = time
+        self.distance = distance
         self.timestamp = timestamp ?? Date()
     }
     
     var isValid: Bool {
-        return (reps != nil && reps! > 0) || (weight != nil && weight! > 0) || (time != nil && time! > 0)
+        return (reps != nil && reps! > 0) || (weight != nil && weight! > 0) || (time != nil && time! > 0) || (distance != nil && distance! > 0)
     }
     
     var displayString: String {
@@ -286,6 +367,10 @@ struct ExerciseSet: Codable, Identifiable {
             } else {
                 components.append("\(seconds)s")
             }
+        }
+        
+        if let distance = distance {
+            components.append("\(String(format: "%.2f", distance)) mi")
         }
         
         return components.joined(separator: " • ")
@@ -344,6 +429,10 @@ struct ExerciseSession: Codable, Identifiable {
         sets.compactMap { $0.time }.reduce(0, +)
     }
     
+    var totalDistance: Double {
+        sets.compactMap { $0.distance }.reduce(0, +)
+    }
+    
     var averageWeight: Double? {
         let weights = sets.compactMap { $0.weight }
         guard !weights.isEmpty else { return nil }
@@ -352,6 +441,13 @@ struct ExerciseSession: Codable, Identifiable {
     
     var maxWeight: Double? {
         sets.compactMap { $0.weight }.max()
+    }
+    
+    var totalVolume: Double {
+        sets.compactMap { set in
+            guard let reps = set.reps, let weight = set.weight else { return nil }
+            return Double(reps) * weight
+        }.reduce(0, +)
     }
     
     var displayString: String {

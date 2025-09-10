@@ -320,25 +320,29 @@ struct CustomWorkoutCard: View {
                 StatItem(
                     icon: "figure.strengthtraining.traditional",
                     value: "\(workout.totalExercises)",
-                    label: "Exercises"
+                    label: "Exercises",
+                    color: .blue
                 )
                 
                 StatItem(
                     icon: "repeat",
                     value: "\(workout.totalSets)",
-                    label: "Sets"
+                    label: "Sets",
+                    color: .blue
                 )
                 
                 StatItem(
                     icon: "clock",
                     value: "\(workout.estimatedDuration)m",
-                    label: "Duration"
+                    label: "Duration",
+                    color: .blue
                 )
                 
                 StatItem(
                     icon: "arrow.up.arrow.down",
                     value: "\(workout.useCount)",
-                    label: "Used"
+                    label: "Used",
+                    color: .blue
                 )
             }
             
@@ -684,18 +688,18 @@ struct CustomExerciseDetailCard: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    Text("Rest: \(Int(exercise.restTime))s")
+                    Text("Rest: \(Int(exercise.restTime ?? 0))s")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 
-                if !exercise.notes.isEmpty {
+                if !(exercise.notes?.isEmpty ?? true) {
                     HStack {
                         Image(systemName: "note.text")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        Text(exercise.notes)
+                        Text(exercise.notes ?? "")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

@@ -11,7 +11,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 16) {
                     // Profile Header
                     profileHeaderSection
                     
@@ -107,7 +107,7 @@ struct ProfileView: View {
     // MARK: - Statistics Section
     
     private var statisticsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Statistics")
                 .font(.headline)
                 .padding(.horizontal)
@@ -117,30 +117,30 @@ struct ProfileView: View {
                 GridItem(.flexible())
             ], spacing: 16) {
                 StatCard(
+                    icon: "heart.text.square",
                     title: "Total Sessions",
                     value: "\(dataManager.sessions.count)",
-                    icon: "heart.text.square",
                     color: .blue
                 )
                 
                 StatCard(
+                    icon: "waveform.path.ecg",
                     title: "Total Readings",
                     value: "\(totalReadings)",
-                    icon: "waveform.path.ecg",
                     color: .green
                 )
                 
                 StatCard(
+                    icon: "arrow.up",
                     title: "Avg Systolic",
                     value: overallAverageSystolic,
-                    icon: "arrow.up",
                     color: .red
                 )
                 
                 StatCard(
+                    icon: "arrow.down",
                     title: "Avg Diastolic",
                     value: overallAverageDiastolic,
-                    icon: "arrow.down",
                     color: .orange
                 )
             }
@@ -150,7 +150,7 @@ struct ProfileView: View {
     // MARK: - Recent Activity Section
     
     private var recentActivitySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Recent Activity")
                 .font(.headline)
                 .padding(.horizontal)
@@ -203,7 +203,7 @@ struct ProfileView: View {
     // MARK: - Delete All Data Section
     
     private var deleteAllDataSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Data Management")
                 .font(.headline)
                 .padding(.horizontal)
@@ -259,39 +259,6 @@ struct ProfileView: View {
     }
 }
 
-// MARK: - Stat Card Component
-
-struct StatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
-            
-            Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-            
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
-        )
-    }
-}
 
 // MARK: - Recent Session Row Component
 

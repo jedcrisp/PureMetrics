@@ -9,7 +9,7 @@ struct ContentView: View {
             SessionView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "heart.fill")
-                    Text("Session")
+                    Text("Health")
                 }
                 .tag(0)
             
@@ -20,17 +20,17 @@ struct ContentView: View {
                 }
                 .tag(1)
             
-            TrendsView(dataManager: dataManager)
-                .tabItem {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                    Text("Trends")
-                }
-                .tag(2)
-            
             NutritionView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "fork.knife")
                     Text("Nutrition")
+                }
+                .tag(2)
+            
+            TrendsView(dataManager: dataManager)
+                .tabItem {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                    Text("Trends")
                 }
                 .tag(3)
             

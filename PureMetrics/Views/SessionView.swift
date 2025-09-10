@@ -80,6 +80,41 @@ struct SessionView: View {
                         
                         Spacer()
                         
+                        HStack(spacing: 8) {
+                            // HealthKit Dashboard Button
+                            NavigationLink(destination: HealthKitDashboard(healthKitManager: dataManager.healthKitManager)) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 12, weight: .medium))
+                                    Text("Health")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(Color.white.opacity(0.2))
+                                )
+                            }
+                            
+                            // Health Metrics List Button
+                            NavigationLink(destination: HealthMetricsListView(dataManager: dataManager)) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "list.bullet")
+                                        .font(.system(size: 12, weight: .medium))
+                                    Text("All Metrics")
+                                        .font(.system(size: 12, weight: .medium))
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(Color.white.opacity(0.2))
+                                )
+                            }
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
@@ -108,9 +143,9 @@ struct SessionView: View {
     // MARK: - Entry Form Section
     
     private var entryFormSection: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 16) {
             // Header with improved design
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Add Health Reading")
@@ -135,7 +170,7 @@ struct SessionView: View {
             .padding(.horizontal, 4)
             
             // Dynamic Input Fields based on selected metric type
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 if selectedMetricType == .bloodPressure {
                     BloodPressureInput(systolic: $systolic, diastolic: $diastolic)
                 } else {

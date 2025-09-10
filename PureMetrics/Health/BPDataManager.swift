@@ -97,6 +97,12 @@ class BPDataManager: ObservableObject {
     @Published var nutritionEntries: [NutritionEntry] = []
     @Published var nutritionGoals: NutritionGoals = NutritionGoals()
     
+    // One Rep Max storage
+    @Published var oneRepMaxManager = OneRepMaxManager()
+    
+    // HealthKit storage
+    @Published var healthKitManager = HealthKitManager()
+    
     private let maxReadingsPerSession = Int.max
     private let userDefaults = UserDefaults.standard
     private let sessionsKey = "BPSessions"
@@ -119,6 +125,9 @@ class BPDataManager: ObservableObject {
         loadCustomWorkouts()
         loadNutritionEntries()
         loadNutritionGoals()
+        
+        // Load custom workouts from Firestore (with local fallback)
+        loadCustomWorkoutsFromFirestore()
         
         // Listen for authentication changes
         NotificationCenter.default.addObserver(
@@ -537,11 +546,31 @@ class BPDataManager: ObservableObject {
             return 
         }
         
-        currentFitnessSession.complete()
-        fitnessSessions.insert(currentFitnessSession, at: 0)
-        saveFitnessSessions()
-        currentFitnessSession = FitnessSession()
-        print("=== END SAVING CURRENT FITNESS SESSION ===")
+        // Complete the session and prepare data on background queue
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Complete the session on background thread
+            self.currentFitnessSession.complete()
+            
+            // Update UI on main thread
+            DispatchQueue.main.async {
+                self.fitnessSessions.insert(self.currentFitnessSession, at: 0)
+                self.saveFitnessSessions()
+                self.currentFitnessSession = FitnessSession()
+                print("=== END SAVING CURRENT FITNESS SESSION ===")
+                
+                // Trigger Firebase sync after UI updates are complete
+                if self.authService.isAuthenticated {
+                    print("User is authenticated, syncing to Firebase...")
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        self.syncToFirebase()
+                    }
+                } else {
+                    print("User is NOT authenticated, skipping Firebase sync")
+                }
+            }
+        }
     }
     
     // Add this function to collect sets from UI and add them to current session
@@ -611,18 +640,48 @@ class BPDataManager: ObservableObject {
     func saveCustomWorkout(_ workout: CustomWorkout) {
         customWorkouts.append(workout)
         saveCustomWorkouts()
+        
+        // Save to Firestore
+        firestoreService.saveCustomWorkout(workout) { result in
+            switch result {
+            case .success:
+                print("Custom workout saved to Firestore successfully")
+            case .failure(let error):
+                print("Error saving custom workout to Firestore: \(error)")
+            }
+        }
     }
     
     func updateCustomWorkout(_ workout: CustomWorkout) {
         if let index = customWorkouts.firstIndex(where: { $0.id == workout.id }) {
             customWorkouts[index] = workout
             saveCustomWorkouts()
+            
+            // Update in Firestore
+            firestoreService.updateCustomWorkout(workout) { result in
+                switch result {
+                case .success:
+                    print("Custom workout updated in Firestore successfully")
+                case .failure(let error):
+                    print("Error updating custom workout in Firestore: \(error)")
+                }
+            }
         }
     }
     
     func deleteCustomWorkout(_ workout: CustomWorkout) {
         customWorkouts.removeAll { $0.id == workout.id }
         saveCustomWorkouts()
+        
+        // Delete from Firestore
+        firestoreService.deleteCustomWorkout(workout) { result in
+            switch result {
+            case .success:
+                print("Custom workout deleted from Firestore successfully")
+            case .failure(let error):
+                print("Error deleting custom workout from Firestore: \(error)")
+            }
+        }
     }
     
     func toggleCustomWorkoutFavorite(_ workout: CustomWorkout) {
@@ -671,6 +730,22 @@ class BPDataManager: ObservableObject {
         } catch {
             print("Error loading custom workouts: \(error)")
             customWorkouts = []
+        }
+    }
+    
+    func loadCustomWorkoutsFromFirestore() {
+        firestoreService.loadCustomWorkouts { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let workouts):
+                    self?.customWorkouts = workouts
+                    self?.saveCustomWorkouts() // Save to local storage as backup
+                case .failure(let error):
+                    print("Error loading custom workouts from Firestore: \(error)")
+                    // Fall back to local storage
+                    self?.loadCustomWorkouts()
+                }
+            }
         }
     }
     
@@ -856,10 +931,7 @@ class BPDataManager: ObservableObject {
             let data = try JSONEncoder().encode(fitnessSessions)
             userDefaults.set(data, forKey: fitnessSessionsKey)
             
-            // Auto-sync to Firebase if user is authenticated
-            if authService.isAuthenticated {
-                syncToFirebase()
-            }
+            // Note: Firebase sync is handled separately to avoid race conditions
         } catch {
             print("Error saving fitness sessions: \(error)")
         }
@@ -879,86 +951,108 @@ class BPDataManager: ObservableObject {
     // MARK: - Firebase Sync
     
     func syncToFirebase() {
+        print("=== SYNC TO FIREBASE CALLED ===")
+        print("Auth service is authenticated: \(authService.isAuthenticated)")
+        print("Current user: \(authService.currentUser?.uid ?? "nil")")
+        
         guard authService.isAuthenticated else { 
             print("Cannot sync to Firebase: No authenticated user")
             return 
         }
         
-        isSyncing = true
-        syncError = nil
+        // Prevent duplicate sync calls
+        guard !isSyncing else {
+            print("Sync already in progress, skipping duplicate call")
+            return
+        }
         
-        // Create or update user profile
-        let profile = UserProfile(
-            id: authService.currentUser?.uid ?? "",
-            email: authService.currentUser?.email ?? "",
-            displayName: authService.currentUser?.displayName,
-            photoURL: authService.currentUser?.photoURL?.absoluteString
-        )
+        // Set syncing state on main thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.isSyncing = true
+            self.syncError = nil
+        }
         
-        // Convert all data to unified structure
-        var allHealthData: [UnifiedHealthData] = []
-        
-        // Add health metrics with correct data types
-        let healthData = healthMetrics.map { metric in
-            let dataType: HealthDataType
-            switch metric.type {
-            case .weight: dataType = .weight
-            case .bloodPressure: dataType = .bloodPressureSession
-            case .bloodSugar: dataType = .bloodSugar
-            case .heartRate: dataType = .heartRate
+        // Capture data on main thread first to avoid accessing @Published properties from background
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Create or update user profile
+            let profile = UserProfile(
+                id: self.authService.currentUser?.uid ?? "",
+                email: self.authService.currentUser?.email ?? "",
+                displayName: self.authService.currentUser?.displayName,
+                photoURL: self.authService.currentUser?.photoURL?.absoluteString
+            )
+            
+            // Add health metrics with correct data types
+            let healthData = self.healthMetrics.map { metric in
+                let dataType: HealthDataType
+                switch metric.type {
+                case .weight: dataType = .weight
+                case .bloodPressure: dataType = .bloodPressureSession
+                case .bloodSugar: dataType = .bloodSugar
+                case .heartRate: dataType = .heartRate
+                }
+                
+                return UnifiedHealthData(
+                    id: metric.id,
+                    dataType: dataType,
+                    metricType: metric.type,
+                    value: metric.value,
+                    unit: metric.type.unit,
+                    timestamp: metric.timestamp
+                )
             }
             
-            return UnifiedHealthData(
-                id: metric.id,
-                dataType: dataType,
-                metricType: metric.type,
-                value: metric.value,
-                unit: metric.type.unit,
-                timestamp: metric.timestamp
-            )
-        }
-        allHealthData.append(contentsOf: healthData)
-        
-        // Add BP sessions
-        let bpData = sessions.map { session in
-            UnifiedHealthData(
-                id: session.id,
-                dataType: .bloodPressureSession,
-                bpSession: session,
-                timestamp: session.startTime
-            )
-        }
-        allHealthData.append(contentsOf: bpData)
-        
-        // Add fitness sessions
-        let fitnessData = fitnessSessions.map { session in
-            UnifiedHealthData(
-                id: session.id,
-                dataType: .fitnessSession,
-                fitnessSession: session,
-                timestamp: session.startTime
-            )
-        }
-        allHealthData.append(contentsOf: fitnessData)
-        
-        // Save all unified data
-        firestoreService.saveHealthData(allHealthData) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.isSyncing = false
+            // Add BP sessions
+            let bpData = self.sessions.map { session in
+                UnifiedHealthData(
+                    id: session.id,
+                    dataType: .bloodPressureSession,
+                    bpSession: session,
+                    timestamp: session.startTime
+                )
+            }
+            
+            // Add fitness sessions
+            let fitnessData = self.fitnessSessions.map { session in
+                UnifiedHealthData(
+                    id: session.id,
+                    dataType: .fitnessSession,
+                    fitnessSession: session,
+                    timestamp: session.startTime
+                )
+            }
+            
+            // Convert all data to unified structure
+            let allHealthData: [UnifiedHealthData] = healthData + bpData + fitnessData
+            
+            // Now run the Firebase operations on background queue
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self = self else { return }
                 
-                switch result {
-                case .success:
-                    print("Successfully synced all data to Firebase using unified structure")
-                    self?.syncError = nil
-                case .failure(let error):
-                    print("Error syncing to Firebase: \(error)")
-                    self?.syncError = error.localizedDescription
+                // Save all unified data
+                print("Saving \(allHealthData.count) health data items to Firestore...")
+                self.firestoreService.saveHealthData(allHealthData) { result in
+                    DispatchQueue.main.async {
+                        self.isSyncing = false
+                        
+                        switch result {
+                        case .success:
+                            print("Successfully synced all data to Firebase using unified structure")
+                            self.syncError = nil
+                        case .failure(let error):
+                            print("Error syncing to Firebase: \(error)")
+                            self.syncError = error.localizedDescription
+                        }
+                    }
                 }
+                
+                // Also save user profile separately
+                self.firestoreService.saveUserProfile(profile)
             }
         }
-        
-        // Also save user profile separately
-        firestoreService.saveUserProfile(profile)
     }
     
     func loadFromFirebase() {

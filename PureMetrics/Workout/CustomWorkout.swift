@@ -22,6 +22,7 @@ struct CustomWorkout: Codable, Identifiable {
         self.exercises = exercises
         self.createdDate = createdDate
         self.isFavorite = isFavorite
+        self.useCount = 0
     }
     
     var displayName: String {
@@ -34,9 +35,9 @@ struct CustomWorkout: Codable, Identifiable {
     var estimatedDuration: Int {
         // Estimate 2 minutes per set + rest time
         let totalSets = exercises.reduce(0) { $0 + $1.sets }
-        let totalRestTime = exercises.reduce(0) { $0 + ($1.restTime * $1.sets) }
+        let totalRestTime = exercises.reduce(0) { $0 + (($1.restTime ?? 0) * Double($1.sets)) }
         let exerciseTime = totalSets * 120 // 2 minutes per set
-        return (exerciseTime + totalRestTime) / 60 // Convert to minutes
+        return Int((Double(exerciseTime) + totalRestTime) / 60) // Convert to minutes
     }
     
     var totalExercises: Int {
@@ -48,26 +49,13 @@ struct CustomWorkout: Codable, Identifiable {
     }
     
     var totalReps: Int {
-        exercises.reduce(0) { $0 + ($1.reps * $1.sets) }
+        exercises.reduce(0) { $0 + (($1.reps ?? 0) * $1.sets) }
     }
 }
 
-// MARK: - Workout Exercise Model
+// MARK: - Workout Exercise Extension
 
-struct WorkoutExercise: Codable, Identifiable {
-    let id = UUID()
-    let exerciseType: ExerciseType
-    var sets: Int
-    var reps: Int
-    var weight: Double?
-    var time: TimeInterval?
-    var restTime: TimeInterval
-    var notes: String
-    
-    enum CodingKeys: String, CodingKey {
-        case exerciseType, sets, reps, weight, time, restTime, notes
-    }
-    
+extension WorkoutExercise {
     init(exerciseType: ExerciseType, sets: Int, reps: Int, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval = 60, notes: String = "") {
         self.exerciseType = exerciseType
         self.sets = sets
@@ -82,7 +70,9 @@ struct WorkoutExercise: Codable, Identifiable {
         var components: [String] = []
         
         components.append("\(sets) sets")
-        components.append("\(reps) reps")
+        if let reps = reps {
+            components.append("\(reps) reps")
+        }
         
         if let weight = weight {
             components.append("\(Int(weight)) lbs")
@@ -92,7 +82,9 @@ struct WorkoutExercise: Codable, Identifiable {
             components.append("\(Int(time))s")
         }
         
-        components.append("\(Int(restTime))s rest")
+        if let restTime = restTime {
+            components.append("\(Int(restTime))s rest")
+        }
         
         return components.joined(separator: " • ")
     }

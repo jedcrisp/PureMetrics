@@ -3,15 +3,10 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6668A787C17F4E6E93C6CC2D /* ExerciseSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6668A787C17F4E6E93C6CC2E /* ExerciseSelector.swift */; };
-		796CC9702E6CEB1600391532 /* FitnessExercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC96E2E6CEB1600391532 /* FitnessExercise.swift */; };
-		796CC9712E6CEB1600391532 /* FitnessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC96F2E6CEB1600391532 /* FitnessView.swift */; };
-		796CC9762E6D1D2200391532 /* PreBuiltWorkouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC9752E6D1D2200391532 /* PreBuiltWorkouts.swift */; };
-		796CC9782E6D1D3500391532 /* WorkoutSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 796CC9772E6D1D3500391532 /* WorkoutSelector.swift */; };
 		799BE8302E6D233700FE40EB /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 799BE82F2E6D233700FE40EB /* FirebaseAuth */; };
 		799BE8322E6D233700FE40EB /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 799BE8312E6D233700FE40EB /* FirebaseDatabase */; };
 		799BE8342E6D233700FE40EB /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 799BE8332E6D233700FE40EB /* FirebaseFirestore */; };
@@ -19,59 +14,32 @@
 		799BE8382E6D233700FE40EB /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 799BE8372E6D233700FE40EB /* FirebaseStorage */; };
 		799BE83B2E6D234E00FE40EB /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 799BE83A2E6D234E00FE40EB /* GoogleSignIn */; };
 		799BE83D2E6D234E00FE40EB /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 799BE83C2E6D234E00FE40EB /* GoogleSignInSwift */; };
-		799BE8442E6D236100FE40EB /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 799BE83F2E6D236100FE40EB /* AuthView.swift */; };
-		799BE8452E6D236100FE40EB /* FirebaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 799BE8402E6D236100FE40EB /* FirebaseConfig.swift */; };
-		799BE8462E6D236100FE40EB /* FirestoreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 799BE8412E6D236100FE40EB /* FirestoreService.swift */; };
-		799BE8472E6D236100FE40EB /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 799BE83E2E6D236100FE40EB /* AuthService.swift */; };
 		799BE8482E6D236100FE40EB /* StorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 799BE8432E6D236100FE40EB /* StorageService.swift */; };
 		799BE8492E6D236100FE40EB /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 799BE8422E6D236100FE40EB /* GoogleService-Info.plist */; };
-		89C404E822DE439E9DEEB52 /* ExerciseCategorySelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89C404E822DE439E9DEEB53 /* ExerciseCategorySelector.swift */; };
-		A1B2C3D4E5F67890 /* PureMetricsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67891 /* PureMetricsApp.swift */; };
-		A1B2C3D4E5F67892 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67893 /* ContentView.swift */; };
+		799BE84D2E6D48DE00FE40EB /* EncryptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 799BE84C2E6D48DE00FE40EB /* EncryptionService.swift */; };
+		799BE84F2E6D48DE00FE40EB /* PureMetrics.entitlements in Resources */ = {isa = PBXBuildFile; fileRef = 799BE84E2E6D48DE00FE40EB /* PureMetrics.entitlements */; };
 		A1B2C3D4E5F67894 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67895 /* Assets.xcassets */; };
 		A1B2C3D4E5F67896 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67897 /* Preview Assets.xcassets */; };
-		A1B2C3D4E5F67898 /* BloodPressureReading.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F67899 /* BloodPressureReading.swift */; };
-		A1B2C3D4E5F6789A /* BPSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6789B /* BPSession.swift */; };
-		A1B2C3D4E5F6789C /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6789D /* SessionView.swift */; };
-		A1B2C3D4E5F6789E /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6789F /* HistoryView.swift */; };
-		A1B2C3D4E5F678A0 /* BPDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A1 /* BPDataManager.swift */; };
-		A1B2C3D4E5F678A2 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A3 /* ProfileView.swift */; };
-		A1B2C3D4E5F678A4 /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A5 /* TrendsView.swift */; };
-		A1B2C3D4E5F678A6 /* DailyReadingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A7 /* DailyReadingsView.swift */; };
-		A1B2C3D4E5F678A8 /* HealthMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678A9 /* HealthMetric.swift */; };
-		A1B2C3D4E5F678AA /* HealthMetricInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F678AB /* HealthMetricInput.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		6668A787C17F4E6E93C6CC2E /* ExerciseSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSelector.swift; sourceTree = "<group>"; };
-		796CC96E2E6CEB1600391532 /* FitnessExercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessExercise.swift; sourceTree = "<group>"; };
-		796CC96F2E6CEB1600391532 /* FitnessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessView.swift; sourceTree = "<group>"; };
-		796CC9752E6D1D2200391532 /* PreBuiltWorkouts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreBuiltWorkouts.swift; sourceTree = "<group>"; };
-		796CC9772E6D1D3500391532 /* WorkoutSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSelector.swift; sourceTree = "<group>"; };
-		799BE83E2E6D236100FE40EB /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
-		799BE83F2E6D236100FE40EB /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
-		799BE8402E6D236100FE40EB /* FirebaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseConfig.swift; sourceTree = "<group>"; };
-		799BE8412E6D236100FE40EB /* FirestoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreService.swift; sourceTree = "<group>"; };
 		799BE8422E6D236100FE40EB /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		799BE8432E6D236100FE40EB /* StorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageService.swift; sourceTree = "<group>"; };
 		799BE84B2E6D275C00FE40EB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		89C404E822DE439E9DEEB53 /* ExerciseCategorySelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCategorySelector.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F67891 /* PureMetricsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureMetricsApp.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F67893 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		799BE84C2E6D48DE00FE40EB /* EncryptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptionService.swift; sourceTree = "<group>"; };
+		799BE84E2E6D48DE00FE40EB /* PureMetrics.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PureMetrics.entitlements; sourceTree = "<group>"; };
 		A1B2C3D4E5F67895 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1B2C3D4E5F67897 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		A1B2C3D4E5F67899 /* BloodPressureReading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodPressureReading.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6789B /* BPSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BPSession.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6789D /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6789F /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F678A1 /* BPDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BPDataManager.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F678A3 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F678A5 /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F678A7 /* DailyReadingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyReadingsView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F678A9 /* HealthMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetric.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F678AB /* HealthMetricInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricInput.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F678AC /* PureMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		799BE8662E6DBC8A00FE40EB /* Nutrition */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Nutrition; sourceTree = "<group>"; };
+		799BE8672E6DBC9F00FE40EB /* Workout */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Workout; sourceTree = "<group>"; };
+		799BE8682E6DBCC300FE40EB /* Authentication */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Authentication; sourceTree = "<group>"; };
+		799BE8692E6DBCD900FE40EB /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
+		799BE86A2E6DBCEC00FE40EB /* Health */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Health; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A1B2C3D4E5F678AD /* Frameworks */ = {
@@ -91,42 +59,35 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		799BE9E02E70DE1D00FE40EB /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				799BE84E2E6D48DE00FE40EB /* PureMetrics.entitlements */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
 		A1B2C3D4E5F678AE = {
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F678AF /* PureMetrics */,
 				A1B2C3D4E5F678B0 /* Products */,
+				799BE9E02E70DE1D00FE40EB /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
 		A1B2C3D4E5F678AF /* PureMetrics */ = {
 			isa = PBXGroup;
 			children = (
+				799BE86A2E6DBCEC00FE40EB /* Health */,
+				799BE8692E6DBCD900FE40EB /* Views */,
+				799BE8682E6DBCC300FE40EB /* Authentication */,
+				799BE8662E6DBC8A00FE40EB /* Nutrition */,
+				799BE8672E6DBC9F00FE40EB /* Workout */,
+				799BE84C2E6D48DE00FE40EB /* EncryptionService.swift */,
 				799BE84B2E6D275C00FE40EB /* Info.plist */,
-				799BE83E2E6D236100FE40EB /* AuthService.swift */,
-				799BE83F2E6D236100FE40EB /* AuthView.swift */,
-				799BE8402E6D236100FE40EB /* FirebaseConfig.swift */,
-				799BE8412E6D236100FE40EB /* FirestoreService.swift */,
 				799BE8422E6D236100FE40EB /* GoogleService-Info.plist */,
 				799BE8432E6D236100FE40EB /* StorageService.swift */,
-				796CC9772E6D1D3500391532 /* WorkoutSelector.swift */,
-				796CC9752E6D1D2200391532 /* PreBuiltWorkouts.swift */,
-				796CC96E2E6CEB1600391532 /* FitnessExercise.swift */,
-				796CC96F2E6CEB1600391532 /* FitnessView.swift */,
-				89C404E822DE439E9DEEB53 /* ExerciseCategorySelector.swift */,
-				6668A787C17F4E6E93C6CC2E /* ExerciseSelector.swift */,
-				A1B2C3D4E5F67891 /* PureMetricsApp.swift */,
-				A1B2C3D4E5F67893 /* ContentView.swift */,
-				A1B2C3D4E5F67899 /* BloodPressureReading.swift */,
-				A1B2C3D4E5F6789B /* BPSession.swift */,
-				A1B2C3D4E5F6789D /* SessionView.swift */,
-				A1B2C3D4E5F6789F /* HistoryView.swift */,
-				A1B2C3D4E5F678A1 /* BPDataManager.swift */,
-				A1B2C3D4E5F678A3 /* ProfileView.swift */,
-				A1B2C3D4E5F678A5 /* TrendsView.swift */,
-				A1B2C3D4E5F678A7 /* DailyReadingsView.swift */,
-				A1B2C3D4E5F678A9 /* HealthMetric.swift */,
-				A1B2C3D4E5F678AB /* HealthMetricInput.swift */,
 				A1B2C3D4E5F67895 /* Assets.xcassets */,
 				A1B2C3D4E5F678B1 /* Preview Content */,
 			);
@@ -163,6 +124,13 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				799BE8662E6DBC8A00FE40EB /* Nutrition */,
+				799BE8672E6DBC9F00FE40EB /* Workout */,
+				799BE8682E6DBCC300FE40EB /* Authentication */,
+				799BE8692E6DBCD900FE40EB /* Views */,
+				799BE86A2E6DBCEC00FE40EB /* Health */,
 			);
 			name = PureMetrics;
 			productName = PureMetrics;
@@ -214,6 +182,7 @@
 				A1B2C3D4E5F67896 /* Preview Assets.xcassets in Resources */,
 				A1B2C3D4E5F67894 /* Assets.xcassets in Resources */,
 				799BE8492E6D236100FE40EB /* GoogleService-Info.plist in Resources */,
+				799BE84F2E6D48DE00FE40EB /* PureMetrics.entitlements in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -224,29 +193,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1B2C3D4E5F6789A /* BPSession.swift in Sources */,
-				A1B2C3D4E5F6789C /* SessionView.swift in Sources */,
-				A1B2C3D4E5F6789E /* HistoryView.swift in Sources */,
-				A1B2C3D4E5F678A0 /* BPDataManager.swift in Sources */,
-				A1B2C3D4E5F678A2 /* ProfileView.swift in Sources */,
-				799BE8442E6D236100FE40EB /* AuthView.swift in Sources */,
-				799BE8452E6D236100FE40EB /* FirebaseConfig.swift in Sources */,
-				799BE8462E6D236100FE40EB /* FirestoreService.swift in Sources */,
-				799BE8472E6D236100FE40EB /* AuthService.swift in Sources */,
 				799BE8482E6D236100FE40EB /* StorageService.swift in Sources */,
-				A1B2C3D4E5F678A4 /* TrendsView.swift in Sources */,
-				796CC9702E6CEB1600391532 /* FitnessExercise.swift in Sources */,
-				796CC9712E6CEB1600391532 /* FitnessView.swift in Sources */,
-				89C404E822DE439E9DEEB52 /* ExerciseCategorySelector.swift in Sources */,
-				796CC9762E6D1D2200391532 /* PreBuiltWorkouts.swift in Sources */,
-				6668A787C17F4E6E93C6CC2D /* ExerciseSelector.swift in Sources */,
-				A1B2C3D4E5F678A6 /* DailyReadingsView.swift in Sources */,
-				796CC9782E6D1D3500391532 /* WorkoutSelector.swift in Sources */,
-				A1B2C3D4E5F678A8 /* HealthMetric.swift in Sources */,
-				A1B2C3D4E5F678AA /* HealthMetricInput.swift in Sources */,
-				A1B2C3D4E5F67890 /* PureMetricsApp.swift in Sources */,
-				A1B2C3D4E5F67892 /* ContentView.swift in Sources */,
-				A1B2C3D4E5F67898 /* BloodPressureReading.swift in Sources */,
+				799BE84D2E6D48DE00FE40EB /* EncryptionService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -378,6 +326,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = PureMetrics.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"PureMetrics/Preview Content\"";
@@ -410,6 +359,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = PureMetrics.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"PureMetrics/Preview Content\"";

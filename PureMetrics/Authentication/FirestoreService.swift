@@ -743,6 +743,117 @@ class FirestoreService: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Custom Workout Management
+    
+    func saveCustomWorkout(_ workout: CustomWorkout, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let workoutRef = db.collection("users").document(userID).collection("custom_workouts").document(workout.id.uuidString)
+        
+        do {
+            var workoutData = try Firestore.Encoder().encode(workout)
+            workoutData["createdAt"] = Timestamp(date: workout.createdDate)
+            workoutData["updatedAt"] = Timestamp(date: Date())
+            
+            workoutRef.setData(workoutData) { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(()))
+                }
+            }
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
+    func loadCustomWorkouts(completion: @escaping (Result<[CustomWorkout], Error>) -> Void) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let workoutsRef = db.collection("users").document(userID).collection("custom_workouts")
+            .order(by: "createdAt", descending: true)
+        
+        workoutsRef.getDocuments { snapshot, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let documents = snapshot?.documents else {
+                completion(.success([]))
+                return
+            }
+            
+            var workouts: [CustomWorkout] = []
+            for document in documents {
+                do {
+                    var workoutData = document.data()
+                    // Convert Firestore timestamps back to Date
+                    if let createdAt = workoutData["createdAt"] as? Timestamp {
+                        workoutData["createdDate"] = createdAt.dateValue()
+                    }
+                    if let lastUsed = workoutData["lastUsed"] as? Timestamp {
+                        workoutData["lastUsed"] = lastUsed.dateValue()
+                    }
+                    
+                    let workout = try Firestore.Decoder().decode(CustomWorkout.self, from: workoutData)
+                    workouts.append(workout)
+                } catch {
+                    print("Error decoding custom workout: \(error)")
+                }
+            }
+            
+            completion(.success(workouts))
+        }
+    }
+    
+    func updateCustomWorkout(_ workout: CustomWorkout, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let workoutRef = db.collection("users").document(userID).collection("custom_workouts").document(workout.id.uuidString)
+        
+        do {
+            var workoutData = try Firestore.Encoder().encode(workout)
+            workoutData["updatedAt"] = Timestamp(date: Date())
+            
+            workoutRef.updateData(workoutData) { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(()))
+                }
+            }
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
+    func deleteCustomWorkout(_ workout: CustomWorkout, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let workoutRef = db.collection("users").document(userID).collection("custom_workouts").document(workout.id.uuidString)
+        
+        workoutRef.delete { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
 }
 
 // MARK: - User Profile Model

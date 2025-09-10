@@ -30,7 +30,7 @@ struct TrendsView: View {
                         headerSection
                         
                         // Content
-                        VStack(spacing: 24) {
+                        VStack(spacing: 16) {
                             // Time Range Selector
                             timeRangeSelector
                             
@@ -119,17 +119,36 @@ struct TrendsView: View {
                         
                         Spacer()
                         
-                        if !filteredSessions.isEmpty {
-                            VStack(alignment: .trailing, spacing: 4) {
-                                Text("Sessions")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white.opacity(0.8))
-                                
-                                Text("\(filteredSessions.count)")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
+                        HStack(spacing: 16) {
+                            // Data History Button
+                            NavigationLink(destination: DataHistoryView(dataManager: dataManager)) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "list.bullet")
+                                        .font(.system(size: 14, weight: .medium))
+                                    Text("See History")
+                                        .font(.system(size: 14, weight: .medium))
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(Color.white.opacity(0.2))
+                                )
+                            }
+                            
+                            if !filteredSessions.isEmpty {
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text("Sessions")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white.opacity(0.8))
+                                    
+                                    Text("\(filteredSessions.count)")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                }
                             }
                         }
                     }
@@ -189,7 +208,7 @@ struct TrendsView: View {
     // MARK: - Metric Selector
     
     private var metricSelector: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.title3)
@@ -272,7 +291,7 @@ struct TrendsView: View {
     // MARK: - Combined Chart Section
     
     private var combinedChartSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "chart.bar.fill")
                     .font(.title2)
@@ -287,26 +306,12 @@ struct TrendsView: View {
             
             Chart {
                 ForEach(combinedChartData, id: \.date) { dataPoint in
-                    LineMark(
-                        x: .value("Date", dataPoint.date),
-                        y: .value("Systolic", dataPoint.systolic)
-                    )
-                    .foregroundStyle(.red)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
-                    
                     PointMark(
                         x: .value("Date", dataPoint.date),
                         y: .value("Systolic", dataPoint.systolic)
                     )
                     .foregroundStyle(.red)
                     .symbolSize(50)
-                    
-                    LineMark(
-                        x: .value("Date", dataPoint.date),
-                        y: .value("Diastolic", dataPoint.diastolic)
-                    )
-                    .foregroundStyle(.blue)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
                     
                     PointMark(
                         x: .value("Date", dataPoint.date),
@@ -369,7 +374,7 @@ struct TrendsView: View {
     // MARK: - Chart Section
     
     private var chartSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.title2)
@@ -384,13 +389,6 @@ struct TrendsView: View {
             
             Chart {
                 ForEach(chartData, id: \.date) { dataPoint in
-                    LineMark(
-                        x: .value("Date", dataPoint.date),
-                        y: .value(selectedMetric.rawValue, dataPoint.value)
-                    )
-                    .foregroundStyle(chartColor)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
-                    
                     PointMark(
                         x: .value("Date", dataPoint.date),
                         y: .value(selectedMetric.rawValue, dataPoint.value)
@@ -429,7 +427,7 @@ struct TrendsView: View {
     // MARK: - Fitness Chart Section
     
     private var fitnessChartSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "dumbbell.fill")
                     .font(.title2)
@@ -462,14 +460,7 @@ struct TrendsView: View {
             
             Chart {
                 ForEach(fitnessChartData, id: \.date) { dataPoint in
-                    // Average Weight Line
-                    LineMark(
-                        x: .value("Date", dataPoint.date),
-                        y: .value("Average Weight", dataPoint.averageWeight)
-                    )
-                    .foregroundStyle(.orange)
-                    .lineStyle(StrokeStyle(lineWidth: 3))
-                    
+                    // Average Weight Points
                     PointMark(
                         x: .value("Date", dataPoint.date),
                         y: .value("Average Weight", dataPoint.averageWeight)
@@ -477,15 +468,8 @@ struct TrendsView: View {
                     .foregroundStyle(.orange)
                     .symbolSize(50)
                     
-                    // Max Weight Line
+                    // Max Weight Points
                     if dataPoint.maxWeight > dataPoint.averageWeight {
-                        LineMark(
-                            x: .value("Date", dataPoint.date),
-                            y: .value("Max Weight", dataPoint.maxWeight)
-                        )
-                        .foregroundStyle(.red)
-                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                        
                         PointMark(
                             x: .value("Date", dataPoint.date),
                             y: .value("Max Weight", dataPoint.maxWeight)
@@ -549,7 +533,7 @@ struct TrendsView: View {
     // MARK: - Daily Readings Section
     
     private var dailyReadingsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Daily Readings")
                     .font(.headline)
@@ -630,7 +614,7 @@ struct TrendsView: View {
     // MARK: - Rolling Averages Section
     
     private var rollingAveragesSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.title2)
@@ -673,7 +657,7 @@ struct TrendsView: View {
     // MARK: - Statistics Summary
     
     private var statisticsSummary: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "chart.bar.fill")
                     .font(.title2)
@@ -726,7 +710,7 @@ struct TrendsView: View {
     // MARK: - Fitness Summary Section
     
     private var fitnessSummarySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "dumbbell.fill")
                     .font(.title2)

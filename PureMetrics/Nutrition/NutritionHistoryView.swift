@@ -160,7 +160,7 @@ struct NutritionHistoryView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(filteredEntries, id: \.id) { entry in
-                    NutritionHistoryCard(entry: entry)
+                    NutritionHistoryCard(entry: entry, dataManager: dataManager)
                 }
             }
             .padding(.horizontal, 20)
@@ -239,6 +239,9 @@ struct NutritionHistoryView: View {
 
 struct NutritionHistoryCard: View {
     let entry: NutritionEntry
+    @ObservedObject var dataManager: BPDataManager
+    @State private var showingEditSheet = false
+    @State private var showingDeleteAlert = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -260,15 +263,36 @@ struct NutritionHistoryCard: View {
                 
                 Spacer()
                 
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(entry.caloriesString)
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.orange)
+                HStack(spacing: 12) {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(entry.caloriesString)
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(.orange)
+                        
+                        Text("Calories")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Text("Calories")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // Edit and Delete Buttons
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            showingEditSheet = true
+                        }) {
+                            Image(systemName: "pencil")
+                                .font(.title3)
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Button(action: {
+                            showingDeleteAlert = true
+                        }) {
+                            Image(systemName: "trash")
+                                .font(.title3)
+                                .foregroundColor(.red)
+                        }
+                    }
                 }
             }
             
@@ -278,7 +302,8 @@ struct NutritionHistoryCard: View {
                     StatItem(
                         icon: "drop.fill",
                         value: entry.waterString,
-                        label: "Water"
+                        label: "Water",
+                        color: .blue
                     )
                 }
                 
@@ -286,7 +311,8 @@ struct NutritionHistoryCard: View {
                     StatItem(
                         icon: "scalemass.fill",
                         value: entry.proteinString,
-                        label: "Protein"
+                        label: "Protein",
+                        color: .green
                     )
                 }
                 
@@ -294,7 +320,8 @@ struct NutritionHistoryCard: View {
                     StatItem(
                         icon: "leaf.fill",
                         value: entry.carbsString,
-                        label: "Carbs"
+                        label: "Carbs",
+                        color: .orange
                     )
                 }
                 
@@ -302,7 +329,8 @@ struct NutritionHistoryCard: View {
                     StatItem(
                         icon: "drop.fill",
                         value: entry.fatString,
-                        label: "Fat"
+                        label: "Fat",
+                        color: .red
                     )
                 }
             }
@@ -342,6 +370,23 @@ struct NutritionHistoryCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
+        .sheet(isPresented: $showingEditSheet) {
+            EditNutritionEntryView(
+                entry: entry,
+                onSave: { updatedEntry in
+                    dataManager.updateNutritionEntry(updatedEntry)
+                    showingEditSheet = false
+                }
+            )
+        }
+        .alert("Delete Entry", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                dataManager.deleteNutritionEntry(entry)
+            }
+        } message: {
+            Text("Are you sure you want to delete this nutrition entry? This action cannot be undone.")
+        }
     }
 }
 

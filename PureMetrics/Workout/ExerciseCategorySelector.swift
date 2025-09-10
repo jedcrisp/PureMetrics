@@ -47,7 +47,7 @@ struct CategoryCard: View {
                         .frame(width: 60, height: 60)
                     
                     Image(systemName: category.icon)
-                        .font(.title2)
+                        .font(.system(size: 24, weight: .medium))
                         .foregroundColor(colorForCategory(category))
                 }
                 

@@ -165,7 +165,7 @@ struct WorkoutHistoryView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(filteredWorkouts, id: \.id) { workout in
-                    WorkoutCard(
+                    FitnessWorkoutCard(
                         workout: workout,
                         onTap: {
                             selectedWorkout = workout
@@ -256,7 +256,7 @@ struct WorkoutHistoryView: View {
 
 // MARK: - Workout Card
 
-struct WorkoutCard: View {
+struct FitnessWorkoutCard: View {
     let workout: FitnessSession
     let onTap: () -> Void
     let onFavorite: () -> Void
@@ -284,7 +284,7 @@ struct WorkoutCard: View {
                             .font(.title3)
                             .foregroundColor(workout.isFavorite ? .red : .secondary)
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .buttonStyle(.plain)
                 }
                 
                 // Stats
@@ -292,25 +292,29 @@ struct WorkoutCard: View {
                     StatItem(
                         icon: "clock",
                         value: formatDuration(workout.duration),
-                        label: "Duration"
+                        label: "Duration",
+                        color: .blue
                     )
                     
                     StatItem(
                         icon: "figure.strengthtraining.traditional",
                         value: "\(workout.exerciseSessions.count)",
-                        label: "Exercises"
+                        label: "Exercises",
+                        color: .blue
                     )
                     
                     StatItem(
                         icon: "repeat",
                         value: "\(workout.totalSets)",
-                        label: "Sets"
+                        label: "Sets",
+                        color: .blue
                     )
                     
                     StatItem(
                         icon: "arrow.up.arrow.down",
                         value: "\(workout.totalReps)",
-                        label: "Reps"
+                        label: "Reps",
+                        color: .blue
                     )
                 }
                 
@@ -336,7 +340,7 @@ struct WorkoutCard: View {
                     .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
             )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
     }
     
     private var exercisePreview: String {
@@ -358,29 +362,6 @@ struct WorkoutCard: View {
 
 // MARK: - Stat Item
 
-struct StatItem: View {
-    let icon: String
-    let value: String
-    let label: String
-    
-    var body: some View {
-        VStack(spacing: 2) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            Text(value)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
-            
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
 
 #Preview {
     WorkoutHistoryView()

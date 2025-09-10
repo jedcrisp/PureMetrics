@@ -17,7 +17,7 @@ class EncryptionService {
     private func getOrCreateEncryptionKey() throws -> SymmetricKey {
         // Try to get existing key from keychain
         if let existingKeyData = keychain.getData(forKey: keyTag),
-           let key = SymmetricKey(data: existingKeyData) {
+           let key = SymmetricKey(fromData: existingKeyData) {
             return key
         }
         
@@ -219,8 +219,9 @@ enum EncryptionError: LocalizedError {
 // MARK: - SymmetricKey Extension
 
 extension SymmetricKey {
-    init?(data: Data) {
+    init?(fromData data: Data) {
         guard data.count == 32 else { return nil } // 256 bits = 32 bytes
-        self.init(data: data)
+        let bytes = [UInt8](data)
+        self.init(data: bytes)
     }
 }

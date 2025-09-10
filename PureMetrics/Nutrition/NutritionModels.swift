@@ -156,8 +156,9 @@ struct NutritionSummary: Codable {
     let totalFiber: Double
     let totalWater: Double
     let entryCount: Int
+    let goals: NutritionGoals
     
-    init(entries: [NutritionEntry], date: Date = Date()) {
+    init(entries: [NutritionEntry], goals: NutritionGoals, date: Date = Date()) {
         self.date = date
         self.totalCalories = entries.reduce(0) { $0 + $1.calories }
         self.totalProtein = entries.reduce(0) { $0 + $1.protein }
@@ -168,6 +169,7 @@ struct NutritionSummary: Codable {
         self.totalFiber = entries.reduce(0) { $0 + $1.fiber }
         self.totalWater = entries.reduce(0) { $0 + $1.water }
         self.entryCount = entries.count
+        self.goals = goals
     }
     
     // MARK: - Goal Progress
@@ -178,35 +180,35 @@ struct NutritionSummary: Codable {
     }
     
     var caloriesProgress: Double {
-        return progress(for: 2000, actual: totalCalories) // Default goal
+        return progress(for: goals.dailyCalories, actual: totalCalories)
     }
     
     var proteinProgress: Double {
-        return progress(for: 150, actual: totalProtein) // Default goal
+        return progress(for: goals.dailyProtein, actual: totalProtein)
     }
     
     var carbsProgress: Double {
-        return progress(for: 250, actual: totalCarbohydrates) // Default goal
+        return progress(for: goals.dailyCarbohydrates, actual: totalCarbohydrates)
     }
     
     var fatProgress: Double {
-        return progress(for: 65, actual: totalFat) // Default goal
+        return progress(for: goals.dailyFat, actual: totalFat)
     }
     
     var sodiumProgress: Double {
-        return progress(for: 2300, actual: totalSodium) // Default goal
+        return progress(for: goals.dailySodium, actual: totalSodium)
     }
     
     var sugarProgress: Double {
-        return progress(for: 50, actual: totalSugar) // Default goal
+        return progress(for: goals.dailySugar, actual: totalSugar)
     }
     
     var fiberProgress: Double {
-        return progress(for: 25, actual: totalFiber) // Default goal
+        return progress(for: goals.dailyFiber, actual: totalFiber)
     }
     
     var waterProgress: Double {
-        return progress(for: 64, actual: totalWater) // Default goal
+        return progress(for: goals.dailyWater, actual: totalWater)
     }
 }
 

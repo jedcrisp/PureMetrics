@@ -113,11 +113,27 @@ struct GoalsProgressCard: View {
                 )
                 
                 ProgressBar(
-                    label: "Water",
-                    current: summary.totalWater,
-                    goal: goals.dailyWater,
-                    unit: "oz",
+                    label: "Carbs",
+                    current: summary.totalCarbohydrates,
+                    goal: goals.dailyCarbohydrates,
+                    unit: "g",
+                    color: .green
+                )
+                
+                ProgressBar(
+                    label: "Fat",
+                    current: summary.totalFat,
+                    goal: goals.dailyFat,
+                    unit: "g",
                     color: .blue
+                )
+                
+                ProgressBar(
+                    label: "Sodium",
+                    current: summary.totalSodium,
+                    goal: goals.dailySodium,
+                    unit: "mg",
+                    color: .purple
                 )
                 
                 ProgressBar(
@@ -125,33 +141,16 @@ struct GoalsProgressCard: View {
                     current: summary.totalFiber,
                     goal: goals.dailyFiber,
                     unit: "g",
-                    color: .green
+                    color: .mint
                 )
-            }
-            
-            // Quick Stats
-            HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(summary.entryCount)")
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
-                    Text("Entries")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
                 
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("\(Int(goals.dailyCalories))")
-                        .font(.title3)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
-                    Text("Goal")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                ProgressBar(
+                    label: "Water",
+                    current: summary.totalWater,
+                    goal: goals.dailyWater,
+                    unit: "oz",
+                    color: .cyan
+                )
             }
         }
         .padding(16)
@@ -294,7 +293,8 @@ struct ProgressBar: View {
             summary: NutritionSummary(
                 entries: [
                     NutritionEntry(calories: 500, protein: 25, carbohydrates: 60, fat: 15, water: 16)
-                ]
+                ],
+                goals: NutritionGoals()
             ),
             goals: NutritionGoals()
         )
@@ -303,7 +303,8 @@ struct ProgressBar: View {
             summary: NutritionSummary(
                 entries: [
                     NutritionEntry(calories: 1500, protein: 100, carbohydrates: 200, fat: 50, water: 32)
-                ]
+                ],
+                goals: NutritionGoals()
             ),
             goals: NutritionGoals()
         )

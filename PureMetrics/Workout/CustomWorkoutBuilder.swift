@@ -6,7 +6,10 @@ struct CustomWorkoutBuilder: View {
     @State private var workoutName = ""
     @State private var workoutDescription = ""
     @State private var selectedExercises: [WorkoutExercise] = []
+    @State private var showingCategorySelector = false
     @State private var showingExerciseSelector = false
+    @State private var selectedCategory: ExerciseCategory?
+    @State private var selectedExerciseType: ExerciseType?
     @State private var showingSaveConfirmation = false
     @State private var isEditing = false
     @State private var editingIndex: Int?
@@ -48,12 +51,22 @@ struct CustomWorkoutBuilder: View {
                 }
             }
         }
+        .sheet(isPresented: $showingCategorySelector) {
+            ExerciseCategorySelector(selectedCategory: $selectedCategory) { category in
+                selectedCategory = category
+                showingCategorySelector = false
+                showingExerciseSelector = true
+            }
+        }
         .sheet(isPresented: $showingExerciseSelector) {
-            ExerciseSelectorView(
-                onExerciseSelected: { exerciseType in
+            if let category = selectedCategory {
+                ExerciseSelector(
+                    category: category,
+                    selectedExercise: $selectedExerciseType
+                ) { exerciseType in
                     addExercise(exerciseType)
                 }
-            )
+            }
         }
         .alert("Save Custom Workout", isPresented: $showingSaveConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -191,7 +204,7 @@ struct CustomWorkoutBuilder: View {
     
     private var addExerciseSection: some View {
         Button(action: {
-            showingExerciseSelector = true
+            showingCategorySelector = true
         }) {
             HStack(spacing: 10) {
                 Image(systemName: "plus.circle.fill")
@@ -407,7 +420,7 @@ struct DetailItem: View {
 
 // MARK: - Exercise Selector View
 
-struct ExerciseSelectorView: View {
+struct CustomExerciseSelectorView: View {
     let onExerciseSelected: (ExerciseType) -> Void
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedCategory: ExerciseCategory?

@@ -10,10 +10,20 @@ struct PreBuiltWorkout: Identifiable, Codable {
     let exercises: [WorkoutExercise]
     let estimatedDuration: Int // in minutes
     let difficulty: WorkoutDifficulty
-    var isFavorite: Bool = false
+    var isFavorite: Bool
     
     enum CodingKeys: String, CodingKey {
         case name, category, description, exercises, estimatedDuration, difficulty, isFavorite
+    }
+    
+    init(name: String, category: WorkoutCategory, description: String, exercises: [WorkoutExercise], estimatedDuration: Int, difficulty: WorkoutDifficulty, isFavorite: Bool = false) {
+        self.name = name
+        self.category = category
+        self.description = description
+        self.exercises = exercises
+        self.estimatedDuration = estimatedDuration
+        self.difficulty = difficulty
+        self.isFavorite = isFavorite
     }
     
     var displayName: String {
@@ -38,6 +48,16 @@ struct WorkoutExercise: Identifiable, Codable {
     
     enum CodingKeys: String, CodingKey {
         case exerciseType, sets, reps, weight, time, restTime, notes
+    }
+    
+    init(exerciseType: ExerciseType, sets: Int, reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval? = nil, notes: String? = nil) {
+        self.exerciseType = exerciseType
+        self.sets = sets
+        self.reps = reps
+        self.weight = weight
+        self.time = time
+        self.restTime = restTime
+        self.notes = notes
     }
 }
 
@@ -448,7 +468,7 @@ class PreBuiltWorkoutManager: ObservableObject {
                 exercises: [
                     WorkoutExercise(exerciseType: .kettlebellSwing, sets: 4, reps: nil, weight: nil, time: 40, restTime: 20, notes: "Hip drive"),
                     WorkoutExercise(exerciseType: .kettlebellGobletSquat, sets: 4, reps: 15, weight: nil, time: nil, restTime: 20, notes: "Deep squats"),
-                    WorkoutExercise(exerciseType: .kettlebellTurkishGetUp, sets: 4, reps: 5, weight: nil, time: nil, restTime: 20, notes: "Slow and controlled"),
+                    WorkoutExercise(exerciseType: .turkishGetUp, sets: 4, reps: 5, weight: nil, time: nil, restTime: 20, notes: "Slow and controlled"),
                     WorkoutExercise(exerciseType: .kettlebellSwing, sets: 4, reps: nil, weight: nil, time: 30, restTime: 20, notes: "Power swings")
                 ],
                 estimatedDuration: 30,
@@ -586,14 +606,14 @@ class PreBuiltWorkoutManager: ObservableObject {
 extension ExerciseType {
     static let bodyweightSquat = ExerciseType.squat
     static let pushUps = ExerciseType.weightedPushUps
-    static let burpees = ExerciseType.manMaker
-    static let mountainClimbers = ExerciseType.turkishGetUp
-    static let jumpingJacks = ExerciseType.kettlebellSwing
-    static let highKnees = ExerciseType.kettlebellSwing
+    static let bodyweightBurpees = ExerciseType.manMaker
+    static let bodyweightMountainClimbers = ExerciseType.turkishGetUp
+    static let bodyweightJumpingJacks = ExerciseType.kettlebellSwing
+    static let bodyweightHighKnees = ExerciseType.kettlebellSwing
     static let sprint = ExerciseType.kettlebellSwing
     static let walk = ExerciseType.kettlebellSwing
     static let hammerCurl = ExerciseType.dumbbellCurl
-    static let boxJumps = ExerciseType.stepUps
+    static let bodyweightBoxJumps = ExerciseType.stepUps
     static let handstandPushUps = ExerciseType.overheadPress
     static let muscleUps = ExerciseType.pullUps
     static let planche = ExerciseType.weightedPlank
@@ -602,5 +622,4 @@ extension ExerciseType {
     static let wallBall = ExerciseType.kettlebellSwing
     static let kettlebellGobletSquat = ExerciseType.squat
     static let dips = ExerciseType.tricepsKickback
-    static let gluteBridge = ExerciseType.hipThrust
 }
