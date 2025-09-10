@@ -156,7 +156,10 @@ struct DataHistoryView: View {
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(filteredFitnessSessions) { session in
-                        FitnessSessionRow(session: session)
+                        NavigationLink(destination: WorkoutDetailView(workout: session)) {
+                            FitnessSessionRow(session: session)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
                 }
             }
@@ -389,19 +392,32 @@ struct FitnessSessionRow: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Fitness Session")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
-                Text("\(session.exerciseSessions.count) exercises")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if !session.exerciseSessions.isEmpty {
+                    Text("\(session.exerciseSessions.count) exercises")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    // Show exercise types
+                    let exerciseTypes = session.exerciseSessions.map { $0.exerciseType.rawValue }
+                    Text(exerciseTypes.joined(separator: ", "))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                } else {
+                    Text("No exercises")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Spacer()
             
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 4) {
                 Text(DateFormatter.shortDate.string(from: session.startTime))
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -411,10 +427,32 @@ struct FitnessSessionRow: View {
                     Text("\(duration) min")
                         .font(.caption2)
                         .foregroundColor(.secondary)
+                } else {
+                    Text("Incomplete")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                }
+                
+                // Show total sets
+                let totalSets = session.exerciseSessions.reduce(0) { $0 + $1.sets.count }
+                if totalSets > 0 {
+                    Text("\(totalSets) sets")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
             }
+            
+            // Add chevron to indicate it's clickable
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(.systemGray6))
+        )
     }
 }
 
