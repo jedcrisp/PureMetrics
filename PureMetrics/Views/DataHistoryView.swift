@@ -156,7 +156,8 @@ struct DataHistoryView: View {
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(filteredFitnessSessions) { session in
-                        NavigationLink(destination: WorkoutDetailView(workout: session)) {
+                        NavigationLink(destination: WorkoutDetailView(workout: session)
+                            .environmentObject(dataManager)) {
                             FitnessSessionRow(session: session)
                         }
                         .buttonStyle(PlainButtonStyle())
