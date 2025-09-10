@@ -894,23 +894,70 @@ class BPDataManager: ObservableObject {
     func addNutritionEntry(_ entry: NutritionEntry) {
         nutritionEntries.append(entry)
         saveNutritionEntries()
+        
+        // Also save to Firestore
+        firestoreService.saveNutritionEntry(entry) { result in
+            switch result {
+            case .success:
+                print("Successfully saved nutrition entry to Firestore")
+            case .failure(let error):
+                print("Error saving nutrition entry to Firestore: \(error)")
+            }
+        }
     }
     
     func updateNutritionEntry(_ entry: NutritionEntry) {
         if let index = nutritionEntries.firstIndex(where: { $0.id == entry.id }) {
             nutritionEntries[index] = entry
             saveNutritionEntries()
+            
+            // Also update in Firestore
+            firestoreService.saveNutritionEntry(entry) { result in
+                switch result {
+                case .success:
+                    print("Successfully updated nutrition entry in Firestore")
+                case .failure(let error):
+                    print("Error updating nutrition entry in Firestore: \(error)")
+                }
+            }
         }
     }
     
     func deleteNutritionEntry(_ entry: NutritionEntry) {
         nutritionEntries.removeAll { $0.id == entry.id }
         saveNutritionEntries()
+        
+        // Also delete from Firestore
+        firestoreService.deleteNutritionEntry(entry) { result in
+            switch result {
+            case .success:
+                print("Successfully deleted nutrition entry from Firestore")
+            case .failure(let error):
+                print("Error deleting nutrition entry from Firestore: \(error)")
+            }
+        }
     }
     
     func updateNutritionGoals(_ goals: NutritionGoals) {
         nutritionGoals = goals
         saveNutritionGoals()
+    }
+    
+    func loadNutritionEntriesFromFirestore() {
+        firestoreService.loadNutritionEntries { result in
+            switch result {
+            case .success(let entries):
+                DispatchQueue.main.async {
+                    self.nutritionEntries = entries
+                    self.saveNutritionEntries() // Save to UserDefaults as backup
+                    print("Successfully loaded \(entries.count) nutrition entries from Firestore")
+                }
+            case .failure(let error):
+                print("Error loading nutrition entries from Firestore: \(error)")
+                // Fall back to local data
+                self.loadNutritionEntries()
+            }
+        }
     }
     
     private func saveNutritionEntries() {

@@ -1364,6 +1364,171 @@ class FirestoreService: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Nutrition Data Management
+    
+    func saveNutritionEntry(_ entry: NutritionEntry, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        print("=== FIRESTORE SAVE NUTRITION ENTRY CALLED ===")
+        print("Entry ID: \(entry.id)")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Convert NutritionEntry to UnifiedHealthData
+        let unifiedData = UnifiedHealthData(
+            id: entry.id,
+            dataType: .nutritionEntry,
+            nutritionEntry: entry,
+            timestamp: entry.date
+        )
+        
+        // Save to both user-specific and root collections
+        let userCollection = dataTypeCollection(.nutritionEntry)
+        let rootCollection = rootDataTypeCollection(.nutritionEntry)
+        
+        let dispatchGroup = DispatchGroup()
+        var hasError = false
+        var lastError: Error?
+        
+        // Save to user-specific collection
+        if let userCollection = userCollection {
+            dispatchGroup.enter()
+            do {
+                let data = try JSONEncoder().encode(unifiedData)
+                let documentData = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+                
+                userCollection.document(entry.id.uuidString).setData(documentData) { error in
+                    if let error = error {
+                        print("Error saving nutrition entry to user collection: \(error)")
+                        hasError = true
+                        lastError = error
+                    } else {
+                        print("Successfully saved nutrition entry to user collection")
+                    }
+                    dispatchGroup.leave()
+                }
+            } catch {
+                print("Error encoding nutrition entry: \(error)")
+                hasError = true
+                lastError = error
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Save to root collection
+        if let rootCollection = rootCollection {
+            dispatchGroup.enter()
+            do {
+                let data = try JSONEncoder().encode(unifiedData)
+                let documentData = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+                
+                rootCollection.document(entry.id.uuidString).setData(documentData) { error in
+                    if let error = error {
+                        print("Error saving nutrition entry to root collection: \(error)")
+                        hasError = true
+                        lastError = error
+                    } else {
+                        print("Successfully saved nutrition entry to root collection")
+                    }
+                    dispatchGroup.leave()
+                }
+            } catch {
+                print("Error encoding nutrition entry: \(error)")
+                hasError = true
+                lastError = error
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if hasError {
+                completion(.failure(lastError ?? FirestoreError.unknown))
+            } else {
+                print("Successfully saved nutrition entry to Firestore")
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func loadNutritionEntries(completion: @escaping (Result<[NutritionEntry], Error>) -> Void) {
+        print("=== FIRESTORE LOAD NUTRITION ENTRIES CALLED ===")
+        print("User ID: \(userID ?? "nil")")
+        
+        loadHealthData(dataType: .nutritionEntry) { result in
+            switch result {
+            case .success(let healthData):
+                let nutritionEntries = healthData.compactMap { data -> NutritionEntry? in
+                    return data.nutritionEntry
+                }
+                print("Successfully loaded \(nutritionEntries.count) nutrition entries from Firestore")
+                completion(.success(nutritionEntries))
+                
+            case .failure(let error):
+                print("Error loading nutrition entries: \(error)")
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    func deleteNutritionEntry(_ entry: NutritionEntry, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        print("=== FIRESTORE DELETE NUTRITION ENTRY CALLED ===")
+        print("Entry ID: \(entry.id)")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let userCollection = dataTypeCollection(.nutritionEntry)
+        let rootCollection = rootDataTypeCollection(.nutritionEntry)
+        
+        let dispatchGroup = DispatchGroup()
+        var hasError = false
+        var lastError: Error?
+        
+        // Delete from user-specific collection
+        if let userCollection = userCollection {
+            dispatchGroup.enter()
+            userCollection.document(entry.id.uuidString).delete { error in
+                if let error = error {
+                    print("Error deleting nutrition entry from user collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else {
+                    print("Successfully deleted nutrition entry from user collection")
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Delete from root collection
+        if let rootCollection = rootCollection {
+            dispatchGroup.enter()
+            rootCollection.document(entry.id.uuidString).delete { error in
+                if let error = error {
+                    print("Error deleting nutrition entry from root collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else {
+                    print("Successfully deleted nutrition entry from root collection")
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if hasError {
+                completion(.failure(lastError ?? FirestoreError.unknown))
+            } else {
+                print("Successfully deleted nutrition entry from Firestore")
+                completion(.success(()))
+            }
+        }
+    }
 }
 
 // MARK: - User Profile Model
@@ -1412,6 +1577,7 @@ enum HealthDataType: String, CaseIterable, Codable {
     case bloodSugar = "blood_sugar"
     case heartRate = "heart_rate"
     case personalRecords = "personal_records"
+    case nutritionEntry = "nutrition_entry"
 }
 
 struct UnifiedHealthData: Codable, Identifiable {
@@ -1425,6 +1591,7 @@ struct UnifiedHealthData: Codable, Identifiable {
     let unit: String?
     let bpSession: BPSession?
     let fitnessSession: FitnessSession?
+    let nutritionEntry: NutritionEntry?
     
     // Health metric constructor
     init(id: UUID, dataType: HealthDataType, metricType: MetricType, value: Double, unit: String, timestamp: Date) {
@@ -1436,6 +1603,7 @@ struct UnifiedHealthData: Codable, Identifiable {
         self.unit = unit
         self.bpSession = nil
         self.fitnessSession = nil
+        self.nutritionEntry = nil
     }
     
     // BP session constructor
@@ -1448,6 +1616,7 @@ struct UnifiedHealthData: Codable, Identifiable {
         self.unit = nil
         self.bpSession = bpSession
         self.fitnessSession = nil
+        self.nutritionEntry = nil
     }
     
     // Fitness session constructor
@@ -1460,6 +1629,20 @@ struct UnifiedHealthData: Codable, Identifiable {
         self.unit = nil
         self.bpSession = nil
         self.fitnessSession = fitnessSession
+        self.nutritionEntry = nil
+    }
+    
+    // Nutrition entry constructor
+    init(id: UUID, dataType: HealthDataType, nutritionEntry: NutritionEntry, timestamp: Date) {
+        self.id = id
+        self.dataType = dataType
+        self.timestamp = timestamp
+        self.metricType = nil
+        self.value = nil
+        self.unit = nil
+        self.bpSession = nil
+        self.fitnessSession = nil
+        self.nutritionEntry = nutritionEntry
     }
 }
 
