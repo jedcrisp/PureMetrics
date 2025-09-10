@@ -5,6 +5,14 @@ struct WorkoutDetailView: View {
     @EnvironmentObject var dataManager: BPDataManager
     @Environment(\.presentationMode) var presentationMode
     @State private var showingReuseWorkout = false
+    @State private var isEditing = false
+    @State private var showingDeleteSetAlert = false
+    @State private var setToDelete: (exerciseIndex: Int, setIndex: Int)?
+    
+    // Get the current workout data from the data manager
+    private var currentWorkout: FitnessSession {
+        dataManager.fitnessSessions.first { $0.id == workout.id } ?? workout
+    }
     
     var body: some View {
         NavigationView {
@@ -35,17 +43,40 @@ struct WorkoutDetailView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        dataManager.toggleWorkoutFavorite(workout)
-                    }) {
-                        Image(systemName: workout.isFavorite ? "heart.fill" : "heart")
-                            .foregroundColor(workout.isFavorite ? .red : .primary)
+                    HStack {
+                        Button(action: {
+                            isEditing.toggle()
+                        }) {
+                            Text(isEditing ? "Done" : "Edit")
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Button(action: {
+                            dataManager.toggleWorkoutFavorite(currentWorkout)
+                        }) {
+                            Image(systemName: currentWorkout.isFavorite ? "heart.fill" : "heart")
+                                .foregroundColor(currentWorkout.isFavorite ? .red : .primary)
+                        }
                     }
                 }
             }
         }
         .sheet(isPresented: $showingReuseWorkout) {
-            ReuseWorkoutView(workout: workout)
+            ReuseWorkoutView(workout: currentWorkout)
+        }
+        .alert("Delete Set", isPresented: $showingDeleteSetAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let setToDelete = setToDelete {
+                    dataManager.deleteSetFromWorkout(
+                        workoutId: currentWorkout.id,
+                        exerciseIndex: setToDelete.exerciseIndex,
+                        setIndex: setToDelete.setIndex
+                    )
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this set? This action cannot be undone.")
         }
     }
     
@@ -55,12 +86,12 @@ struct WorkoutDetailView: View {
         VStack(spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(workout.displayName)
+                    Text(currentWorkout.displayName)
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
                     
-                    Text(workout.startTime.formatted(date: .complete, time: .shortened))
+                    Text(currentWorkout.startTime.formatted(date: .complete, time: .shortened))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -68,7 +99,7 @@ struct WorkoutDetailView: View {
                 Spacer()
                 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(formatDuration(workout.duration))
+                    Text(formatDuration(currentWorkout.duration))
                         .font(.title3)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
@@ -79,7 +110,7 @@ struct WorkoutDetailView: View {
                 }
             }
             
-            if workout.isCompleted {
+            if currentWorkout.isCompleted {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
@@ -114,28 +145,28 @@ struct WorkoutDetailView: View {
                 StatCard(
                     icon: "figure.strengthtraining.traditional",
                     title: "Exercises",
-                    value: "\(workout.exerciseSessions.count)",
+                    value: "\(currentWorkout.exerciseSessions.count)",
                     color: .blue
                 )
                 
                 StatCard(
                     icon: "repeat",
                     title: "Total Sets",
-                    value: "\(workout.totalSets)",
+                    value: "\(currentWorkout.totalSets)",
                     color: .green
                 )
                 
                 StatCard(
                     icon: "arrow.up.arrow.down",
                     title: "Total Reps",
-                    value: "\(workout.totalReps)",
+                    value: "\(currentWorkout.totalReps)",
                     color: .orange
                 )
                 
                 StatCard(
                     icon: "clock",
                     title: "Duration",
-                    value: formatDuration(workout.duration),
+                    value: formatDuration(currentWorkout.duration),
                     color: .purple
                 )
             }
@@ -151,15 +182,26 @@ struct WorkoutDetailView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
             
-            if workout.exerciseSessions.isEmpty {
+            if currentWorkout.exerciseSessions.isEmpty {
                 Text("No exercises recorded")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
             } else {
-                ForEach(Array(workout.exerciseSessions.enumerated()), id: \.offset) { index, exercise in
-                    ExerciseDetailCard(exercise: exercise, index: index + 1)
+                ForEach(Array(currentWorkout.exerciseSessions.enumerated()), id: \.offset) { index, exercise in
+                    ExerciseDetailCard(
+                        exercise: exercise, 
+                        index: index + 1,
+                        isEditing: isEditing,
+                        dataManager: dataManager,
+                        workoutId: currentWorkout.id,
+                        exerciseIndex: index,
+                        onDeleteSet: { setIndex in
+                            setToDelete = (exerciseIndex: index, setIndex: setIndex)
+                            showingDeleteSetAlert = true
+                        }
+                    )
                 }
             }
         }
@@ -244,6 +286,11 @@ struct StatCard: View {
 struct ExerciseDetailCard: View {
     let exercise: ExerciseSession
     let index: Int
+    let isEditing: Bool
+    let dataManager: BPDataManager
+    let workoutId: UUID
+    let exerciseIndex: Int
+    let onDeleteSet: (Int) -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -266,10 +313,39 @@ struct ExerciseDetailCard: View {
             
             // Sets
             VStack(alignment: .leading, spacing: 8) {
-                Text("Sets (\(exercise.sets.count))")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                HStack {
+                    Text("Sets (\(exercise.sets.count))")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    if isEditing && !exercise.sets.isEmpty {
+                        Button("Remove All") {
+                            dataManager.clearAllSetsFromExercise(
+                                workoutId: workoutId,
+                                exerciseIndex: exerciseIndex
+                            )
+                        }
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.red.opacity(0.1))
+                        )
+                    }
+                }
+                
+                if isEditing && !exercise.sets.isEmpty {
+                    Text("Tap 'Remove' or swipe left on any set to delete it")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .italic()
+                }
                 
                 ForEach(Array(exercise.sets.enumerated()), id: \.offset) { setIndex, set in
                     HStack {
@@ -298,6 +374,36 @@ struct ExerciseDetailCard: View {
                         }
                         
                         Spacer()
+                        
+                        if isEditing {
+                            Button(action: {
+                                onDeleteSet(setIndex)
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "trash")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    Text("Remove")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundColor(.red)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.red.opacity(0.1))
+                                )
+                            }
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if isEditing {
+                            Button("Remove Set") {
+                                onDeleteSet(setIndex)
+                            }
+                            .tint(.red)
+                        }
                     }
                 }
             }

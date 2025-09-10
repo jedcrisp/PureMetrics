@@ -211,10 +211,7 @@ struct HistoryView: View {
     }
     
     private func deleteSession(_ session: BPSession) {
-        if let index = dataManager.sessions.firstIndex(where: { $0.id == session.id }) {
-            dataManager.sessions.remove(at: index)
-            // Note: In a real app, you'd want to save this change to persistence
-        }
+        dataManager.deleteSession(by: session.id)
     }
 }
 

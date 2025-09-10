@@ -4,7 +4,7 @@ import FirebaseAuth
 import Combine
 
 class FirestoreService: ObservableObject {
-    private let db = Firestore.firestore()
+    let db = Firestore.firestore()
     private let authService = AuthService()
     private let encryptionService = EncryptionService.shared
     
@@ -12,6 +12,122 @@ class FirestoreService: ObservableObject {
     
     private var userID: String? {
         return authService.currentUser?.uid
+    }
+    
+    // MARK: - Custom Decoding
+    
+    private func decodeUnifiedHealthData(from documentData: [String: Any]) throws -> UnifiedHealthData {
+        // Extract basic fields
+        guard let idString = documentData["id"] as? String,
+              let id = UUID(uuidString: idString),
+              let dataTypeString = documentData["dataType"] as? String,
+              let dataType = HealthDataType(rawValue: dataTypeString) else {
+            throw FirestoreError.decodingError("Missing required fields")
+        }
+        
+        // Handle timestamp - can be string, double, or Firestore Timestamp
+        let timestamp: Date
+        if let timestampString = documentData["timestamp"] as? String {
+            // Try to parse as ISO8601 string
+            let formatter = ISO8601DateFormatter()
+            if let date = formatter.date(from: timestampString) {
+                timestamp = date
+            } else {
+                // Try to parse as double (Unix timestamp)
+                if let timestampDouble = Double(timestampString) {
+                    timestamp = Date(timeIntervalSince1970: timestampDouble)
+                } else {
+                    throw FirestoreError.decodingError("Invalid timestamp format: \(timestampString)")
+                }
+            }
+        } else if let timestampDouble = documentData["timestamp"] as? Double {
+            timestamp = Date(timeIntervalSince1970: timestampDouble)
+        } else if let firestoreTimestamp = documentData["timestamp"] as? Timestamp {
+            timestamp = firestoreTimestamp.dateValue()
+        } else {
+            throw FirestoreError.decodingError("Timestamp field not found or invalid type")
+        }
+        
+        // Decode based on data type
+        switch dataType {
+        case .bloodPressureSession:
+            let bpSession = try decodeBPSession(from: documentData)
+            return UnifiedHealthData(id: id, dataType: dataType, bpSession: bpSession, timestamp: timestamp)
+            
+        case .fitnessSession:
+            let fitnessSession = try decodeFitnessSession(from: documentData)
+            return UnifiedHealthData(id: id, dataType: dataType, fitnessSession: fitnessSession, timestamp: timestamp)
+            
+        case .weight, .bloodSugar, .heartRate:
+            guard let metricTypeString = documentData["metricType"] as? String,
+                  let metricType = MetricType(rawValue: metricTypeString),
+                  let value = documentData["value"] as? Double,
+                  let unit = documentData["unit"] as? String else {
+                throw FirestoreError.decodingError("Missing metric fields")
+            }
+            return UnifiedHealthData(id: id, dataType: dataType, metricType: metricType, value: value, unit: unit, timestamp: timestamp)
+            
+        default:
+            throw FirestoreError.decodingError("Unsupported data type: \(dataType)")
+        }
+    }
+    
+    private func decodeBPSession(from documentData: [String: Any]) throws -> BPSession {
+        // This is a simplified version - you might need to handle nested data
+        guard let startTimeString = documentData["startTime"] as? String else {
+            throw FirestoreError.decodingError("Missing startTime")
+        }
+        
+        let formatter = ISO8601DateFormatter()
+        guard let startTime = formatter.date(from: startTimeString) else {
+            throw FirestoreError.decodingError("Invalid startTime format")
+        }
+        
+        // Create a basic BPSession - you might need to decode readings separately
+        var session = BPSession(startTime: startTime)
+        
+        // Try to decode readings if they exist
+        if let readingsData = documentData["readings"] as? [[String: Any]] {
+            var readings: [BloodPressureReading] = []
+            for readingData in readingsData {
+                if let systolic = readingData["systolic"] as? Int,
+                   let diastolic = readingData["diastolic"] as? Int {
+                    let heartRate = readingData["heartRate"] as? Int
+                    let readingTimestamp: Date
+                    if let timestampString = readingData["timestamp"] as? String {
+                        readingTimestamp = formatter.date(from: timestampString) ?? Date()
+                    } else {
+                        readingTimestamp = Date()
+                    }
+                    let reading = BloodPressureReading(systolic: systolic, diastolic: diastolic, heartRate: heartRate, timestamp: readingTimestamp)
+                    readings.append(reading)
+                }
+            }
+            session.readings = readings
+        }
+        
+        return session
+    }
+    
+    private func decodeFitnessSession(from documentData: [String: Any]) throws -> FitnessSession {
+        // This is a simplified version - you might need to handle nested data
+        guard let startTimeString = documentData["startTime"] as? String else {
+            throw FirestoreError.decodingError("Missing startTime")
+        }
+        
+        let formatter = ISO8601DateFormatter()
+        guard let startTime = formatter.date(from: startTimeString) else {
+            throw FirestoreError.decodingError("Invalid startTime format")
+        }
+        
+        // Create a basic FitnessSession
+        var session = FitnessSession()
+        session.startTime = startTime
+        
+        // You might need to decode exercise sessions separately
+        // This is a placeholder implementation
+        
+        return session
     }
     
     private func userCollection() -> CollectionReference? {
@@ -24,9 +140,19 @@ class FirestoreService: ObservableObject {
         return db.collection("users").document(userID).collection("health_data").document(dataType.rawValue).collection("data")
     }
     
+    // Fallback method to check root-level collections (for existing data)
+    private func rootDataTypeCollection(_ dataType: HealthDataType) -> CollectionReference? {
+        return db.collection("health_data").document(dataType.rawValue).collection("data")
+    }
+    
     // MARK: - Unified Health Data Management
     
     func saveHealthData(_ data: [UnifiedHealthData], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        print("=== FIRESTORE SAVE HEALTH DATA CALLED ===")
+        print("Data count: \(data.count)")
+        print("User ID: \(userID ?? "nil")")
+        print("Auth service authenticated: \(authService.isAuthenticated)")
+        
         // Group data by type for organized storage
         let groupedData = Dictionary(grouping: data) { $0.dataType }
         
@@ -108,11 +234,44 @@ class FirestoreService: ObservableObject {
     }
     
     private func loadSpecificDataType(_ dataType: HealthDataType, completion: @escaping (Result<[UnifiedHealthData], Error>) -> Void) {
-        guard let collection = dataTypeCollection(dataType) else {
-            print("Error: No authenticated user for loading \(dataType.rawValue) data")
+        // Try user-specific collection first, then fallback to root collection
+        let userCollection = dataTypeCollection(dataType)
+        let rootCollection = rootDataTypeCollection(dataType)
+        
+        // Prioritize user-specific collection
+        var collections: [CollectionReference] = []
+        if let userCol = userCollection {
+            collections.append(userCol)
+            print("Will try user-specific collection: \(userCol.path)")
+        }
+        if let rootCol = rootCollection {
+            collections.append(rootCol)
+            print("Will try root collection: \(rootCol.path)")
+        }
+        
+        guard !collections.isEmpty else {
+            print("Error: No collections available for loading \(dataType.rawValue) data")
             completion(.failure(FirestoreError.noUser))
             return
         }
+        
+        print("Trying \(collections.count) collections for \(dataType.rawValue)")
+        
+        // Try each collection until we find data
+        tryLoadFromCollections(collections, dataType: dataType, completion: completion)
+    }
+    
+    private func tryLoadFromCollections(_ collections: [CollectionReference], dataType: HealthDataType, completion: @escaping (Result<[UnifiedHealthData], Error>) -> Void) {
+        guard !collections.isEmpty else {
+            print("No more collections to try for \(dataType.rawValue)")
+            completion(.success([]))
+            return
+        }
+        
+        let collection = collections[0]
+        let remainingCollections = Array(collections.dropFirst())
+        
+        print("Trying to load \(dataType.rawValue) from collection: \(collection.path)")
         
         var isCompleted = false
         
@@ -120,24 +279,62 @@ class FirestoreService: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
             guard !isCompleted else { return }
             isCompleted = true
-            print("Timeout loading \(dataType.rawValue) data")
-            completion(.failure(FirestoreError.timeout))
+            print("Timeout loading \(dataType.rawValue) data from \(collection.path)")
+            // Try next collection if available
+            if !remainingCollections.isEmpty {
+                self.tryLoadFromCollections(remainingCollections, dataType: dataType, completion: completion)
+            } else {
+                completion(.success([]))
+            }
         }
         
-        collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+        // Try without ordering first, in case createdAt field doesn't exist
+        collection.getDocuments { snapshot, error in
             guard !isCompleted else { return }
             isCompleted = true
             
             if let error = error {
-                print("Error loading \(dataType.rawValue) data: \(error)")
-                completion(.failure(error))
+                print("Error loading \(dataType.rawValue) data from \(collection.path): \(error)")
+                
+                // Check if it's a permission error
+                if let firestoreError = error as NSError?, firestoreError.code == 7 {
+                    print("Permission denied for \(collection.path) - this is likely due to Firestore security rules")
+                    print("Please update your Firestore rules to allow access to root-level health_data collections")
+                }
+                
+                // Try next collection if available
+                if !remainingCollections.isEmpty {
+                    self.tryLoadFromCollections(remainingCollections, dataType: dataType, completion: completion)
+                } else {
+                    completion(.failure(error))
+                }
                 return
             }
             
             guard let documents = snapshot?.documents else {
-                print("No \(dataType.rawValue) data found")
-                completion(.success([]))
+                print("No \(dataType.rawValue) data found in \(collection.path)")
+                // Try next collection if available
+                if !remainingCollections.isEmpty {
+                    self.tryLoadFromCollections(remainingCollections, dataType: dataType, completion: completion)
+                } else {
+                    completion(.success([]))
+                }
                 return
+            }
+            
+            print("Found \(documents.count) documents in \(collection.path)")
+            
+            // Debug: Print document IDs and basic info
+            for (index, document) in documents.enumerated() {
+                print("  Document \(index): \(document.documentID)")
+                let data = document.data()
+                print("    Data keys: \(Array(data.keys))")
+                if let dataType = data["dataType"] as? String {
+                    print("    Data type: \(dataType)")
+                }
+                if let timestamp = data["timestamp"] {
+                    print("    Timestamp: \(timestamp)")
+                }
             }
             
             var healthData: [UnifiedHealthData] = []
@@ -149,21 +346,34 @@ class FirestoreService: ObservableObject {
                     // Check if data is encrypted
                     if let isEncrypted = documentData["isEncrypted"] as? Bool, isEncrypted,
                        let encryptedString = documentData["encryptedData"] as? String {
+                        print("Decrypting encrypted data for document \(document.documentID)")
                         // Decrypt the data
                         let decryptedData = try self.encryptionService.decryptHealthData(encryptedString, as: UnifiedHealthData.self)
                         healthData.append(decryptedData)
                     } else {
-                        // Fallback to regular decoding
-                        let data = try Firestore.Decoder().decode(UnifiedHealthData.self, from: documentData)
+                        print("Decoding unencrypted data for document \(document.documentID)")
+                        // Custom decoding to handle string timestamps
+                        let data = try self.decodeUnifiedHealthData(from: documentData)
                         healthData.append(data)
                     }
                 } catch {
-                    print("Error decoding \(dataType.rawValue) data: \(error)")
+                    print("Error decoding \(dataType.rawValue) data from document \(document.documentID): \(error)")
+                    print("Document data: \(document.data())")
                 }
             }
             
-            print("Successfully loaded \(healthData.count) \(dataType.rawValue) entries")
-            completion(.success(healthData))
+            if healthData.isEmpty {
+                print("No valid \(dataType.rawValue) data found in \(collection.path), trying next collection...")
+                // Try next collection if available
+                if !remainingCollections.isEmpty {
+                    self.tryLoadFromCollections(remainingCollections, dataType: dataType, completion: completion)
+                } else {
+                    completion(.success([]))
+                }
+            } else {
+                print("Successfully loaded \(healthData.count) \(dataType.rawValue) entries from \(collection.path)")
+                completion(.success(healthData))
+            }
         }
     }
     
@@ -174,16 +384,22 @@ class FirestoreService: ObservableObject {
         var lastError: Error?
         var isCompleted = false
         
+        print("=== LOADING ALL DATA TYPES ===")
+        print("Available data types: \(HealthDataType.allCases.map { $0.rawValue })")
+        
         for dataType in HealthDataType.allCases {
             dispatchGroup.enter()
             
+            print("Loading data type: \(dataType.rawValue)")
             loadSpecificDataType(dataType) { result in
                 guard !isCompleted else { return }
                 
                 switch result {
                 case .success(let data):
+                    print("Successfully loaded \(data.count) items for \(dataType.rawValue)")
                     allHealthData.append(contentsOf: data)
                 case .failure(let error):
+                    print("Failed to load \(dataType.rawValue): \(error)")
                     hasError = true
                     lastError = error
                 }
@@ -195,6 +411,9 @@ class FirestoreService: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
             guard !isCompleted else { return }
             isCompleted = true
+            
+            print("=== LOAD TIMEOUT REACHED ===")
+            print("Total data loaded: \(allHealthData.count)")
             
             if allHealthData.isEmpty {
                 completion(.failure(lastError ?? FirestoreError.timeout))
@@ -210,7 +429,12 @@ class FirestoreService: ObservableObject {
             guard !isCompleted else { return }
             isCompleted = true
             
+            print("=== ALL DATA TYPES LOADED ===")
+            print("Total data loaded: \(allHealthData.count)")
+            print("Has error: \(hasError)")
+            
             if hasError, let error = lastError {
+                print("Completing with error: \(error)")
                 completion(.failure(error))
             } else {
                 // Sort by timestamp (newest first)
@@ -291,20 +515,34 @@ class FirestoreService: ObservableObject {
                 continue
             }
             
+            print("Loading \(dataType.rawValue) metrics from Firestore...")
             collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
                 if let error = error {
                     print("Error loading \(dataType.rawValue) metrics: \(error)")
                     hasError = true
                     lastError = error
                 } else if let documents = snapshot?.documents {
+                    print("Found \(documents.count) \(dataType.rawValue) metric documents in Firestore")
+                    
                     for document in documents {
                         do {
-                            let metric = try Firestore.Decoder().decode(HealthMetric.self, from: document.data())
+                            var documentData = document.data()
+                            
+                            // Remove the extra fields we added for Firestore
+                            documentData.removeValue(forKey: "dataType")
+                            documentData.removeValue(forKey: "createdAt")
+                            documentData.removeValue(forKey: "updatedAt")
+                            documentData.removeValue(forKey: "isEncrypted")
+                            documentData.removeValue(forKey: "encryptedData")
+                            
+                            let metric = try Firestore.Decoder().decode(HealthMetric.self, from: documentData)
                             allMetrics.append(metric)
                         } catch {
                             print("Error decoding \(dataType.rawValue) metric: \(error)")
                         }
                     }
+                } else {
+                    print("No \(dataType.rawValue) metrics found in Firestore")
                 }
                 dispatchGroup.leave()
             }
@@ -364,32 +602,43 @@ class FirestoreService: ObservableObject {
             return
         }
         
+        print("Loading BP sessions from Firestore...")
         collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
             if let error = error {
+                print("Error loading BP sessions: \(error)")
                 completion(.failure(error))
                 return
             }
             
             guard let documents = snapshot?.documents else {
+                print("No BP sessions found in Firestore")
                 completion(.success([]))
                 return
             }
             
-            let sessions = documents.compactMap { document in
+            print("Found \(documents.count) BP session documents in Firestore")
+            
+            var sessions: [BPSession] = []
+            
+            for document in documents {
                 do {
-                    var data = document.data()
+                    var documentData = document.data()
+                    
                     // Remove the extra fields we added for Firestore
-                    data.removeValue(forKey: "dataType")
-                    data.removeValue(forKey: "createdAt")
-                    data.removeValue(forKey: "updatedAt")
-                    return try Firestore.Decoder().decode(BPSession.self, from: data)
+                    documentData.removeValue(forKey: "dataType")
+                    documentData.removeValue(forKey: "createdAt")
+                    documentData.removeValue(forKey: "updatedAt")
+                    documentData.removeValue(forKey: "isEncrypted")
+                    documentData.removeValue(forKey: "encryptedData")
+                    
+                    let session = try Firestore.Decoder().decode(BPSession.self, from: documentData)
+                    sessions.append(session)
                 } catch {
                     print("Error decoding BP session: \(error)")
-                    return nil
                 }
             }
             
-            print("Successfully loaded \(sessions.count) BP sessions from organized structure")
+            print("Successfully loaded \(sessions.count) BP sessions from Firestore")
             completion(.success(sessions))
         }
     }
@@ -601,6 +850,88 @@ class FirestoreService: ObservableObject {
         }
     }
     
+    func updateFitnessSession(_ session: FitnessSession, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let collection = userCollection() else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let sessionsCollection = collection.document("fitness_sessions").collection("sessions")
+        let sessionDoc = sessionsCollection.document(session.id.uuidString)
+        
+        do {
+            var sessionData = try Firestore.Encoder().encode(session)
+            sessionData["type"] = "fitness_session"
+            sessionData["updatedAt"] = Timestamp(date: Date())
+            
+            // Save the main session document
+            sessionDoc.setData(sessionData) { error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                // Update exercises subcollection
+                let exerciseCollection = sessionDoc.collection("exercises")
+                
+                // First, delete all existing exercises
+                exerciseCollection.getDocuments { snapshot, error in
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    let batch = self.db.batch()
+                    
+                    // Delete existing exercises
+                    if let documents = snapshot?.documents {
+                        for document in documents {
+                            batch.deleteDocument(document.reference)
+                        }
+                    }
+                    
+                    // Add new exercises
+                    for exercise in session.exerciseSessions {
+                        let exerciseDoc = exerciseCollection.document(exercise.id.uuidString)
+                        
+                        do {
+                            var exerciseData = try Firestore.Encoder().encode(exercise)
+                            exerciseData["type"] = "exercise_session"
+                            batch.setData(exerciseData, forDocument: exerciseDoc)
+                            
+                            // Add sets subcollection
+                            let setsCollection = exerciseDoc.collection("sets")
+                            for set in exercise.sets {
+                                let setDoc = setsCollection.document(set.id.uuidString)
+                                
+                                do {
+                                    var setData = try Firestore.Encoder().encode(set)
+                                    setData["type"] = "exercise_set"
+                                    batch.setData(setData, forDocument: setDoc)
+                                } catch {
+                                    print("Error encoding set: \(error)")
+                                }
+                            }
+                        } catch {
+                            print("Error encoding exercise: \(error)")
+                        }
+                    }
+                    
+                    // Commit the batch
+                    batch.commit { error in
+                        if let error = error {
+                            completion(.failure(error))
+                        } else {
+                            completion(.success(()))
+                        }
+                    }
+                }
+            }
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
     // MARK: - User Profile
     
     func saveUserProfile(_ profile: UserProfile) {
@@ -744,6 +1075,185 @@ class FirestoreService: ObservableObject {
         }
     }
     
+    // MARK: - Personal Records (One Rep Max) Management
+    
+    func savePersonalRecords(_ records: [OneRepMax], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let collection = dataTypeCollection(.personalRecords) else {
+            print("Error: No authenticated user for saving personal records")
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let batch = db.batch()
+        
+        for (index, record) in records.enumerated() {
+            do {
+                var recordData = try Firestore.Encoder().encode(record)
+                recordData["dataType"] = "personal_record"
+                recordData["createdAt"] = Timestamp(date: record.date)
+                recordData["updatedAt"] = Timestamp(date: Date())
+                
+                // Store OneRepMax data directly (personal records are not as sensitive as health data)
+                // We can add encryption later if needed, but for now store directly for better compatibility
+                
+                let docRef = collection.document(record.id.uuidString)
+                batch.setData(recordData, forDocument: docRef)
+            } catch {
+                print("Error encoding personal record \(index): \(error)")
+            }
+        }
+        
+        batch.commit { error in
+            if let error = error {
+                print("Error saving personal records: \(error)")
+                completion(.failure(error))
+            } else {
+                print("Successfully saved \(records.count) personal records to Firestore")
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func loadPersonalRecords(completion: @escaping (Result<[OneRepMax], Error>) -> Void) {
+        guard let collection = dataTypeCollection(.personalRecords) else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        print("Loading personal records from Firestore...")
+        collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+            if let error = error {
+                print("Error loading personal records: \(error)")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let documents = snapshot?.documents else {
+                print("No personal records found in Firestore")
+                completion(.success([]))
+                return
+            }
+            
+            print("Found \(documents.count) personal record documents in Firestore")
+            
+            var records: [OneRepMax] = []
+            
+            for document in documents {
+                do {
+                    var documentData = document.data()
+                    
+                    // Remove the extra fields we added for Firestore
+                    documentData.removeValue(forKey: "dataType")
+                    documentData.removeValue(forKey: "createdAt")
+                    documentData.removeValue(forKey: "updatedAt")
+                    documentData.removeValue(forKey: "isEncrypted")
+                    documentData.removeValue(forKey: "encryptedData")
+                    
+                    let record = try Firestore.Decoder().decode(OneRepMax.self, from: documentData)
+                    records.append(record)
+                } catch {
+                    print("Error decoding personal record: \(error)")
+                }
+            }
+            
+            print("Successfully loaded \(records.count) personal records from Firestore")
+            completion(.success(records))
+        }
+    }
+    
+    func updatePersonalRecord(_ record: OneRepMax, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let collection = dataTypeCollection(.personalRecords) else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let docRef = collection.document(record.id.uuidString)
+        
+        do {
+            var recordData = try Firestore.Encoder().encode(record)
+            recordData["dataType"] = "personal_record"
+            recordData["updatedAt"] = Timestamp(date: Date())
+            
+            // Store OneRepMax data directly (personal records are not as sensitive as health data)
+            // We can add encryption later if needed, but for now store directly for better compatibility
+            
+            docRef.setData(recordData, merge: true) { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(()))
+                }
+            }
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
+    func deletePersonalRecord(_ record: OneRepMax, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let collection = dataTypeCollection(.personalRecords) else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let docRef = collection.document(record.id.uuidString)
+        
+        docRef.delete { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func saveCustomLifts(_ customLifts: [String], completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let customLiftsRef = db.collection("users").document(userID).collection("custom_lifts").document("lifts")
+        
+        let data: [String: Any] = [
+            "customLifts": customLifts,
+            "updatedAt": Timestamp(date: Date())
+        ]
+        
+        customLiftsRef.setData(data) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func loadCustomLifts(completion: @escaping (Result<[String], Error>) -> Void) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let customLiftsRef = db.collection("users").document(userID).collection("custom_lifts").document("lifts")
+        
+        customLiftsRef.getDocument { document, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let document = document, document.exists,
+                  let data = document.data(),
+                  let customLifts = data["customLifts"] as? [String] else {
+                completion(.success([]))
+                return
+            }
+            
+            completion(.success(customLifts))
+        }
+    }
+    
+
     // MARK: - Custom Workout Management
     
     func saveCustomWorkout(_ workout: CustomWorkout, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
@@ -901,6 +1411,7 @@ enum HealthDataType: String, CaseIterable, Codable {
     case weight = "weight"
     case bloodSugar = "blood_sugar"
     case heartRate = "heart_rate"
+    case personalRecords = "personal_records"
 }
 
 struct UnifiedHealthData: Codable, Identifiable {
@@ -957,7 +1468,7 @@ struct UnifiedHealthData: Codable, Identifiable {
 enum FirestoreError: LocalizedError {
     case noUser
     case encodingError
-    case decodingError
+    case decodingError(String)
     case networkError
     case timeout
     case unknown
@@ -968,8 +1479,8 @@ enum FirestoreError: LocalizedError {
             return "No authenticated user found"
         case .encodingError:
             return "Error encoding data"
-        case .decodingError:
-            return "Error decoding data"
+        case .decodingError(let message):
+            return "Error decoding data: \(message)"
         case .networkError:
             return "Network error occurred"
         case .timeout:

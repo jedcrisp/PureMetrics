@@ -23,6 +23,7 @@ struct FitnessView: View {
     @State private var hasSessionBeenSaved: Bool = false
     @State private var uiUpdateTrigger: Int = 0
     @State private var exerciseStartTimes: [Int: Date] = [:]
+    @State private var expandedRepMaxCards: Set<UUID> = []
     
     var body: some View {
         NavigationView {
@@ -40,6 +41,9 @@ struct FitnessView: View {
                         VStack(spacing: 12) {
                             // One Rep Max Dashboard
                             oneRepMaxSection
+                            
+                            // Rep Max Estimation
+                            repMaxEstimationSection
                             
                             // Session Info
                             sessionInfoSection
@@ -305,16 +309,80 @@ struct FitnessView: View {
                 .cornerRadius(8)
             }
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
+        )
+    }
+    
+    // MARK: - Rep Max Estimation Section
+    
+    private var repMaxEstimationSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Rep Max Estimations")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Text("Based on 1RM")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            if !dataManager.oneRepMaxManager.personalRecords.isEmpty {
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 12) {
+                    ForEach(Array(dataManager.oneRepMaxManager.personalRecords.prefix(4).enumerated()), id: \.element.id) { index, record in
+                        if record.recordType == .weight {
+                            RepMaxEstimationCard(
+                                record: record,
+                                isExpanded: expandedRepMaxCards.contains(record.id),
+                                onTap: {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        if expandedRepMaxCards.contains(record.id) {
+                                            expandedRepMaxCards.remove(record.id)
+                                        } else {
+                                            expandedRepMaxCards.insert(record.id)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("No 1RM records available")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text("Add 1RM records to see rep estimations")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+            }
+        }
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
+        )
     }
     
     // MARK: - Session Info Section
     
     private var sessionInfoSection: some View {
-        HStack(spacing: 40) {
+        HStack(spacing: 30) {
             // Sets Count
             VStack(spacing: 8) {
                 ZStack {
@@ -330,6 +398,30 @@ struct FitnessView: View {
                 
                 VStack(spacing: 2) {
                     Text("Sets")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    Text("Total")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Reps Count
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(Color.orange.opacity(0.1))
+                        .frame(width: 50, height: 50)
+                    
+                    Text("\(totalRepsCount)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.orange)
+                }
+                
+                VStack(spacing: 2) {
+                    Text("Reps")
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
@@ -387,6 +479,7 @@ struct FitnessView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .padding(24)
         .background(
             RoundedRectangle(cornerRadius: 20)
@@ -553,9 +646,29 @@ struct FitnessView: View {
         // Clear existing set inputs
         exerciseSetInputs.removeAll()
         
-        // Create empty set inputs for each exercise (no preloaded data)
+        // Create set inputs for each exercise, pre-populating if sets exist
         for exerciseIndex in 0..<dataManager.currentFitnessSession.exerciseSessions.count {
-            exerciseSetInputs[exerciseIndex] = [SetInput()]
+            let exerciseSession = dataManager.currentFitnessSession.exerciseSessions[exerciseIndex]
+            
+            if exerciseSession.sets.isEmpty {
+                // No pre-populated sets, create empty input
+                exerciseSetInputs[exerciseIndex] = [SetInput()]
+            } else {
+                // Pre-populated sets exist, create inputs based on them
+                var setInputs: [SetInput] = []
+                for set in exerciseSession.sets {
+                    let setInput = SetInput(
+                        reps: set.reps?.description ?? "",
+                        weight: set.weight?.description ?? "",
+                        time: set.time?.description ?? "",
+                        distance: set.distance?.description ?? ""
+                    )
+                    setInputs.append(setInput)
+                }
+                // Add one empty input for additional sets
+                setInputs.append(SetInput())
+                exerciseSetInputs[exerciseIndex] = setInputs
+            }
         }
         
         // Mark workout template as loaded
@@ -1333,6 +1446,16 @@ struct FitnessView: View {
         return savedSets + currentSetInputs
     }
     
+    private var totalRepsCount: Int {
+        // Count reps from saved sets
+        let savedReps = dataManager.currentFitnessSession.exerciseSessions.flatMap { $0.sets }.compactMap { $0.reps }.reduce(0, +)
+        
+        // Count reps from current set inputs that have valid data
+        let currentReps = exerciseSetInputs.values.flatMap { $0 }.compactMap { Int($0.reps) }.reduce(0, +)
+        
+        return savedReps + currentReps
+    }
+    
     private var totalVolume: Double {
         // Calculate volume from saved sets
         let savedVolume = dataManager.currentFitnessSession.exerciseSessions.flatMap { $0.sets }.compactMap { set in
@@ -1751,6 +1874,88 @@ struct CustomWorkoutSelector: View {
                 presentationMode.wrappedValue.dismiss()
             })
         }
+    }
+}
+
+// MARK: - Rep Max Estimation Card
+
+struct RepMaxEstimationCard: View {
+    let record: OneRepMax
+    let isExpanded: Bool
+    let onTap: () -> Void
+    
+    private var repEstimations: [(reps: Int, weight: Double)] {
+        let oneRepMax = record.value
+        return [
+            (2, OneRepMaxCalculator.calculateWeightForReps(oneRepMax: oneRepMax, targetReps: 2)),
+            (3, OneRepMaxCalculator.calculateWeightForReps(oneRepMax: oneRepMax, targetReps: 3)),
+            (5, OneRepMaxCalculator.calculateWeightForReps(oneRepMax: oneRepMax, targetReps: 5)),
+            (10, OneRepMaxCalculator.calculateWeightForReps(oneRepMax: oneRepMax, targetReps: 10))
+        ]
+    }
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                // Exercise Name and 1RM Value
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(record.liftName)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        
+                        Text("1RM: \(String(format: "%.0f", record.value)) lbs")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Spacer()
+                    
+                    // Expand/Collapse Icon
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                // Rep Estimations (only show when expanded)
+                if isExpanded {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Divider()
+                            .padding(.vertical, 4)
+                        
+                        ForEach(repEstimations, id: \.reps) { estimation in
+                            HStack {
+                                Text("\(estimation.reps)RM:")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 25, alignment: .leading)
+                                
+                                Text("\(String(format: "%.0f", estimation.weight)) lbs")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isExpanded ? Color(.systemBlue).opacity(0.1) : Color(.systemGray6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isExpanded ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

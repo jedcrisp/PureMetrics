@@ -7,190 +7,168 @@ import Security
 class EncryptionService {
     static let shared = EncryptionService()
     
-    private let keychain = KeychainService()
-    private let keyTag = "PureMetrics.EncryptionKey"
+    private let keychain = Keychain()
+    private let keyIdentifier = "PureMetrics.EncryptionKey"
     
     private init() {}
     
     // MARK: - Key Management
     
     private func getOrCreateEncryptionKey() throws -> SymmetricKey {
-        // Try to get existing key from keychain
-        if let existingKeyData = keychain.getData(forKey: keyTag),
-           let key = SymmetricKey(fromData: existingKeyData) {
-            return key
+        // Try to load existing key from Keychain
+        if let existingKeyData = keychain.load(forKey: keyIdentifier) {
+            return SymmetricKey(data: existingKeyData)
         }
         
-        // Create new key if none exists
+        // Generate new key if none exists
         let newKey = SymmetricKey(size: .bits256)
         let keyData = newKey.withUnsafeBytes { Data($0) }
         
-        // Store in keychain
-        keychain.set(keyData, forKey: keyTag)
+        // Save to Keychain
+        try keychain.save(keyData, forKey: keyIdentifier)
         
         return newKey
     }
-    
-    // MARK: - Encryption Methods
-    
-    func encrypt(_ data: Data) throws -> Data {
-        let key = try getOrCreateEncryptionKey()
-        let sealedBox = try AES.GCM.seal(data, using: key)
-        
-        // Combine nonce, ciphertext, and tag
-        var encryptedData = Data()
-        encryptedData.append(sealedBox.nonce.withUnsafeBytes { Data($0) })
-        encryptedData.append(sealedBox.ciphertext)
-        encryptedData.append(sealedBox.tag)
-        
-        return encryptedData
-    }
-    
-    func decrypt(_ encryptedData: Data) throws -> Data {
-        let key = try getOrCreateEncryptionKey()
-        
-        // Extract components
-        let nonceSize = 12 // AES-GCM nonce size
-        let tagSize = 16   // AES-GCM tag size
-        
-        guard encryptedData.count > nonceSize + tagSize else {
-            throw EncryptionError.invalidData
-        }
-        
-        let nonce = encryptedData.prefix(nonceSize)
-        let tag = encryptedData.suffix(tagSize)
-        let ciphertext = encryptedData.dropFirst(nonceSize).dropLast(tagSize)
-        
-        let sealedBox = try AES.GCM.SealedBox(
-            nonce: try AES.GCM.Nonce(data: nonce),
-            ciphertext: ciphertext,
-            tag: tag
-        )
-        
-        return try AES.GCM.open(sealedBox, using: key)
-    }
-    
-    // MARK: - String Encryption (for JSON data)
-    
-    func encryptString(_ string: String) throws -> String {
-        guard let data = string.data(using: .utf8) else {
-            throw EncryptionError.invalidData
-        }
-        
-        let encryptedData = try encrypt(data)
-        return encryptedData.base64EncodedString()
-    }
-    
-    func decryptString(_ encryptedString: String) throws -> String {
-        guard let encryptedData = Data(base64Encoded: encryptedString) else {
-            throw EncryptionError.invalidData
-        }
-        
-        let decryptedData = try decrypt(encryptedData)
-        guard let string = String(data: decryptedData, encoding: .utf8) else {
-            throw EncryptionError.invalidData
-        }
-        
-        return string
-    }
-    
-    // MARK: - Health Data Encryption
-    
-    func encryptHealthData<T: Codable>(_ data: T) throws -> String {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let jsonData = try encoder.encode(data)
-        return try encryptString(String(data: jsonData, encoding: .utf8) ?? "")
-    }
-    
-    func decryptHealthData<T: Codable>(_ encryptedString: String, as type: T.Type) throws -> T {
-        let decryptedString = try decryptString(encryptedString)
-        guard let jsonData = decryptedString.data(using: .utf8) else {
-            throw EncryptionError.invalidData
-        }
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(type, from: jsonData)
-    }
-    
-    // MARK: - Key Rotation
     
     func rotateEncryptionKey() throws {
         // Generate new key
         let newKey = SymmetricKey(size: .bits256)
         let keyData = newKey.withUnsafeBytes { Data($0) }
         
-        // Store new key in keychain
-        keychain.set(keyData, forKey: keyTag)
-        
-        print("Encryption key rotated successfully")
+        // Save new key to Keychain
+        try keychain.save(keyData, forKey: keyIdentifier)
     }
     
-    // MARK: - Security Validation
+    // MARK: - Encryption Methods
+    
+    func encryptHealthData<T: Codable>(_ data: T) throws -> String {
+        let key = try getOrCreateEncryptionKey()
+        
+        // Encode data to JSON
+        let jsonData = try JSONEncoder().encode(data)
+        
+        // Encrypt using AES-256-GCM
+        let sealedBox = try AES.GCM.seal(jsonData, using: key)
+        
+        // Combine nonce, ciphertext, and tag
+        let encryptedData = sealedBox.combined!
+        
+        // Encode to base64 for storage
+        return encryptedData.base64EncodedString()
+    }
+    
+    func decryptHealthData<T: Codable>(_ encryptedString: String, as type: T.Type) throws -> T {
+        let key = try getOrCreateEncryptionKey()
+        
+        // Decode from base64
+        guard let encryptedData = Data(base64Encoded: encryptedString) else {
+            throw EncryptionError.invalidData
+        }
+        
+        // Create sealed box from combined data
+        let sealedBox = try AES.GCM.SealedBox(combined: encryptedData)
+        
+        // Decrypt
+        let decryptedData = try AES.GCM.open(sealedBox, using: key)
+        
+        // Decode from JSON
+        return try JSONDecoder().decode(type, from: decryptedData)
+    }
+    
+    // MARK: - Validation
     
     func validateEncryption() -> Bool {
         do {
-            let testData = "PureMetrics Test Data".data(using: .utf8)!
-            let encrypted = try encrypt(testData)
-            let decrypted = try decrypt(encrypted)
-            return testData == decrypted
+            // Test encryption and decryption with sample data
+            let testData = HealthMetric(type: .weight, value: 150.0, timestamp: Date())
+            let encrypted = try encryptHealthData(testData)
+            let decrypted: HealthMetric = try decryptHealthData(encrypted, as: HealthMetric.self)
+            
+            return decrypted.value == testData.value && 
+                   decrypted.type == testData.type
         } catch {
             print("Encryption validation failed: \(error)")
             return false
         }
     }
+    
+    // MARK: - Bulk Operations
+    
+    func encryptHealthDataArray<T: Codable>(_ dataArray: [T]) throws -> [String] {
+        return try dataArray.map { try encryptHealthData($0) }
+    }
+    
+    func decryptHealthDataArray<T: Codable>(_ encryptedStrings: [String], as type: T.Type) throws -> [T] {
+        return try encryptedStrings.map { try decryptHealthData($0, as: type) }
+    }
+    
+    // MARK: - Secure Deletion
+    
+    func deleteEncryptionKey() throws {
+        try keychain.delete(forKey: keyIdentifier)
+    }
+    
+    func deleteAllEncryptedData() throws {
+        // This would need to be implemented based on your data storage strategy
+        // For now, we just delete the encryption key
+        try deleteEncryptionKey()
+    }
 }
 
-// MARK: - Keychain Service
+// MARK: - Keychain Helper
 
-class KeychainService {
+private class Keychain {
     private let service = "com.puremetrics.app"
     
-    func set(_ data: Data, forKey key: String) {
+    func save(_ data: Data, forKey key: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
-            kSecValueData as String: data
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
         
-        // Delete existing item
+        // Delete existing item first
         SecItemDelete(query as CFDictionary)
         
         // Add new item
         let status = SecItemAdd(query as CFDictionary, nil)
-        if status != errSecSuccess {
-            print("Keychain save error: \(status)")
+        guard status == errSecSuccess else {
+            throw EncryptionError.keychainError(status)
         }
     }
     
-    func getData(forKey key: String) -> Data? {
+    func load(forKey key: String) -> Data? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
-            kSecReturnData as String: true
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
         ]
         
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         
-        if status == errSecSuccess {
-            return result as? Data
+        guard status == errSecSuccess else {
+            return nil
         }
         
-        return nil
+        return result as? Data
     }
     
-    func delete(forKey key: String) {
+    func delete(forKey key: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key
         ]
         
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw EncryptionError.keychainError(status)
+        }
     }
 }
 
@@ -198,30 +176,59 @@ class KeychainService {
 
 enum EncryptionError: LocalizedError {
     case invalidData
+    case keychainError(OSStatus)
     case encryptionFailed
     case decryptionFailed
-    case keyGenerationFailed
     
     var errorDescription: String? {
         switch self {
         case .invalidData:
-            return "Invalid data provided for encryption/decryption"
+            return "Invalid encrypted data format"
+        case .keychainError(let status):
+            return "Keychain error: \(status)"
         case .encryptionFailed:
             return "Failed to encrypt data"
         case .decryptionFailed:
             return "Failed to decrypt data"
-        case .keyGenerationFailed:
-            return "Failed to generate encryption key"
         }
     }
 }
 
-// MARK: - SymmetricKey Extension
+// MARK: - Health Metric Extension for Testing
 
-extension SymmetricKey {
-    init?(fromData data: Data) {
-        guard data.count == 32 else { return nil } // 256 bits = 32 bytes
-        let bytes = [UInt8](data)
-        self.init(data: bytes)
-    }
+extension HealthMetric {
+    // This is used for encryption validation
+    // The actual HealthMetric type should be defined elsewhere in your project
 }
+
+// MARK: - Usage Examples
+
+/*
+ 
+ // Encrypt a single health metric
+ let encryptionService = EncryptionService.shared
+ let metric = HealthMetric(type: .weight, value: 150.0, timestamp: Date())
+ let encryptedString = try encryptionService.encryptHealthData(metric)
+ 
+ // Decrypt the health metric
+ let decryptedMetric: HealthMetric = try encryptionService.decryptHealthData(encryptedString, as: HealthMetric.self)
+ 
+ // Encrypt an array of health data
+ let metrics = [metric1, metric2, metric3]
+ let encryptedStrings = try encryptionService.encryptHealthDataArray(metrics)
+ 
+ // Decrypt the array
+ let decryptedMetrics: [HealthMetric] = try encryptionService.decryptHealthDataArray(encryptedStrings, as: HealthMetric.self)
+ 
+ // Validate encryption is working
+ if encryptionService.validateEncryption() {
+     print("Encryption is working correctly")
+ }
+ 
+ // Rotate encryption key (for security)
+ try encryptionService.rotateEncryptionKey()
+ 
+ // Delete encryption key (for secure deletion)
+ try encryptionService.deleteEncryptionKey()
+ 
+ */

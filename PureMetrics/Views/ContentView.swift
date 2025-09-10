@@ -9,7 +9,7 @@ struct ContentView: View {
             SessionView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "heart.fill")
-                    Text("Health")
+                    Text("Pure Metrics")
                 }
                 .tag(0)
             
@@ -34,8 +34,7 @@ struct ContentView: View {
                 }
                 .tag(3)
             
-            WorkoutHistoryView()
-                .environmentObject(dataManager)
+            DataHistoryView(dataManager: dataManager)
                 .tabItem {
                     Image(systemName: "clock.arrow.circlepath")
                     Text("History")

@@ -28,21 +28,29 @@ class AuthService: ObservableObject {
     }
     
     private func setupAuthStateListener() {
+        print("Setting up Firebase auth state listener...")
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             DispatchQueue.main.async {
                 let wasAuthenticated = self?.isAuthenticated ?? false
                 self?.currentUser = user
                 self?.isAuthenticated = user != nil
                 
+                print("Auth state changed - wasAuthenticated: \(wasAuthenticated), isAuthenticated: \(self?.isAuthenticated ?? false), user: \(user?.uid ?? "nil")")
+                
                 // Post notification when user signs in
                 if !wasAuthenticated && user != nil {
+                    print("User signed in, posting userDidSignIn notification")
                     NotificationCenter.default.post(name: .userDidSignIn, object: nil)
                 }
                 
                 // Post notification when user signs out
                 if wasAuthenticated && user == nil {
+                    print("User signed out, posting userDidSignOut notification")
                     NotificationCenter.default.post(name: .userDidSignOut, object: nil)
                 }
+                
+                // Post general auth state changed notification
+                NotificationCenter.default.post(name: .authStateChanged, object: nil)
             }
         }
     }

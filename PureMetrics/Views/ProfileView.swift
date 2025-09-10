@@ -116,28 +116,28 @@ struct ProfileView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 16) {
-                StatCard(
+                ProfileStatCard(
                     icon: "heart.text.square",
                     title: "Total Sessions",
                     value: "\(dataManager.sessions.count)",
                     color: .blue
                 )
                 
-                StatCard(
+                ProfileStatCard(
                     icon: "waveform.path.ecg",
                     title: "Total Readings",
                     value: "\(totalReadings)",
                     color: .green
                 )
                 
-                StatCard(
+                ProfileStatCard(
                     icon: "arrow.up",
                     title: "Avg Systolic",
                     value: overallAverageSystolic,
                     color: .red
                 )
                 
-                StatCard(
+                ProfileStatCard(
                     icon: "arrow.down",
                     title: "Avg Diastolic",
                     value: overallAverageDiastolic,
@@ -209,6 +209,26 @@ struct ProfileView: View {
                 .padding(.horizontal)
             
             VStack(spacing: 12) {
+                // Sync Data Button
+                Button(action: { 
+                    dataManager.forceReloadBPSessions()
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundColor(.green)
+                        Text("Sync Data from Cloud")
+                            .foregroundColor(.green)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.green.opacity(0.1))
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
                 // Logout Button
                 Button(action: { showingLogoutConfirmation = true }) {
                     HStack {
@@ -336,6 +356,40 @@ struct EditProfileView: View {
     private func saveUserData() {
         UserDefaults.standard.set(userName, forKey: "userName")
         UserDefaults.standard.set(age, forKey: "userAge")
+    }
+}
+
+// MARK: - Stat Card Component
+
+struct ProfileStatCard: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
     }
 }
 

@@ -13,7 +13,9 @@ class HealthKitManager: ObservableObject {
         didSet {
             userDefaults.set(isHealthKitEnabled, forKey: healthKitEnabledKey)
             if isHealthKitEnabled && !isAuthorized {
-                requestAuthorization()
+                // Don't automatically request authorization when toggling on
+                // Let the user manually trigger it via the UI
+                print("HealthKit enabled, waiting for user to grant permissions")
             } else if !isHealthKitEnabled {
                 isAuthorized = false
             }
@@ -46,7 +48,10 @@ class HealthKitManager: ObservableObject {
         
         // If HealthKit is enabled, check authorization status
         if isHealthKitEnabled {
-            checkAuthorizationStatus()
+            // Add a delay to prevent immediate authorization check
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.checkAuthorizationStatus()
+            }
         }
     }
     
@@ -58,53 +63,86 @@ class HealthKitManager: ObservableObject {
     }
     
     private func checkAuthorizationStatus() {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
+        guard HKHealthStore.isHealthDataAvailable() else { 
+            print("HealthKit is not available on this device")
+            return 
+        }
         
         // Check if we have authorization for any of our read types
+        var hasAnyAuthorization = false
+        var allDenied = true
+        var hasNotDetermined = false
+        
         for readType in readTypes {
             let status = healthStore.authorizationStatus(for: readType)
-            if status == .notDetermined {
-                // If any type is not determined, we need to request authorization
-                return
-            } else if status == .sharingDenied {
-                // User denied access, disable HealthKit
-                DispatchQueue.main.async {
-                    self.isHealthKitEnabled = false
-                }
-                return
+            print("Authorization status for \(readType.identifier): \(status.rawValue) (\(status))")
+            
+            switch status {
+            case .sharingAuthorized:
+                hasAnyAuthorization = true
+                allDenied = false
+            case .notDetermined:
+                hasNotDetermined = true
+                allDenied = false
+            case .sharingDenied:
+                // This type is denied, but others might be authorized
+                continue
+            @unknown default:
+                print("Unknown authorization status: \(status.rawValue)")
             }
         }
         
-        // If we get here, we have authorization for all types
         DispatchQueue.main.async {
-            self.isAuthorized = true
-            self.fetchTodayData()
+            if allDenied {
+                // All types are denied, disable HealthKit
+                self.isHealthKitEnabled = false
+                self.isAuthorized = false
+                print("All HealthKit data types denied by user")
+            } else if hasAnyAuthorization {
+                // At least some types are authorized
+                self.isAuthorized = true
+                self.fetchTodayData()
+                print("HealthKit authorized for some data types")
+            } else if hasNotDetermined {
+                // Some types not determined, need to request authorization
+                // Don't turn off HealthKit, just mark as not authorized
+                self.isAuthorized = false
+                print("Some HealthKit data types not determined, need authorization")
+            } else {
+                // Fallback case - don't turn off HealthKit
+                self.isAuthorized = false
+                print("HealthKit authorization status unclear")
+            }
         }
     }
     
     func requestAuthorization() {
-        // Check if we've already requested authorization
-        let hasRequested = userDefaults.bool(forKey: healthKitRequestedKey)
+        print("Requesting HealthKit authorization...")
         
-        guard !hasRequested else {
-            // We've already asked, just check current status
+        // Check if we've already requested authorization recently
+        let lastRequestTime = userDefaults.double(forKey: "HealthKitLastRequestTime")
+        let currentTime = Date().timeIntervalSince1970
+        let timeSinceLastRequest = currentTime - lastRequestTime
+        
+        // Don't request again if we just requested within the last 5 seconds
+        if timeSinceLastRequest < 5.0 {
+            print("HealthKit authorization already requested recently, skipping...")
             checkAuthorizationStatus()
             return
         }
         
-        // Mark that we've requested authorization
-        userDefaults.set(true, forKey: healthKitRequestedKey)
+        // Record the request time
+        userDefaults.set(currentTime, forKey: "HealthKitLastRequestTime")
         
         healthStore.requestAuthorization(toShare: [], read: readTypes) { [weak self] success, error in
             DispatchQueue.main.async {
-                if success {
-                    self?.isAuthorized = true
-                    self?.fetchTodayData()
-                } else {
-                    print("HealthKit authorization failed: \(error?.localizedDescription ?? "Unknown error")")
-                    // If user denied, disable HealthKit
-                    self?.isHealthKitEnabled = false
+                if let error = error {
+                    print("HealthKit authorization error: \(error.localizedDescription)")
                 }
+                
+                print("HealthKit authorization request completed with success: \(success)")
+                // Always check the actual authorization status after the request
+                self?.checkAuthorizationStatus()
             }
         }
     }
@@ -181,15 +219,29 @@ class HealthKitManager: ObservableObject {
     // MARK: - Private Fetch Methods
     
     private func fetchSteps(from startDate: Date, to endDate: Date, completion: @escaping (Int) -> Void) {
-        guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+        guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { 
+            print("Step count type not available")
+            completion(0)
+            return 
+        }
         
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
         let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, result, error in
-            guard let result = result, let sum = result.sumQuantity() else {
+            if let error = error {
+                print("Error fetching steps: \(error.localizedDescription)")
                 completion(0)
                 return
             }
-            completion(Int(sum.doubleValue(for: HKUnit.count())))
+            
+            guard let result = result, let sum = result.sumQuantity() else {
+                print("No step data found for the specified time range")
+                completion(0)
+                return
+            }
+            
+            let steps = Int(sum.doubleValue(for: HKUnit.count()))
+            print("Fetched \(steps) steps")
+            completion(steps)
         }
         
         healthStore.execute(query)
@@ -295,5 +347,56 @@ class HealthKitManager: ObservableObject {
     
     var formattedFlightsClimbed: String {
         return "\(flightsClimbed) flights"
+    }
+    
+    // MARK: - Debug Methods
+    
+    func debugHealthKitStatus() {
+        print("=== HealthKit Debug Status ===")
+        print("HealthKit Available: \(HKHealthStore.isHealthDataAvailable())")
+        print("HealthKit Enabled: \(isHealthKitEnabled)")
+        print("Is Authorized: \(isAuthorized)")
+        
+        for readType in readTypes {
+            let status = healthStore.authorizationStatus(for: readType)
+            print("\(readType.identifier): \(status.rawValue) (\(status))")
+        }
+        
+        print("Current Data:")
+        print("Steps Today: \(stepsToday)")
+        print("Heart Rate Today: \(heartRateToday)")
+        print("Active Energy: \(activeEnergyBurned)")
+        print("Walking Distance: \(walkingDistance)")
+        print("Flights Climbed: \(flightsClimbed)")
+        print("=============================")
+    }
+    
+    func checkAuthorizationStatusOnly() {
+        // Check authorization status without changing HealthKit enabled state
+        guard HKHealthStore.isHealthDataAvailable() else { 
+            print("HealthKit is not available on this device")
+            return 
+        }
+        
+        var hasAnyAuthorization = false
+        
+        for readType in readTypes {
+            let status = healthStore.authorizationStatus(for: readType)
+            if status == .sharingAuthorized {
+                hasAnyAuthorization = true
+                break
+            }
+        }
+        
+        DispatchQueue.main.async {
+            if hasAnyAuthorization {
+                self.isAuthorized = true
+                self.fetchTodayData()
+                print("HealthKit authorization found")
+            } else {
+                self.isAuthorized = false
+                print("No HealthKit authorization found")
+            }
+        }
     }
 }

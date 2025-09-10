@@ -604,12 +604,14 @@ struct FitnessSession: Codable, Identifiable {
     }
     
     var displayName: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        
         if isFavorite {
-            return "⭐ \(exerciseSessions.first?.exerciseType.rawValue ?? "Workout")"
-        } else if !exerciseSessions.isEmpty {
-            return exerciseSessions.first?.exerciseType.rawValue ?? "Workout"
+            return "⭐ \(formatter.string(from: startTime))"
         } else {
-            return "Empty Workout"
+            return formatter.string(from: startTime)
         }
     }
 }

@@ -56,7 +56,7 @@ struct CustomWorkout: Codable, Identifiable {
 // MARK: - Workout Exercise Extension
 
 extension WorkoutExercise {
-    init(exerciseType: ExerciseType, sets: Int, reps: Int, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval = 60, notes: String = "") {
+    init(exerciseType: ExerciseType, sets: Int, reps: Int, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval = 60, notes: String = "", plannedSets: [PlannedSet]? = nil) {
         self.exerciseType = exerciseType
         self.sets = sets
         self.reps = reps
@@ -64,6 +64,7 @@ extension WorkoutExercise {
         self.time = time
         self.restTime = restTime
         self.notes = notes
+        self.plannedSets = plannedSets
     }
     
     var displayString: String {

@@ -304,18 +304,34 @@ struct HealthKitDashboard: View {
     // MARK: - Refresh Button
     
     private var refreshButton: some View {
-        Button(action: {
-            healthKitManager.refreshData()
-        }) {
-            HStack {
-                Image(systemName: "arrow.clockwise")
-                Text("Refresh Data")
+        HStack(spacing: 12) {
+            Button(action: {
+                healthKitManager.refreshData()
+            }) {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Refresh Data")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(10)
+            
+            Button(action: {
+                healthKitManager.debugHealthKitStatus()
+            }) {
+                HStack {
+                    Image(systemName: "ladybug")
+                    Text("Debug")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.orange)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            }
         }
     }
 }

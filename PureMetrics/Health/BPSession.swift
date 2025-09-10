@@ -30,6 +30,15 @@ struct BPSession: Codable, Identifiable {
         self.isActive = true
     }
     
+    init(id: UUID, startTime: Date, endTime: Date? = nil, isActive: Bool = false) {
+        self.id = id
+        self.readings = []
+        self.healthMetrics = []
+        self.startTime = startTime
+        self.endTime = endTime
+        self.isActive = isActive
+    }
+    
     var averageSystolic: Double {
         guard !readings.isEmpty else { return 0 }
         return Double(readings.map { $0.systolic }.reduce(0, +)) / Double(readings.count)

@@ -21,29 +21,43 @@ struct OneRepMaxDashboard: View {
                     // Header with stats
                     headerSection
                     
-                    // Major lifts grid
-                    majorLiftsSection
-                    
-                    // Custom lifts section
-                    if !oneRepMaxManager.customLifts.isEmpty {
-                        customLiftsSection
-                    }
-                    
-                    // Recent records
-                    recentRecordsSection
+                    // All lifts grid (major + custom)
+                    allLiftsSection
                 }
                 .padding()
             }
             .navigationTitle("One Rep Max")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if oneRepMaxManager.isSyncing {
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Syncing...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } else if let lastSync = oneRepMaxManager.lastSyncDate {
+                        Button(action: {
+                            oneRepMaxManager.forceSync()
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button("Add Personal Record") {
+                            selectedLift = "" // Clear selection so user can choose any lift
                             showingAddRecord = true
                         }
                         Button("Add Custom Lift") {
                             showingAddCustomLift = true
+                        }
+                        Button("Sync Now") {
+                            oneRepMaxManager.forceSync()
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -52,7 +66,10 @@ struct OneRepMaxDashboard: View {
             }
         }
         .sheet(isPresented: $showingAddRecord) {
-            AddOneRepMaxRecordView(oneRepMaxManager: oneRepMaxManager)
+            AddOneRepMaxRecordView(
+                oneRepMaxManager: oneRepMaxManager,
+                preselectedLift: selectedLift
+            )
         }
         .sheet(isPresented: $showingAddCustomLift) {
             AddCustomLiftView(
@@ -78,7 +95,7 @@ struct OneRepMaxDashboard: View {
             }
         } message: {
             if let record = recordToDelete {
-                Text("Are you sure you want to delete your \(record.liftName) personal record of \(record.formattedWeight)? This action cannot be undone.")
+                Text("Are you sure you want to delete your \(record.liftName) \(record.recordType.rawValue.lowercased()) personal record of \(record.formattedValue)? This action cannot be undone.")
             }
         }
     }
@@ -100,56 +117,46 @@ struct OneRepMaxDashboard: View {
                 
                 VStack(alignment: .trailing) {
                     if let heaviest = oneRepMaxManager.getHeaviestLift() {
-                        Text(heaviest.formattedWeight)
+                        Text(heaviest.formattedValue)
                             .font(.title2)
                             .fontWeight(.bold)
-                        Text("Heaviest: \(heaviest.liftName)")
+                        Text("Best \(heaviest.recordType.rawValue): \(heaviest.liftName)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
             }
             
-            if let recent = oneRepMaxManager.getMostRecentRecord() {
-                HStack {
-                    Image(systemName: "clock")
-                        .foregroundColor(.blue)
-                    Text("Latest: \(recent.liftName) - \(recent.formattedWeight)")
-                        .font(.caption)
-                    Spacer()
-                    Text(recent.formattedDate)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
-            }
         }
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(12)
     }
     
-    // MARK: - Major Lifts Section
+    // MARK: - All Lifts Section
     
-    private var majorLiftsSection: some View {
+    private var allLiftsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Major Lifts")
+                Text("Personal Records")
                     .font(.headline)
                 Spacer()
+                NavigationLink(destination: ManageCustomLiftsView(oneRepMaxManager: oneRepMaxManager)) {
+                    Text("Manage Custom")
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
             }
             
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                ForEach(oneRepMaxManager.majorLifts, id: \.self) { lift in
+                ForEach(oneRepMaxManager.getAllLifts(), id: \.self) { lift in
                     LiftCard(
                         liftName: lift,
                         personalRecord: oneRepMaxManager.getPersonalRecord(for: lift),
+                        isCustom: oneRepMaxManager.customLifts.contains(lift),
                         onTap: {
                             selectedLift = lift
                             showingAddRecord = true
@@ -160,75 +167,6 @@ struct OneRepMaxDashboard: View {
         }
     }
     
-    // MARK: - Custom Lifts Section
-    
-    private var customLiftsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Custom Lifts")
-                    .font(.headline)
-                Spacer()
-                Button("Manage") {
-                    // TODO: Add manage custom lifts view
-                }
-                .font(.caption)
-                .foregroundColor(.blue)
-            }
-            
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
-                ForEach(oneRepMaxManager.customLifts, id: \.self) { lift in
-                    LiftCard(
-                        liftName: lift,
-                        personalRecord: oneRepMaxManager.getPersonalRecord(for: lift),
-                        isCustom: true,
-                        onTap: {
-                            selectedLift = lift
-                            showingAddRecord = true
-                        }
-                    )
-                }
-            }
-        }
-    }
-    
-    // MARK: - Recent Records Section
-    
-    private var recentRecordsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Recent Records")
-                    .font(.headline)
-                Spacer()
-                NavigationLink("View All") {
-                    AllRecordsView(oneRepMaxManager: oneRepMaxManager)
-                }
-                .font(.caption)
-                .foregroundColor(.blue)
-            }
-            
-            if oneRepMaxManager.getRecentRecords().isEmpty {
-                Text("No personal records yet. Add your first one!")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else {
-                ForEach(oneRepMaxManager.getRecentRecords()) { record in
-                    RecentRecordRow(
-                        record: record,
-                        onEdit: { editingRecord = $0 },
-                        onDelete: { 
-                            recordToDelete = $0
-                            showingDeleteConfirmation = true
-                        }
-                    )
-                }
-            }
-        }
-    }
 }
 
 // MARK: - Lift Card
@@ -267,10 +205,15 @@ struct LiftCard: View {
                 
                 if let record = personalRecord {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(record.formattedWeight)
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
+                        HStack {
+                            Image(systemName: record.recordType.icon)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(record.formattedValue)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.primary)
+                        }
                         
                         Text(record.formattedDate)
                             .font(.caption)
@@ -323,9 +266,14 @@ struct RecentRecordRow: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 4) {
-                Text(record.formattedWeight)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                HStack {
+                    Image(systemName: record.recordType.icon)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text(record.formattedValue)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
                 
                 Text(record.formattedDate)
                     .font(.caption)
@@ -359,12 +307,22 @@ struct AddOneRepMaxRecordView: View {
     @ObservedObject var oneRepMaxManager: OneRepMaxManager
     @Environment(\.dismiss) private var dismiss
     
+    let preselectedLift: String?
+    
     @State private var selectedLift = ""
-    @State private var weight = ""
+    @State private var selectedRecordType = PersonalBestType.weight
+    @State private var value = ""
+    @State private var minutes = ""
+    @State private var seconds = ""
     @State private var selectedDate = Date()
     @State private var notes = ""
     @State private var isCustomLift = false
     @State private var newLiftName = ""
+    
+    init(oneRepMaxManager: OneRepMaxManager, preselectedLift: String? = nil) {
+        self.oneRepMaxManager = oneRepMaxManager
+        self.preselectedLift = preselectedLift
+    }
     
     var body: some View {
         NavigationView {
@@ -384,11 +342,56 @@ struct AddOneRepMaxRecordView: View {
                 }
                 
                 Section("Record Details") {
-                    HStack {
-                        TextField("Weight", text: $weight)
-                            .keyboardType(.decimalPad)
-                        Text("lbs")
-                            .foregroundColor(.secondary)
+                    Picker("Record Type", selection: $selectedRecordType) {
+                        ForEach(PersonalBestType.allCases, id: \.self) { type in
+                            HStack {
+                                Image(systemName: type.icon)
+                                Text(type.rawValue)
+                            }.tag(type)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                    
+                    if selectedRecordType == .time {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Minutes")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                TextField("0", text: $minutes)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                            }
+                            
+                            Text(":")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.horizontal, 8)
+                            
+                            VStack(alignment: .leading) {
+                                Text("Seconds")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                TextField("0", text: $seconds)
+                                    .keyboardType(.numberPad)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .onChange(of: seconds) { newValue in
+                                        // Only format to 2 digits when user finishes typing
+                                        if let secondsInt = Int(newValue), secondsInt >= 10 {
+                                            seconds = String(format: "%02d", secondsInt)
+                                        }
+                                    }
+                            }
+                            
+                            Spacer()
+                        }
+                    } else {
+                        HStack {
+                            TextField(placeholderText, text: $value)
+                                .keyboardType(keyboardType)
+                            Text(selectedRecordType.unit)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     
                     DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
@@ -415,28 +418,95 @@ struct AddOneRepMaxRecordView: View {
             }
         }
         .onAppear {
-            if selectedLift.isEmpty {
+            // Use preselected lift if available, otherwise use first available lift
+            if let preselected = preselectedLift, !preselected.isEmpty {
+                selectedLift = preselected
+                print("Preselected lift: \(preselected)")
+            } else if selectedLift.isEmpty {
                 selectedLift = oneRepMaxManager.getAllLifts().first ?? ""
             }
+            // Set default record type based on the selected lift
+            selectedRecordType = oneRepMaxManager.getDefaultRecordType(for: selectedLift)
+            print("Set record type to: \(selectedRecordType) for lift: \(selectedLift)")
+        }
+        .onChange(of: selectedLift) { newLift in
+            // Update record type when lift changes
+            selectedRecordType = oneRepMaxManager.getDefaultRecordType(for: newLift)
+            print("Changed record type to: \(selectedRecordType) for lift: \(newLift)")
+        }
+    }
+    
+    private var placeholderText: String {
+        switch selectedRecordType {
+        case .weight, .volume:
+            return "Weight"
+        case .time:
+            return "Time (min:sec)"
+        case .distance:
+            return "Distance"
+        case .reps:
+            return "Reps"
+        }
+    }
+    
+    private var keyboardType: UIKeyboardType {
+        switch selectedRecordType {
+        case .weight, .volume, .distance, .time:
+            return .decimalPad
+        case .reps:
+            return .numberPad
         }
     }
     
     private var isValidInput: Bool {
-        if isCustomLift {
-            return !newLiftName.isEmpty && !weight.isEmpty && Double(weight) != nil
+        let liftValid = isCustomLift ? !newLiftName.isEmpty : !selectedLift.isEmpty
+        let valueValid: Bool
+        if selectedRecordType == .time {
+            let minutesInt = Int(minutes) ?? 0
+            let secondsInt = Int(seconds) ?? 0
+            valueValid = !minutes.isEmpty && !seconds.isEmpty && 
+                        minutesInt >= 0 && secondsInt >= 0 && secondsInt < 60
         } else {
-            return !selectedLift.isEmpty && !weight.isEmpty && Double(weight) != nil
+            valueValid = !value.isEmpty && Double(value) != nil
         }
+        return liftValid && valueValid
+    }
+    
+    private func isValidTimeFormat(_ timeString: String) -> Bool {
+        // Check if format is MM:SS or M:SS
+        let timePattern = "^\\d{1,2}:\\d{2}$"
+        let regex = try? NSRegularExpression(pattern: timePattern)
+        let range = NSRange(location: 0, length: timeString.utf16.count)
+        return regex?.firstMatch(in: timeString, options: [], range: range) != nil
+    }
+    
+    private func convertTimeToSeconds(_ timeString: String) -> Double? {
+        let components = timeString.split(separator: ":")
+        guard components.count == 2,
+              let minutes = Int(components[0]),
+              let seconds = Int(components[1]) else {
+            return nil
+        }
+        return Double(minutes * 60 + seconds)
     }
     
     private func saveRecord() {
-        guard let weightValue = Double(weight) else { return }
-        
         let liftName = isCustomLift ? newLiftName : selectedLift
+        
+        let valueDouble: Double
+        if selectedRecordType == .time {
+            let minutesInt = Int(minutes) ?? 0
+            let secondsInt = Int(seconds) ?? 0
+            valueDouble = Double(minutesInt * 60 + secondsInt)
+        } else {
+            guard let doubleValue = Double(value) else { return }
+            valueDouble = doubleValue
+        }
         
         let record = OneRepMax(
             liftName: liftName,
-            weight: weightValue,
+            recordType: selectedRecordType,
+            value: valueDouble,
             date: selectedDate,
             notes: notes.isEmpty ? nil : notes,
             isCustom: isCustomLift
@@ -512,9 +582,14 @@ struct AllRecordsView: View {
                         Text(record.liftName)
                             .font(.headline)
                         Spacer()
-                        Text(record.formattedWeight)
-                            .font(.title2)
-                            .fontWeight(.bold)
+                        HStack {
+                            Image(systemName: record.recordType.icon)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(record.formattedValue)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
                     }
                     
                     HStack {
@@ -545,6 +620,144 @@ struct AllRecordsView: View {
         }
         .navigationTitle("All Records")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Manage Custom Lifts View
+
+struct ManageCustomLiftsView: View {
+    @ObservedObject var oneRepMaxManager: OneRepMaxManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var showingAddCustomLift = false
+    @State private var newCustomLiftName = ""
+    @State private var showingDeleteConfirmation = false
+    @State private var liftToDelete: String?
+    
+    var body: some View {
+        NavigationView {
+            List {
+                if oneRepMaxManager.customLifts.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "dumbbell.fill")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange.opacity(0.6))
+                        
+                        Text("No Custom Lifts")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("Add custom lifts for exercises not in the standard list.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        
+                        Button("Add Your First Custom Lift") {
+                            showingAddCustomLift = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                    .listRowSeparator(.hidden)
+                } else {
+                    ForEach(oneRepMaxManager.customLifts, id: \.self) { liftName in
+                        CustomLiftRow(
+                            liftName: liftName,
+                            personalRecord: oneRepMaxManager.getPersonalRecord(for: liftName),
+                            onDelete: {
+                                liftToDelete = liftName
+                                showingDeleteConfirmation = true
+                            }
+                        )
+                    }
+                    .onDelete(perform: deleteCustomLifts)
+                }
+            }
+            .navigationTitle("Custom Lifts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Add") {
+                        showingAddCustomLift = true
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddCustomLift) {
+            AddCustomLiftView(
+                customLiftName: $newCustomLiftName,
+                oneRepMaxManager: oneRepMaxManager,
+                isPresented: $showingAddCustomLift
+            )
+        }
+        .alert("Delete Custom Lift", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let liftName = liftToDelete {
+                    oneRepMaxManager.removeCustomLift(liftName)
+                }
+            }
+        } message: {
+            if let liftName = liftToDelete {
+                Text("Are you sure you want to delete '\(liftName)'? This will also delete any personal records for this lift.")
+            }
+        }
+    }
+    
+    private func deleteCustomLifts(offsets: IndexSet) {
+        for index in offsets {
+            let liftName = oneRepMaxManager.customLifts[index]
+            oneRepMaxManager.removeCustomLift(liftName)
+        }
+    }
+}
+
+// MARK: - Custom Lift Row
+
+struct CustomLiftRow: View {
+    let liftName: String
+    let personalRecord: OneRepMax?
+    let onDelete: () -> Void
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(liftName)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                if let record = personalRecord {
+                    HStack {
+                        Image(systemName: record.recordType.icon)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(record.formattedValue)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    Text("No personal record yet")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(.vertical, 4)
     }
 }
 

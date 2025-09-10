@@ -2,11 +2,18 @@ import Foundation
 import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseCore
+
+// MARK: - Notification Names
 
 extension Notification.Name {
     static let userDidSignIn = Notification.Name("userDidSignIn")
     static let userDidSignOut = Notification.Name("userDidSignOut")
+    static let authStateChanged = Notification.Name("authStateChanged")
+    static let dataDidSync = Notification.Name("dataDidSync")
+    static let syncDidFail = Notification.Name("syncDidFail")
 }
+
 
 // MARK: - BP Category Enum
 
@@ -119,12 +126,32 @@ class BPDataManager: ObservableObject {
     init() {
         self.currentSession = BPSession()
         self.currentFitnessSession = FitnessSession()
+        
+        print("Loading local data...")
+        
         loadSessions()
         loadFitnessSessions()
         loadHealthMetrics()
         loadCustomWorkouts()
         loadNutritionEntries()
         loadNutritionGoals()
+        
+        print("Local data loaded:")
+        print("- BP Sessions: \(sessions.count)")
+        print("- Fitness Sessions: \(fitnessSessions.count)")
+        print("- Health Metrics: \(healthMetrics.count)")
+        print("- Custom Workouts: \(customWorkouts.count)")
+        print("- Nutrition Entries: \(nutritionEntries.count)")
+        print("- Nutrition Goals: \(nutritionGoals.dailyCalories)")
+        
+        // Print sample data if available
+        if !sessions.isEmpty {
+            print("Sample BP Session: \(sessions.first?.id)")
+        }
+        if !fitnessSessions.isEmpty {
+            print("Sample Fitness Session: \(fitnessSessions.first?.id)")
+        }
+        
         
         // Load custom workouts from Firestore (with local fallback)
         loadCustomWorkoutsFromFirestore()
@@ -150,6 +177,9 @@ class BPDataManager: ObservableObject {
     }
     
     @objc private func userDidSignIn() {
+        print("Current sync state - isSyncing: \(isSyncing), hasSyncedForCurrentSession: \(hasSyncedForCurrentSession)")
+        print("Auth service state - isAuthenticated: \(authService.isAuthenticated), currentUser: \(authService.currentUser?.uid ?? "nil")")
+        
         // Prevent multiple simultaneous syncs or repeated syncs for same session
         guard !isSyncing && !hasSyncedForCurrentSession else {
             print("Sync already in progress or completed for this session, skipping...")
@@ -189,18 +219,27 @@ class BPDataManager: ObservableObject {
     // MARK: - Session Management
     
     func addReading(systolic: Int, diastolic: Int, heartRate: Int? = nil, timestamp: Date? = nil) -> Bool {
+        print("Systolic: \(systolic), Diastolic: \(diastolic), Heart Rate: \(heartRate ?? 0)")
+        
         let reading = BloodPressureReading(systolic: systolic, diastolic: diastolic, heartRate: heartRate, timestamp: timestamp)
         guard reading.isValid else {
+            print("Reading is not valid")
             return false
         }
+        
+        print("Reading is valid, creating session...")
         
         // Create a single-reading session and save it immediately
         var session = BPSession(startTime: timestamp ?? Date())
         session.addReading(reading)
         session.complete()
         
+        print("Session created with \(session.readings.count) readings")
+        
         // Add to sessions array
         sessions.insert(session, at: 0)
+        
+        print("Session added to array. Total sessions: \(sessions.count)")
         
         // Auto-save to Firestore
         saveSessions()
@@ -311,7 +350,7 @@ class BPDataManager: ObservableObject {
         }
     }
     
-    private func loadHealthMetrics() {
+    func loadHealthMetrics() {
         guard let data = userDefaults.data(forKey: "HealthMetrics") else { return }
         
         do {
@@ -432,28 +471,46 @@ class BPDataManager: ObservableObject {
     // MARK: - Data Persistence
     
     private func saveSessions() {
+        print("Saving \(sessions.count) sessions to UserDefaults")
+        
         do {
             let data = try JSONEncoder().encode(sessions)
             userDefaults.set(data, forKey: sessionsKey)
+            print("Sessions saved to UserDefaults successfully")
             
             // Auto-sync to Firebase if user is authenticated
             if authService.isAuthenticated {
+                print("User is authenticated, syncing to Firebase...")
                 syncToFirebase()
+            } else {
+                print("User is not authenticated, skipping Firebase sync")
             }
         } catch {
             print("Error saving sessions: \(error)")
         }
+        
+        print("=== END SAVE SESSIONS ===")
     }
     
-    private func loadSessions() {
-        guard let data = userDefaults.data(forKey: sessionsKey) else { return }
+    func loadSessions() {
+        print("=== LOAD SESSIONS CALLED ===")
+        
+        guard let data = userDefaults.data(forKey: sessionsKey) else { 
+            print("No sessions data found in UserDefaults")
+            return 
+        }
+        
+        print("Found sessions data in UserDefaults, decoding...")
         
         do {
             sessions = try JSONDecoder().decode([BPSession].self, from: data)
+            print("Successfully loaded \(sessions.count) sessions from UserDefaults")
         } catch {
             print("Error loading sessions: \(error)")
             sessions = []
         }
+        
+        print("=== END LOAD SESSIONS ===")
     }
     
     // MARK: - Fitness Session Management
@@ -630,9 +687,76 @@ class BPDataManager: ObservableObject {
         }
     }
     
+    func deleteSetFromWorkout(workoutId: UUID, exerciseIndex: Int, setIndex: Int) {
+        guard let workoutIndex = fitnessSessions.firstIndex(where: { $0.id == workoutId }) else { return }
+        guard exerciseIndex >= 0 && exerciseIndex < fitnessSessions[workoutIndex].exerciseSessions.count else { return }
+        guard setIndex >= 0 && setIndex < fitnessSessions[workoutIndex].exerciseSessions[exerciseIndex].sets.count else { return }
+        
+        // Create a mutable copy of the workout
+        var updatedWorkout = fitnessSessions[workoutIndex]
+        updatedWorkout.exerciseSessions[exerciseIndex].removeSet(at: setIndex)
+        fitnessSessions[workoutIndex] = updatedWorkout
+        
+        saveFitnessSessions()
+        
+        // Update in Firestore
+        firestoreService.updateFitnessSession(updatedWorkout) { result in
+            switch result {
+            case .success:
+                print("Successfully updated workout in Firestore after deleting set")
+            case .failure(let error):
+                print("Error updating workout in Firestore: \(error)")
+            }
+        }
+    }
+    
+    func deleteExerciseFromWorkout(workoutId: UUID, exerciseIndex: Int) {
+        guard let workoutIndex = fitnessSessions.firstIndex(where: { $0.id == workoutId }) else { return }
+        guard exerciseIndex >= 0 && exerciseIndex < fitnessSessions[workoutIndex].exerciseSessions.count else { return }
+        
+        // Create a mutable copy of the workout
+        var updatedWorkout = fitnessSessions[workoutIndex]
+        updatedWorkout.exerciseSessions.remove(at: exerciseIndex)
+        fitnessSessions[workoutIndex] = updatedWorkout
+        
+        saveFitnessSessions()
+        
+        // Update in Firestore
+        firestoreService.updateFitnessSession(updatedWorkout) { result in
+            switch result {
+            case .success:
+                print("Successfully updated workout in Firestore after deleting exercise")
+            case .failure(let error):
+                print("Error updating workout in Firestore: \(error)")
+            }
+        }
+    }
+    
+    func clearAllSetsFromExercise(workoutId: UUID, exerciseIndex: Int) {
+        guard let workoutIndex = fitnessSessions.firstIndex(where: { $0.id == workoutId }) else { return }
+        guard exerciseIndex >= 0 && exerciseIndex < fitnessSessions[workoutIndex].exerciseSessions.count else { return }
+        
+        // Create a mutable copy of the workout
+        var updatedWorkout = fitnessSessions[workoutIndex]
+        updatedWorkout.exerciseSessions[exerciseIndex].sets.removeAll()
+        fitnessSessions[workoutIndex] = updatedWorkout
+        
+        saveFitnessSessions()
+        
+        // Update in Firestore
+        firestoreService.updateFitnessSession(updatedWorkout) { result in
+            switch result {
+            case .success:
+                print("Successfully updated workout in Firestore after clearing all sets")
+            case .failure(let error):
+                print("Error updating workout in Firestore: \(error)")
+            }
+        }
+    }
+    
     func clearWorkoutTemplate() {
         // Clear all exercises from current session
-        currentFitnessSession.exerciseSessions.removeAll()
+        currentFitnessSession = FitnessSession()
     }
     
     // MARK: - Custom Workout Management
@@ -700,9 +824,25 @@ class BPDataManager: ObservableObject {
         // Clear current session
         clearCurrentFitnessSession()
         
-        // Add exercises from custom workout
+        // Add exercises from custom workout with pre-populated sets
         for workoutExercise in workout.exercises {
-            _ = addExerciseSession(workoutExercise.exerciseType)
+            var exerciseSession = ExerciseSession(exerciseType: workoutExercise.exerciseType)
+            
+            // Pre-populate sets if planned sets are available
+            if let plannedSets = workoutExercise.plannedSets {
+                for plannedSet in plannedSets {
+                    let exerciseSet = ExerciseSet(
+                        reps: plannedSet.reps,
+                        weight: plannedSet.weight,
+                        time: plannedSet.time,
+                        distance: plannedSet.distance,
+                        timestamp: Date()
+                    )
+                    exerciseSession.addSet(exerciseSet)
+                }
+            }
+            
+            currentFitnessSession.addExerciseSession(exerciseSession)
         }
         
         // Update use count and last used
@@ -937,7 +1077,7 @@ class BPDataManager: ObservableObject {
         }
     }
     
-    private func loadFitnessSessions() {
+    func loadFitnessSessions() {
         guard let data = userDefaults.data(forKey: fitnessSessionsKey) else { return }
         
         do {
@@ -954,9 +1094,11 @@ class BPDataManager: ObservableObject {
         print("=== SYNC TO FIREBASE CALLED ===")
         print("Auth service is authenticated: \(authService.isAuthenticated)")
         print("Current user: \(authService.currentUser?.uid ?? "nil")")
+        print("Firebase app configured: \(FirebaseApp.app() != nil)")
         
         guard authService.isAuthenticated else { 
             print("Cannot sync to Firebase: No authenticated user")
+            print("Auth service state - isAuthenticated: \(authService.isAuthenticated), currentUser: \(authService.currentUser?.uid ?? "nil")")
             return 
         }
         
@@ -1058,86 +1200,108 @@ class BPDataManager: ObservableObject {
     func loadFromFirebase() {
         guard authService.isAuthenticated else { return }
         
+        print("=== LOAD FROM FIREBASE CALLED ===")
+        print("Auth service is authenticated: \(authService.isAuthenticated)")
+        print("Current user: \(authService.currentUser?.uid ?? "nil")")
+        
         isSyncing = true
         syncError = nil
         
-        // Run sync on background queue to prevent UI blocking
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            // Load all health data using unified structure
-            self?.firestoreService.loadHealthData { result in
-                DispatchQueue.main.async {
-                    self?.isSyncing = false
-                    
-                    switch result {
-                    case .success(let healthData):
-                        // Separate data by type
-                        var bpSessions: [BPSession] = []
-                        var fitnessSessions: [FitnessSession] = []
-                        var healthMetrics: [HealthMetric] = []
-                        
-                        for data in healthData {
-                            switch data.dataType {
-                            case .bloodPressureSession:
-                                if let session = data.bpSession {
-                                    bpSessions.append(session)
-                                }
-                            case .fitnessSession:
-                                if let session = data.fitnessSession {
-                                    fitnessSessions.append(session)
-                                }
-                            case .weight, .bloodSugar, .heartRate:
-                                if let metricType = data.metricType,
-                                   let value = data.value {
-                                    let metric = HealthMetric(
-                                        type: metricType,
-                                        value: value,
-                                        timestamp: data.timestamp
-                                    )
-                                    healthMetrics.append(metric)
-                                }
-                            default:
-                                break
-                            }
-                        }
-                        
-                        // Update local data
-                        self?.sessions = bpSessions
-                        self?.fitnessSessions = fitnessSessions
-                        self?.healthMetrics = healthMetrics
-                        
-                        // Save to local storage
-                        self?.saveSessions()
-                        self?.saveFitnessSessions()
-                        self?.saveHealthMetrics()
-                        
-                        print("Successfully loaded all data from Firebase using unified structure")
-                        print("- BP Sessions: \(bpSessions.count)")
-                        print("- Fitness Sessions: \(fitnessSessions.count)")
-                        print("- Health Metrics: \(healthMetrics.count)")
-                        
-                    case .failure(let error):
-                        self?.syncError = error.localizedDescription
-                        print("Error loading from Firebase: \(error)")
-                        
-                        // Fallback to local data if Firebase fails
-                        print("Falling back to local data...")
-                        self?.loadSessions()
-                        self?.loadFitnessSessions()
-                        self?.loadHealthMetrics()
-                    }
-                }
+        // Use the unified health data loading method to find data in the correct location
+        let dispatchGroup = DispatchGroup()
+        var bpSessions: [BPSession] = []
+        var fitnessSessions: [FitnessSession] = []
+        var healthMetrics: [HealthMetric] = []
+        var hasError = false
+        var lastError: Error?
+        
+        // Load BP Sessions directly
+        dispatchGroup.enter()
+        firestoreService.loadBPSessions { result in
+            switch result {
+            case .success(let sessions):
+                bpSessions = sessions
+                print("Loaded \(sessions.count) BP sessions from Firebase")
+            case .failure(let error):
+                print("Error loading BP sessions: \(error)")
+                hasError = true
+                lastError = error
             }
+            dispatchGroup.leave()
+        }
+        
+        // Load Fitness Sessions directly
+        dispatchGroup.enter()
+        firestoreService.loadFitnessSessions { result in
+            switch result {
+            case .success(let sessions):
+                fitnessSessions = sessions
+                print("Loaded \(sessions.count) fitness sessions from Firebase")
+            case .failure(let error):
+                print("Error loading fitness sessions: \(error)")
+                hasError = true
+                lastError = error
+            }
+            dispatchGroup.leave()
+        }
+        
+        // Load Health Metrics directly
+        dispatchGroup.enter()
+        firestoreService.loadHealthMetrics { result in
+            switch result {
+            case .success(let metrics):
+                healthMetrics = metrics
+                print("Loaded \(metrics.count) health metrics from Firebase")
+            case .failure(let error):
+                print("Error loading health metrics: \(error)")
+                hasError = true
+                lastError = error
+            }
+            dispatchGroup.leave()
+        }
+        
+        // Load User Profile
+        dispatchGroup.enter()
+        firestoreService.loadUserProfile { [weak self] result in
+            switch result {
+            case .success(let profile):
+                self?.userProfile = profile
+                print("Loaded user profile from Firebase")
+            case .failure(let error):
+                print("Error loading user profile: \(error)")
+            }
+            dispatchGroup.leave()
+        }
+        
+        dispatchGroup.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
             
-            // Also load user profile
-            self?.firestoreService.loadUserProfile { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let profile):
-                        self?.userProfile = profile
-                    case .failure(let error):
-                        print("Error loading user profile: \(error)")
-                    }
-                }
+            self.isSyncing = false
+            
+            if hasError, let error = lastError {
+                self.syncError = error.localizedDescription
+                print("Error loading from Firebase: \(error)")
+                
+                // Fallback to local data if Firebase fails
+                print("Falling back to local data...")
+                self.loadSessions()
+                self.loadFitnessSessions()
+                self.loadHealthMetrics()
+            } else {
+                // Update local data
+                self.sessions = bpSessions
+                self.fitnessSessions = fitnessSessions
+                self.healthMetrics = healthMetrics
+                
+                // Save to local storage
+                self.saveSessions()
+                self.saveFitnessSessions()
+                self.saveHealthMetrics()
+                
+                print("Successfully loaded all data from Firebase")
+                print("- BP Sessions: \(bpSessions.count)")
+                print("- Fitness Sessions: \(fitnessSessions.count)")
+                print("- Health Metrics: \(healthMetrics.count)")
             }
         }
     }
@@ -1167,6 +1331,185 @@ class BPDataManager: ObservableObject {
     
     func signOut() {
         authService.signOut()
+    }
+    
+    // MARK: - Manual Data Loading
+    
+    func loadDataFromFirebase() {
+        print("=== MANUAL LOAD FROM FIREBASE CALLED ===")
+        print("Auth service is authenticated: \(authService.isAuthenticated)")
+        print("Current user: \(authService.currentUser?.uid ?? "nil")")
+        
+        if authService.isAuthenticated {
+            loadFromFirebase()
+        } else {
+            print("User is not authenticated, cannot load from Firebase")
+        }
+    }
+    
+    func forceReloadFromFirebase() {
+        print("=== FORCE RELOAD FROM FIREBASE ===")
+        hasSyncedForCurrentSession = false
+        loadFromFirebase()
+    }
+    
+    func forceReloadBPSessions() {
+        guard authService.isAuthenticated else { 
+            print("User not authenticated, cannot load BP sessions")
+            return 
+        }
+        
+        // Try direct collection access first
+        let db = Firestore.firestore()
+        let userID = authService.currentUser?.uid ?? ""
+        let collection = db.collection("users").document(userID).collection("health_data").document("bp_session").collection("data")
+        
+        collection.getDocuments { [weak self] snapshot, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                print("Error loading BP sessions: \(error)")
+                // Fallback to unified method
+                self.loadBPSessionsViaUnifiedMethod()
+            } else if let documents = snapshot?.documents {
+                var bpSessions: [BPSession] = []
+                
+                for document in documents {
+                    do {
+                        let documentData = document.data()
+                        let session = try self.decodeBPSessionFromDocument(documentData)
+                        bpSessions.append(session)
+                    } catch {
+                        print("Error decoding BP session: \(error)")
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    self.sessions = bpSessions
+                    self.saveSessions()
+                    print("Successfully loaded \(bpSessions.count) BP sessions from Firebase")
+                }
+            } else {
+                // Fallback to unified method
+                self.loadBPSessionsViaUnifiedMethod()
+            }
+        }
+    }
+    
+    private func decodeBPSessionFromDocument(_ documentData: [String: Any]) throws -> BPSession {
+        // Extract basic fields
+        guard let idString = documentData["id"] as? String,
+              let id = UUID(uuidString: idString) else {
+            throw NSError(domain: "BPSessionDecoding", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing or invalid ID"])
+        }
+        
+        // Handle startTime - can be string, double, or Firestore Timestamp
+        let startTime: Date
+        if let startTimeString = documentData["startTime"] as? String {
+            let formatter = ISO8601DateFormatter()
+            startTime = formatter.date(from: startTimeString) ?? Date()
+        } else if let startTimeDouble = documentData["startTime"] as? Double {
+            startTime = Date(timeIntervalSince1970: startTimeDouble)
+        } else if let startTimeTimestamp = documentData["startTime"] as? Timestamp {
+            startTime = startTimeTimestamp.dateValue()
+        } else {
+            startTime = Date()
+        }
+        
+        // Handle endTime
+        let endTime: Date?
+        if let endTimeString = documentData["endTime"] as? String {
+            let formatter = ISO8601DateFormatter()
+            endTime = formatter.date(from: endTimeString)
+        } else if let endTimeDouble = documentData["endTime"] as? Double {
+            endTime = Date(timeIntervalSince1970: endTimeDouble)
+        } else if let endTimeTimestamp = documentData["endTime"] as? Timestamp {
+            endTime = endTimeTimestamp.dateValue()
+        } else {
+            endTime = nil
+        }
+        
+        // Handle isActive
+        let isActive = documentData["isActive"] as? Bool ?? false
+        
+        // Create BP session with basic fields
+        var session = BPSession(id: id, startTime: startTime, endTime: endTime, isActive: isActive)
+        
+        // Try to decode readings if they exist
+        if let readingsData = documentData["readings"] as? [[String: Any]] {
+            print("Found \(readingsData.count) readings in document")
+            var readings: [BloodPressureReading] = []
+            
+            for readingData in readingsData {
+                if let systolic = readingData["systolic"] as? Int,
+                   let diastolic = readingData["diastolic"] as? Int {
+                    let heartRate = readingData["heartRate"] as? Int
+                    let readingTimestamp: Date
+                    
+                    if let timestampString = readingData["timestamp"] as? String {
+                        let formatter = ISO8601DateFormatter()
+                        readingTimestamp = formatter.date(from: timestampString) ?? startTime
+                    } else if let timestampDouble = readingData["timestamp"] as? Double {
+                        readingTimestamp = Date(timeIntervalSince1970: timestampDouble)
+                    } else if let timestampTimestamp = readingData["timestamp"] as? Timestamp {
+                        readingTimestamp = timestampTimestamp.dateValue()
+                    } else {
+                        readingTimestamp = startTime
+                    }
+                    
+                    let reading = BloodPressureReading(systolic: systolic, diastolic: diastolic, heartRate: heartRate, timestamp: readingTimestamp)
+                    readings.append(reading)
+                }
+            }
+            session.readings = readings
+        } else {
+            print("No readings found in document, creating empty readings array")
+            session.readings = []
+        }
+        
+        // Try to decode health metrics if they exist
+        if let healthMetricsData = documentData["healthMetrics"] as? [[String: Any]] {
+            var healthMetrics: [HealthMetric] = []
+            for metricData in healthMetricsData {
+                do {
+                    let metric = try Firestore.Decoder().decode(HealthMetric.self, from: metricData)
+                    healthMetrics.append(metric)
+                } catch {
+                    print("Error decoding health metric: \(error)")
+                }
+            }
+            session.healthMetrics = healthMetrics
+        }
+        
+        return session
+    }
+    
+    private func loadBPSessionsViaUnifiedMethod() {
+        // Use the unified loading method specifically for BP sessions
+        firestoreService.loadHealthData(dataType: .bloodPressureSession) { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let allHealthData):
+                var bpSessions: [BPSession] = []
+                
+                for data in allHealthData {
+                    if data.dataType == .bloodPressureSession, let bpSession = data.bpSession {
+                        bpSessions.append(bpSession)
+                    }
+                }
+                
+                // Update local data
+                DispatchQueue.main.async {
+                    self.sessions = bpSessions
+                    self.saveSessions()
+                    print("Successfully loaded \(bpSessions.count) BP sessions from Firebase")
+                }
+                
+            case .failure(let error):
+                print("Error loading BP sessions from Firebase: \(error)")
+            }
+        }
     }
     
     func createDataBackup() {

@@ -45,18 +45,45 @@ struct WorkoutExercise: Identifiable, Codable {
     let time: TimeInterval? // in seconds
     let restTime: TimeInterval? // in seconds
     let notes: String?
+    let plannedSets: [PlannedSet]? // Detailed set information
     
     enum CodingKeys: String, CodingKey {
-        case exerciseType, sets, reps, weight, time, restTime, notes
+        case exerciseType, sets, reps, weight, time, restTime, notes, plannedSets
     }
     
-    init(exerciseType: ExerciseType, sets: Int, reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval? = nil, notes: String? = nil) {
+    init(exerciseType: ExerciseType, sets: Int, reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval? = nil, notes: String? = nil, plannedSets: [PlannedSet]? = nil) {
         self.exerciseType = exerciseType
         self.sets = sets
         self.reps = reps
         self.weight = weight
         self.time = time
         self.restTime = restTime
+        self.notes = notes
+        self.plannedSets = plannedSets
+    }
+}
+
+// MARK: - Planned Set Model
+
+struct PlannedSet: Identifiable, Codable {
+    let id = UUID()
+    let setNumber: Int
+    var reps: Int?
+    var weight: Double? // in lbs
+    var time: TimeInterval? // in seconds
+    var distance: Double? // in miles
+    var notes: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case setNumber, reps, weight, time, distance, notes
+    }
+    
+    init(setNumber: Int, reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, distance: Double? = nil, notes: String? = nil) {
+        self.setNumber = setNumber
+        self.reps = reps
+        self.weight = weight
+        self.time = time
+        self.distance = distance
         self.notes = notes
     }
 }
