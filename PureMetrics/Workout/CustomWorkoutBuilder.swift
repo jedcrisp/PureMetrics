@@ -6,9 +6,7 @@ struct CustomWorkoutBuilder: View {
     @State private var workoutName = ""
     @State private var workoutDescription = ""
     @State private var selectedExercises: [WorkoutExercise] = []
-    @State private var showingCategorySelector = false
     @State private var showingExerciseSelector = false
-    @State private var selectedCategory: ExerciseCategory?
     @State private var selectedExerciseType: ExerciseType?
     @State private var showingSaveConfirmation = false
     @State private var editingIndex: Int?
@@ -51,21 +49,11 @@ struct CustomWorkoutBuilder: View {
                 }
             }
         }
-        .sheet(isPresented: $showingCategorySelector) {
-            ExerciseCategorySelector(selectedCategory: $selectedCategory) { category in
-                selectedCategory = category
-                showingCategorySelector = false
-                showingExerciseSelector = true
-            }
-        }
         .sheet(isPresented: $showingExerciseSelector) {
-            if let category = selectedCategory {
-                ExerciseSelector(
-                    category: category,
-                    selectedExercise: $selectedExerciseType
-                ) { exerciseType in
-                    addExercise(exerciseType)
-                }
+            UnifiedExerciseSelector(
+                selectedExercise: $selectedExerciseType
+            ) { exerciseType in
+                addExercise(exerciseType)
             }
         }
         .alert("Save Custom Workout", isPresented: $showingSaveConfirmation) {
@@ -233,7 +221,7 @@ struct CustomWorkoutBuilder: View {
     
     private var addExerciseSection: some View {
         Button(action: {
-            showingCategorySelector = true
+            showingExerciseSelector = true
         }) {
             HStack(spacing: 10) {
                 Image(systemName: "plus.circle.fill")
@@ -731,45 +719,6 @@ struct DetailItem: View {
     }
 }
 
-// MARK: - Exercise Selector View
-
-struct CustomExerciseSelectorView: View {
-    let onExerciseSelected: (ExerciseType) -> Void
-    @Environment(\.presentationMode) var presentationMode
-    @State private var selectedCategory: ExerciseCategory?
-    @State private var showingCategorySelector = true
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                if showingCategorySelector {
-                    ExerciseCategorySelector(
-                        selectedCategory: $selectedCategory,
-                        onCategorySelected: { category in
-                            selectedCategory = category
-                            showingCategorySelector = false
-                        }
-                    )
-                } else if let category = selectedCategory {
-                    ExerciseSelector(
-                        category: category,
-                        selectedExercise: .constant(nil)
-                    ) { exerciseType in
-                        onExerciseSelected(exerciseType)
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Back") {
-                                showingCategorySelector = true
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 // MARK: - Planned Set Row
 

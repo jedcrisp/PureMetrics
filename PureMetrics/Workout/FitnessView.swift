@@ -5,9 +5,7 @@ struct FitnessView: View {
     @StateObject private var workoutManager = PreBuiltWorkoutManager()
     @State private var selectedExerciseType: ExerciseType? = .benchPress
     @State private var showingExerciseSelector = false
-    @State private var showingCategorySelector = false
     @State private var showingWorkoutSelector = false
-    @State private var selectedCategory: ExerciseCategory?
     @State private var selectedExerciseIndices: Set<Int> = []
     @State private var useManualTime = false
     @State private var manualDate = Date()
@@ -93,25 +91,15 @@ struct FitnessView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingCategorySelector) {
-            ExerciseCategorySelector(selectedCategory: $selectedCategory) { category in
-                selectedCategory = category
-                showingCategorySelector = false
-                showingExerciseSelector = true
-            }
-        }
         .sheet(isPresented: $showingExerciseSelector) {
-            if let category = selectedCategory {
-                ExerciseSelector(
-                    category: category,
-                    selectedExercise: $selectedExerciseType
-                ) { exerciseType in
-                    _ = dataManager.addExerciseSession(exerciseType)
-                    // Initialize set inputs for the new exercise
-                    let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
-                    exerciseSetInputs[newExerciseIndex] = [SetInput()]
-                    showingExerciseSelector = false
-                }
+            UnifiedExerciseSelector(
+                selectedExercise: $selectedExerciseType
+            ) { exerciseType in
+                _ = dataManager.addExerciseSession(exerciseType)
+                // Initialize set inputs for the new exercise
+                let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
+                exerciseSetInputs[newExerciseIndex] = [SetInput()]
+                showingExerciseSelector = false
             }
         }
         .sheet(isPresented: $showingWorkoutSelector) {
@@ -559,7 +547,7 @@ struct FitnessView: View {
                 
                 // Add Individual Exercise Button
                 Button(action: {
-                    showingCategorySelector = true
+                    showingExerciseSelector = true
                 }) {
                     HStack(spacing: 12) {
                         Image(systemName: "dumbbell")
