@@ -11,43 +11,43 @@ struct WorkoutDetailView: View {
     
     // Get the current workout data from the data manager
     private var currentWorkout: FitnessSession {
-        dataManager.fitnessSessions.first { $0.id == workout.id } ?? workout
+        // Use the passed workout directly to avoid potential infinite loops
+        workout
     }
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header
-                    headerSection
-                    
-                    // Stats Overview
-                    statsSection
-                    
-                    // Exercises
-                    exercisesSection
-                    
-                    // Action Buttons
-                    actionButtonsSection
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
-            }
-            .navigationTitle("Workout Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header
+                headerSection
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack {
-                        Button(action: {
-                            isEditing.toggle()
-                        }) {
-                            Text(isEditing ? "Done" : "Edit")
+                // Stats Overview
+                statsSection
+                
+                // Exercises
+                exercisesSection
+                
+                // Action Buttons
+                actionButtonsSection
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .navigationTitle("Workout Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Close") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack {
+                    Button(action: {
+                        isEditing.toggle()
+                    }) {
+                        Text(isEditing ? "Done" : "Edit")
                                 .foregroundColor(.blue)
                         }
                         
@@ -60,7 +60,6 @@ struct WorkoutDetailView: View {
                     }
                 }
             }
-        }
         .sheet(isPresented: $showingReuseWorkout) {
             ReuseWorkoutView(workout: currentWorkout)
         }
