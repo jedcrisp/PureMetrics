@@ -104,6 +104,9 @@ class BPDataManager: ObservableObject {
     @Published var nutritionEntries: [NutritionEntry] = []
     @Published var nutritionGoals: NutritionGoals = NutritionGoals()
     
+    // Custom exercises storage
+    @Published var customExercises: [CustomExercise] = []
+    
     // One Rep Max storage
     @Published var oneRepMaxManager = OneRepMaxManager()
     
@@ -117,6 +120,7 @@ class BPDataManager: ObservableObject {
     private let customWorkoutsKey = "CustomWorkouts"
     private let nutritionEntriesKey = "NutritionEntries"
     private let nutritionGoalsKey = "NutritionGoals"
+    private let customExercisesKey = "CustomExercises"
     
     // Firebase services
     private let firestoreService = FirestoreService()
@@ -135,6 +139,7 @@ class BPDataManager: ObservableObject {
         loadCustomWorkouts()
         loadNutritionEntries()
         loadNutritionGoals()
+        loadCustomExercises()
         
         print("Local data loaded:")
         print("- BP Sessions: \(sessions.count)")
@@ -997,6 +1002,44 @@ class BPDataManager: ObservableObject {
         } catch {
             print("Error loading nutrition goals: \(error)")
             nutritionGoals = NutritionGoals()
+        }
+    }
+    
+    // MARK: - Custom Exercise Management
+    
+    func addCustomExercise(_ exercise: CustomExercise) {
+        customExercises.append(exercise)
+        saveCustomExercises()
+    }
+    
+    func updateCustomExercise(_ exercise: CustomExercise) {
+        if let index = customExercises.firstIndex(where: { $0.id == exercise.id }) {
+            customExercises[index] = exercise
+            saveCustomExercises()
+        }
+    }
+    
+    func deleteCustomExercise(_ exercise: CustomExercise) {
+        customExercises.removeAll { $0.id == exercise.id }
+        saveCustomExercises()
+    }
+    
+    private func saveCustomExercises() {
+        do {
+            let data = try JSONEncoder().encode(customExercises)
+            userDefaults.set(data, forKey: customExercisesKey)
+        } catch {
+            print("Error saving custom exercises: \(error)")
+        }
+    }
+    
+    private func loadCustomExercises() {
+        guard let data = userDefaults.data(forKey: customExercisesKey) else { return }
+        
+        do {
+            customExercises = try JSONDecoder().decode([CustomExercise].self, from: data)
+        } catch {
+            print("Error loading custom exercises: \(error)")
         }
     }
     

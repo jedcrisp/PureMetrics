@@ -93,14 +93,16 @@ struct FitnessView: View {
         }
         .sheet(isPresented: $showingExerciseSelector) {
             UnifiedExerciseSelector(
-                selectedExercise: $selectedExerciseType
-            ) { exerciseType in
+                selectedExercise: $selectedExerciseType,
+                onExerciseSelected: { exerciseType in
                 _ = dataManager.addExerciseSession(exerciseType)
                 // Initialize set inputs for the new exercise
                 let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
                 exerciseSetInputs[newExerciseIndex] = [SetInput()]
                 showingExerciseSelector = false
-            }
+            },
+                dataManager: dataManager
+            )
         }
         .sheet(isPresented: $showingWorkoutSelector) {
             WorkoutSelector(

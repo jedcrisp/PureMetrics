@@ -51,10 +51,12 @@ struct CustomWorkoutBuilder: View {
         }
         .sheet(isPresented: $showingExerciseSelector) {
             UnifiedExerciseSelector(
-                selectedExercise: $selectedExerciseType
-            ) { exerciseType in
-                addExercise(exerciseType)
-            }
+                selectedExercise: $selectedExerciseType,
+                onExerciseSelected: { exerciseType in
+                    addExercise(exerciseType)
+                },
+                dataManager: dataManager
+            )
         }
         .alert("Save Custom Workout", isPresented: $showingSaveConfirmation) {
             Button("Cancel", role: .cancel) { }

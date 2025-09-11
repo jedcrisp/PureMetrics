@@ -4,10 +4,13 @@ struct UnifiedExerciseSelector: View {
     @Binding var selectedExercise: ExerciseType?
     let onExerciseSelected: (ExerciseType) -> Void
     @Environment(\.presentationMode) var presentationMode
+    @ObservedObject var dataManager: BPDataManager
     
     @State private var selectedCategory: ExerciseCategory?
     @State private var searchText = ""
     @State private var showingCategorySelector = true
+    @State private var showingCustomExerciseView = false
+    @State private var editingCustomExercise: CustomExercise?
     
     private var filteredExercises: [ExerciseType] {
         if let category = selectedCategory {
@@ -26,6 +29,14 @@ struct UnifiedExerciseSelector: View {
             return ExerciseType.allCases
         } else {
             return ExerciseType.allCases.filter { $0.rawValue.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
+    
+    private var allCustomExercises: [CustomExercise] {
+        if searchText.isEmpty {
+            return dataManager.customExercises
+        } else {
+            return dataManager.customExercises.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
     }
     
@@ -97,43 +108,126 @@ struct UnifiedExerciseSelector: View {
                             // Show All Exercises when searching
                             ScrollView {
                                 LazyVStack(spacing: 8) {
-                                    ForEach(allExercises, id: \.self) { exercise in
-                                        Button(action: {
-                                            onExerciseSelected(exercise)
-                                            presentationMode.wrappedValue.dismiss()
-                                        }) {
+                                    // Custom Exercises Section
+                                    if !allCustomExercises.isEmpty {
+                                        VStack(alignment: .leading, spacing: 8) {
                                             HStack {
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text(exercise.rawValue)
-                                                        .font(.headline)
-                                                        .foregroundColor(.primary)
-                                                    
-                                                    Text(exercise.category.rawValue)
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
+                                                Text("Custom Exercises")
+                                                    .font(.headline)
+                                                    .foregroundColor(.primary)
                                                 
                                                 Spacer()
                                                 
-                                                Image(systemName: "chevron.right")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
+                                                Button("Add Custom") {
+                                                    editingCustomExercise = nil
+                                                    showingCustomExerciseView = true
+                                                }
+                                                .font(.caption)
+                                                .foregroundColor(.blue)
                                             }
                                             .padding(.horizontal, 16)
-                                            .padding(.vertical, 12)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .fill(Color(.systemGray6))
-                                            )
+                                            
+                                            ForEach(allCustomExercises, id: \.id) { customExercise in
+                                                Button(action: {
+                                                    // Convert custom exercise to ExerciseType if possible
+                                                    if let exerciseType = customExercise.exerciseType {
+                                                        onExerciseSelected(exerciseType)
+                                                    } else {
+                                                        // For now, we'll need to handle custom exercises differently
+                                                        // This is a placeholder - we might need to modify the onExerciseSelected callback
+                                                        print("Selected custom exercise: \(customExercise.name)")
+                                                    }
+                                                    presentationMode.wrappedValue.dismiss()
+                                                }) {
+                                                    HStack {
+                                                        VStack(alignment: .leading, spacing: 4) {
+                                                            Text(customExercise.name)
+                                                                .font(.headline)
+                                                                .foregroundColor(.primary)
+                                                            
+                                                            Text(customExercise.category.rawValue)
+                                                                .font(.caption)
+                                                                .foregroundColor(.secondary)
+                                                        }
+                                                        
+                                                        Spacer()
+                                                        
+                                                        HStack(spacing: 8) {
+                                                            Button(action: {
+                                                                editingCustomExercise = customExercise
+                                                                showingCustomExerciseView = true
+                                                            }) {
+                                                                Image(systemName: "pencil")
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.blue)
+                                                            }
+                                                            
+                                                            Image(systemName: "chevron.right")
+                                                                .font(.caption)
+                                                                .foregroundColor(.secondary)
+                                                        }
+                                                    }
+                                                    .padding(.horizontal, 16)
+                                                    .padding(.vertical, 12)
+                                                    .background(
+                                                        RoundedRectangle(cornerRadius: 10)
+                                                            .fill(Color(.systemGray6))
+                                                    )
+                                                }
+                                                .buttonStyle(PlainButtonStyle())
+                                            }
                                         }
-                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                    
+                                    // Regular Exercises Section
+                                    if !allExercises.isEmpty {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            if !allCustomExercises.isEmpty {
+                                                Text("Built-in Exercises")
+                                                    .font(.headline)
+                                                    .foregroundColor(.primary)
+                                                    .padding(.horizontal, 16)
+                                            }
+                                            
+                                            ForEach(allExercises, id: \.self) { exercise in
+                                                Button(action: {
+                                                    onExerciseSelected(exercise)
+                                                    presentationMode.wrappedValue.dismiss()
+                                                }) {
+                                                    HStack {
+                                                        VStack(alignment: .leading, spacing: 4) {
+                                                            Text(exercise.rawValue)
+                                                                .font(.headline)
+                                                                .foregroundColor(.primary)
+                                                            
+                                                            Text(exercise.category.rawValue)
+                                                                .font(.caption)
+                                                                .foregroundColor(.secondary)
+                                                        }
+                                                        
+                                                        Spacer()
+                                                        
+                                                        Image(systemName: "chevron.right")
+                                                            .font(.caption)
+                                                            .foregroundColor(.secondary)
+                                                    }
+                                                    .padding(.horizontal, 16)
+                                                    .padding(.vertical, 12)
+                                                    .background(
+                                                        RoundedRectangle(cornerRadius: 10)
+                                                            .fill(Color(.systemGray6))
+                                                    )
+                                                }
+                                                .buttonStyle(PlainButtonStyle())
+                                            }
+                                        }
                                     }
                                 }
                                 .padding(.horizontal, 20)
                             }
                             
                             // Show message if no exercises match search
-                            if allExercises.isEmpty {
+                            if allExercises.isEmpty && allCustomExercises.isEmpty {
                                 VStack(spacing: 16) {
                                     Image(systemName: "magnifyingglass")
                                         .font(.system(size: 48))
@@ -143,9 +237,15 @@ struct UnifiedExerciseSelector: View {
                                         .font(.headline)
                                         .foregroundColor(.secondary)
                                     
-                                    Text("Try a different search term")
+                                    Text("Try a different search term or add a custom exercise")
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
+                                    
+                                    Button("Add Custom Exercise") {
+                                        editingCustomExercise = nil
+                                        showingCustomExerciseView = true
+                                    }
+                                    .buttonStyle(.borderedProminent)
                                 }
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                             }
@@ -263,6 +363,15 @@ struct UnifiedExerciseSelector: View {
             }
             .navigationBarHidden(true)
         }
+        .sheet(isPresented: $showingCustomExerciseView) {
+            CustomExerciseView(
+                exercise: editingCustomExercise,
+                dataManager: dataManager
+            ) { customExercise in
+                // Custom exercise was saved/updated
+                // The dataManager already handles the saving
+            }
+        }
     }
 }
 
@@ -270,6 +379,7 @@ struct UnifiedExerciseSelector: View {
 #Preview {
     UnifiedExerciseSelector(
         selectedExercise: .constant(nil),
-        onExerciseSelected: { _ in }
+        onExerciseSelected: { _ in },
+        dataManager: BPDataManager()
     )
 }
