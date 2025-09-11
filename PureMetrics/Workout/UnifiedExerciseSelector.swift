@@ -21,6 +21,14 @@ struct UnifiedExerciseSelector: View {
         return []
     }
     
+    private var allExercises: [ExerciseType] {
+        if searchText.isEmpty {
+            return ExerciseType.allCases
+        } else {
+            return ExerciseType.allCases.filter { $0.rawValue.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -41,12 +49,12 @@ struct UnifiedExerciseSelector: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
                         
-                        // Search Bar for Categories
+                        // Search Bar for All Exercises
                         HStack {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
                             
-                            TextField("Search categories...", text: $searchText)
+                            TextField("Search all exercises...", text: $searchText)
                                 .textFieldStyle(PlainTextFieldStyle())
                             
                             if !searchText.isEmpty {
@@ -65,46 +73,82 @@ struct UnifiedExerciseSelector: View {
                         )
                         .padding(.horizontal, 20)
                         
-                        // Filtered Categories
-                        let filteredCategories = searchText.isEmpty ? 
-                            ExerciseCategory.allCases : 
-                            ExerciseCategory.allCases.filter { $0.rawValue.localizedCaseInsensitiveContains(searchText) }
-                        
-                        LazyVGrid(columns: [
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ], spacing: 16) {
-                            ForEach(filteredCategories, id: \.self) { category in
-                                CategoryCard(
-                                    category: category,
-                                    isSelected: selectedCategory == category,
-                                    onTap: {
-                                        selectedCategory = category
-                                        withAnimation(.easeInOut(duration: 0.3)) {
-                                            showingCategorySelector = false
+                        if searchText.isEmpty {
+                            // Show Categories when not searching
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 16) {
+                                ForEach(ExerciseCategory.allCases, id: \.self) { category in
+                                    CategoryCard(
+                                        category: category,
+                                        isSelected: selectedCategory == category,
+                                        onTap: {
+                                            selectedCategory = category
+                                            withAnimation(.easeInOut(duration: 0.3)) {
+                                                showingCategorySelector = false
+                                            }
                                         }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        } else {
+                            // Show All Exercises when searching
+                            ScrollView {
+                                LazyVStack(spacing: 8) {
+                                    ForEach(allExercises, id: \.self) { exercise in
+                                        Button(action: {
+                                            onExerciseSelected(exercise)
+                                            presentationMode.wrappedValue.dismiss()
+                                        }) {
+                                            HStack {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(exercise.rawValue)
+                                                        .font(.headline)
+                                                        .foregroundColor(.primary)
+                                                    
+                                                    Text(exercise.category.rawValue)
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                                
+                                                Spacer()
+                                                
+                                                Image(systemName: "chevron.right")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 12)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .fill(Color(.systemGray6))
+                                            )
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
                                     }
-                                )
+                                }
+                                .padding(.horizontal, 20)
                             }
-                        }
-                        .padding(.horizontal, 20)
-                        
-                        // Show message if no categories match search
-                        if filteredCategories.isEmpty && !searchText.isEmpty {
-                            VStack(spacing: 16) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 48))
-                                    .foregroundColor(.secondary)
-                                
-                                Text("No categories found")
-                                    .font(.headline)
-                                    .foregroundColor(.secondary)
-                                
-                                Text("Try a different search term")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                            
+                            // Show message if no exercises match search
+                            if allExercises.isEmpty {
+                                VStack(spacing: 16) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text("No exercises found")
+                                        .font(.headline)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text("Try a different search term")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                             }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }
                 } else {
