@@ -27,12 +27,8 @@ struct UnifiedExerciseSelector: View {
                 if showingCategorySelector {
                     // Category Selection View
                     VStack(spacing: 16) {
+                        // Header
                         HStack {
-                            Button("Cancel") {
-                                presentationMode.wrappedValue.dismiss()
-                            }
-                            .foregroundColor(.blue)
-                            
                             Spacer()
                             
                             Text("Select Exercise Category")
@@ -41,21 +37,44 @@ struct UnifiedExerciseSelector: View {
                                 .foregroundColor(.primary)
                             
                             Spacer()
-                            
-                            // Invisible button for balance
-                            Button("Cancel") {
-                                presentationMode.wrappedValue.dismiss()
-                            }
-                            .opacity(0)
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
+                        
+                        // Search Bar for Categories
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                            
+                            TextField("Search categories...", text: $searchText)
+                                .textFieldStyle(PlainTextFieldStyle())
+                            
+                            if !searchText.isEmpty {
+                                Button("Clear") {
+                                    searchText = ""
+                                }
+                                .foregroundColor(.blue)
+                                .font(.caption)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(.systemGray6))
+                        )
+                        .padding(.horizontal, 20)
+                        
+                        // Filtered Categories
+                        let filteredCategories = searchText.isEmpty ? 
+                            ExerciseCategory.allCases : 
+                            ExerciseCategory.allCases.filter { $0.rawValue.localizedCaseInsensitiveContains(searchText) }
                         
                         LazyVGrid(columns: [
                             GridItem(.flexible()),
                             GridItem(.flexible())
                         ], spacing: 16) {
-                            ForEach(ExerciseCategory.allCases, id: \.self) { category in
+                            ForEach(filteredCategories, id: \.self) { category in
                                 CategoryCard(
                                     category: category,
                                     isSelected: selectedCategory == category,
@@ -69,6 +88,24 @@ struct UnifiedExerciseSelector: View {
                             }
                         }
                         .padding(.horizontal, 20)
+                        
+                        // Show message if no categories match search
+                        if filteredCategories.isEmpty && !searchText.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+                                
+                                Text("No categories found")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("Try a different search term")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
                 } else {
                     // Exercise Selection View
