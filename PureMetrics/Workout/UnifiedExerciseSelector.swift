@@ -24,6 +24,18 @@ struct UnifiedExerciseSelector: View {
         return []
     }
     
+    private var filteredCustomExercises: [CustomExercise] {
+        if let category = selectedCategory {
+            let customExercises = dataManager.customExercises.filter { $0.category == category }
+            if searchText.isEmpty {
+                return customExercises
+            } else {
+                return customExercises.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+            }
+        }
+        return []
+    }
+    
     private var allExercises: [ExerciseType] {
         if searchText.isEmpty {
             return ExerciseType.allCases
@@ -346,7 +358,7 @@ struct UnifiedExerciseSelector: View {
                         Divider()
                         
                         // Exercise List
-                        if filteredExercises.isEmpty && !searchText.isEmpty {
+                        if filteredExercises.isEmpty && filteredCustomExercises.isEmpty && !searchText.isEmpty {
                             VStack(spacing: 16) {
                                 Image(systemName: "magnifyingglass")
                                     .font(.system(size: 48))
@@ -363,28 +375,74 @@ struct UnifiedExerciseSelector: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             List {
-                                ForEach(filteredExercises, id: \.self) { exercise in
-                                    Button(action: {
-                                        selectedExercise = exercise
-                                        onExerciseSelected(exercise)
-                                        presentationMode.wrappedValue.dismiss()
-                                    }) {
-                                        HStack {
-                                            Text(exercise.rawValue)
-                                                .font(.body)
-                                                .foregroundColor(.primary)
-                                            
-                                            Spacer()
-                                            
-                                            if selectedExercise == exercise {
-                                                Image(systemName: "checkmark")
-                                                    .foregroundColor(.blue)
-                                                    .fontWeight(.semibold)
+                                // Custom Exercises Section
+                                if !filteredCustomExercises.isEmpty {
+                                    Section(header: Text("Custom Exercises")) {
+                                        ForEach(filteredCustomExercises, id: \.id) { customExercise in
+                                            Button(action: {
+                                                // Convert custom exercise to ExerciseType if possible
+                                                if let exerciseType = customExercise.exerciseType {
+                                                    selectedExercise = exerciseType
+                                                    onExerciseSelected(exerciseType)
+                                                } else {
+                                                    // For now, we can't directly use CustomExercise as ExerciseType
+                                                    // This would require a different approach or extending the onExerciseSelected callback
+                                                }
+                                                presentationMode.wrappedValue.dismiss()
+                                            }) {
+                                                HStack {
+                                                    Image(systemName: customExercise.category.icon)
+                                                        .foregroundColor(colorForCategory(customExercise.category))
+                                                        .frame(width: 20)
+                                                    
+                                                    Text(customExercise.name)
+                                                        .font(.body)
+                                                        .foregroundColor(.primary)
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Text("Custom")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                        .padding(.horizontal, 8)
+                                                        .padding(.vertical, 2)
+                                                        .background(Color.blue.opacity(0.1))
+                                                        .cornerRadius(4)
+                                                }
+                                                .padding(.vertical, 4)
                                             }
+                                            .buttonStyle(PlainButtonStyle())
                                         }
-                                        .padding(.vertical, 4)
                                     }
-                                    .buttonStyle(PlainButtonStyle())
+                                }
+                                
+                                // Regular Exercises Section
+                                if !filteredExercises.isEmpty {
+                                    Section(header: Text(filteredCustomExercises.isEmpty ? "Exercises" : "Built-in Exercises")) {
+                                        ForEach(filteredExercises, id: \.self) { exercise in
+                                            Button(action: {
+                                                selectedExercise = exercise
+                                                onExerciseSelected(exercise)
+                                                presentationMode.wrappedValue.dismiss()
+                                            }) {
+                                                HStack {
+                                                    Text(exercise.rawValue)
+                                                        .font(.body)
+                                                        .foregroundColor(.primary)
+                                                    
+                                                    Spacer()
+                                                    
+                                                    if selectedExercise == exercise {
+                                                        Image(systemName: "checkmark")
+                                                            .foregroundColor(.blue)
+                                                            .fontWeight(.semibold)
+                                                    }
+                                                }
+                                                .padding(.vertical, 4)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                        }
+                                    }
                                 }
                             }
                             .listStyle(PlainListStyle())
@@ -402,6 +460,25 @@ struct UnifiedExerciseSelector: View {
                 // Custom exercise was saved/updated
                 // The dataManager already handles the saving
             }
+        }
+    }
+    
+    private func colorForCategory(_ category: ExerciseCategory) -> Color {
+        switch category {
+        case .upperBody:
+            return .blue
+        case .lowerBody:
+            return .green
+        case .cardio:
+            return .red
+        case .coreAbs:
+            return .orange
+        case .fullBody:
+            return .purple
+        case .machineBased:
+            return .gray
+        case .olympic:
+            return .yellow
         }
     }
 }
