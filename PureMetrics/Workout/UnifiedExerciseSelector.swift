@@ -102,6 +102,37 @@ struct UnifiedExerciseSelector: View {
                                         }
                                     )
                                 }
+                                
+                                // Create Custom Exercise Button
+                                Button(action: {
+                                    editingCustomExercise = nil
+                                    showingCustomExerciseView = true
+                                }) {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: 32))
+                                            .foregroundColor(.blue)
+                                        
+                                        Text("Create Custom")
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        
+                                        Text("Exercise")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 120)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color(.systemGray6))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(Color.blue.opacity(0.3), lineWidth: 2)
+                                            )
+                                    )
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
                             .padding(.horizontal, 20)
                         } else {
