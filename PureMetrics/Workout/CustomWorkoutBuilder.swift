@@ -55,6 +55,9 @@ struct CustomWorkoutBuilder: View {
                 onExerciseSelected: { exerciseType in
                     addExercise(exerciseType)
                 },
+                onCustomExerciseSelected: { customExercise in
+                    addCustomExercise(customExercise)
+                },
                 dataManager: dataManager
             )
         }
@@ -301,6 +304,16 @@ struct CustomWorkoutBuilder: View {
             notes: ""
         )
         selectedExercises.append(newExercise)
+    }
+    
+    private func addCustomExercise(_ customExercise: CustomExercise) {
+        // For custom exercises, we need to find a matching ExerciseType
+        if let matchingExerciseType = customExercise.exerciseType {
+            addExercise(matchingExerciseType)
+        } else {
+            // If no matching ExerciseType found, we need to handle this differently
+            print("Custom exercise '\(customExercise.name)' doesn't match any built-in exercise type")
+        }
     }
     
     private func toggleEditExercise(at index: Int) {

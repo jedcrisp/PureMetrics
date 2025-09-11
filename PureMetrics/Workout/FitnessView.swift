@@ -101,6 +101,13 @@ struct FitnessView: View {
                 exerciseSetInputs[newExerciseIndex] = [SetInput()]
                 showingExerciseSelector = false
             },
+                onCustomExerciseSelected: { customExercise in
+                _ = dataManager.addCustomExerciseSession(customExercise)
+                // Initialize set inputs for the new exercise
+                let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
+                exerciseSetInputs[newExerciseIndex] = [SetInput()]
+                showingExerciseSelector = false
+            },
                 dataManager: dataManager
             )
         }

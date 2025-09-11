@@ -526,6 +526,20 @@ class BPDataManager: ObservableObject {
         return true
     }
     
+    func addCustomExerciseSession(_ customExercise: CustomExercise) -> Bool {
+        // For custom exercises, we need to create a temporary ExerciseType
+        // or modify the system to handle both types
+        // For now, let's create a temporary solution by finding a matching ExerciseType
+        if let matchingExerciseType = customExercise.exerciseType {
+            return addExerciseSession(matchingExerciseType)
+        } else {
+            // If no matching ExerciseType found, we need to handle this differently
+            // For now, let's create a temporary ExerciseType or modify the system
+            print("Custom exercise '\(customExercise.name)' doesn't match any built-in exercise type")
+            return false
+        }
+    }
+    
     func loadPreBuiltWorkout(_ workout: PreBuiltWorkout) -> Bool {
         // Clear current session but don't start it yet
         currentFitnessSession = FitnessSession()

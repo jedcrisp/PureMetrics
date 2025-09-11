@@ -3,6 +3,7 @@ import SwiftUI
 struct UnifiedExerciseSelector: View {
     @Binding var selectedExercise: ExerciseType?
     let onExerciseSelected: (ExerciseType) -> Void
+    let onCustomExerciseSelected: (CustomExercise) -> Void
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var dataManager: BPDataManager
     
@@ -172,14 +173,7 @@ struct UnifiedExerciseSelector: View {
                                             
                                             ForEach(allCustomExercises, id: \.id) { customExercise in
                                                 Button(action: {
-                                                    // Convert custom exercise to ExerciseType if possible
-                                                    if let exerciseType = customExercise.exerciseType {
-                                                        onExerciseSelected(exerciseType)
-                                                    } else {
-                                                        // For now, we'll need to handle custom exercises differently
-                                                        // This is a placeholder - we might need to modify the onExerciseSelected callback
-                                                        print("Selected custom exercise: \(customExercise.name)")
-                                                    }
+                                                    onCustomExerciseSelected(customExercise)
                                                     presentationMode.wrappedValue.dismiss()
                                                 }) {
                                                     HStack {
@@ -379,39 +373,54 @@ struct UnifiedExerciseSelector: View {
                                 if !filteredCustomExercises.isEmpty {
                                     Section(header: Text("Custom Exercises")) {
                                         ForEach(filteredCustomExercises, id: \.id) { customExercise in
-                                            Button(action: {
-                                                // Convert custom exercise to ExerciseType if possible
-                                                if let exerciseType = customExercise.exerciseType {
-                                                    selectedExercise = exerciseType
-                                                    onExerciseSelected(exerciseType)
-                                                } else {
-                                                    // For now, we can't directly use CustomExercise as ExerciseType
-                                                    // This would require a different approach or extending the onExerciseSelected callback
+                                            HStack {
+                                                Button(action: {
+                                                    onCustomExerciseSelected(customExercise)
+                                                    presentationMode.wrappedValue.dismiss()
+                                                }) {
+                                                    HStack {
+                                                        Image(systemName: customExercise.category.icon)
+                                                            .foregroundColor(colorForCategory(customExercise.category))
+                                                            .frame(width: 20)
+                                                        
+                                                        Text(customExercise.name)
+                                                            .font(.body)
+                                                            .foregroundColor(.primary)
+                                                        
+                                                        Spacer()
+                                                        
+                                                        Text("Custom")
+                                                            .font(.caption)
+                                                            .foregroundColor(.secondary)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 2)
+                                                            .background(Color.blue.opacity(0.1))
+                                                            .cornerRadius(4)
+                                                    }
+                                                    .padding(.vertical, 4)
                                                 }
-                                                presentationMode.wrappedValue.dismiss()
-                                            }) {
-                                                HStack {
-                                                    Image(systemName: customExercise.category.icon)
-                                                        .foregroundColor(colorForCategory(customExercise.category))
-                                                        .frame(width: 20)
+                                                .buttonStyle(PlainButtonStyle())
+                                                
+                                                // Edit and Delete buttons
+                                                HStack(spacing: 8) {
+                                                    Button(action: {
+                                                        editingCustomExercise = customExercise
+                                                        showingCustomExerciseView = true
+                                                    }) {
+                                                        Image(systemName: "pencil")
+                                                            .foregroundColor(.blue)
+                                                            .font(.system(size: 16))
+                                                    }
                                                     
-                                                    Text(customExercise.name)
-                                                        .font(.body)
-                                                        .foregroundColor(.primary)
-                                                    
-                                                    Spacer()
-                                                    
-                                                    Text("Custom")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                        .padding(.horizontal, 8)
-                                                        .padding(.vertical, 2)
-                                                        .background(Color.blue.opacity(0.1))
-                                                        .cornerRadius(4)
+                                                    Button(action: {
+                                                        dataManager.deleteCustomExercise(customExercise)
+                                                    }) {
+                                                        Image(systemName: "trash")
+                                                            .foregroundColor(.red)
+                                                            .font(.system(size: 16))
+                                                    }
                                                 }
-                                                .padding(.vertical, 4)
                                             }
-                                            .buttonStyle(PlainButtonStyle())
                                         }
                                     }
                                 }
@@ -488,6 +497,7 @@ struct UnifiedExerciseSelector: View {
     UnifiedExerciseSelector(
         selectedExercise: .constant(nil),
         onExerciseSelected: { _ in },
+        onCustomExerciseSelected: { _ in },
         dataManager: BPDataManager()
     )
 }
