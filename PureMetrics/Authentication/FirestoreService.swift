@@ -1529,6 +1529,185 @@ class FirestoreService: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Custom Exercise Management
+    
+    func saveCustomExercise(_ exercise: CustomExercise, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        print("=== FIRESTORE SAVE CUSTOM EXERCISE CALLED ===")
+        print("Exercise ID: \(exercise.id)")
+        print("Exercise Name: \(exercise.name)")
+        print("Exercise Category: \(exercise.category.rawValue)")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            print("No authenticated user")
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        do {
+            let data = try JSONEncoder().encode(exercise)
+            let documentData = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            
+            let userCollection = db.collection("users").document(userID).collection("custom_exercises")
+            let rootCollection = db.collection("custom_exercises")
+            
+            let dispatchGroup = DispatchGroup()
+            var hasError = false
+            var lastError: Error?
+            
+            // Save to user collection
+            dispatchGroup.enter()
+            userCollection.document(exercise.id.uuidString).setData(documentData) { error in
+                if let error = error {
+                    print("Error saving custom exercise to user collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else {
+                    print("Successfully saved custom exercise to user collection")
+                }
+                dispatchGroup.leave()
+            }
+            
+            // Save to root collection
+            dispatchGroup.enter()
+            rootCollection.document(exercise.id.uuidString).setData(documentData) { error in
+                if let error = error {
+                    print("Error saving custom exercise to root collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else {
+                    print("Successfully saved custom exercise to root collection")
+                }
+                dispatchGroup.leave()
+            }
+            
+            dispatchGroup.notify(queue: .main) {
+                if hasError {
+                    completion(.failure(lastError ?? FirestoreError.unknown))
+                } else {
+                    print("Successfully saved custom exercise to Firestore")
+                    completion(.success(()))
+                }
+            }
+            
+        } catch {
+            print("Error encoding custom exercise: \(error)")
+            completion(.failure(error))
+        }
+    }
+    
+    func loadCustomExercises(completion: @escaping (Result<[CustomExercise], Error>) -> Void) {
+        print("=== FIRESTORE LOAD CUSTOM EXERCISES CALLED ===")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            print("No authenticated user")
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let userCollection = db.collection("users").document(userID).collection("custom_exercises")
+        let rootCollection = db.collection("custom_exercises")
+        
+        let collections = [userCollection, rootCollection]
+        var allExercises: [CustomExercise] = []
+        let dispatchGroup = DispatchGroup()
+        var hasError = false
+        var lastError: Error?
+        
+        for collection in collections {
+            dispatchGroup.enter()
+            collection.getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error loading custom exercises from collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else if let documents = snapshot?.documents {
+                    print("Found \(documents.count) custom exercise documents in collection")
+                    for document in documents {
+                        do {
+                            let data = try JSONSerialization.data(withJSONObject: document.data())
+                            let exercise = try JSONDecoder().decode(CustomExercise.self, from: data)
+                            allExercises.append(exercise)
+                        } catch {
+                            print("Error decoding custom exercise: \(error)")
+                            hasError = true
+                            lastError = error
+                        }
+                    }
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if hasError {
+                completion(.failure(lastError ?? FirestoreError.unknown))
+            } else {
+                // Remove duplicates based on ID
+                let uniqueExercises = Array(Set(allExercises.map { $0.id })).compactMap { id in
+                    allExercises.first { $0.id == id }
+                }
+                print("Successfully loaded \(uniqueExercises.count) custom exercises from Firestore")
+                completion(.success(uniqueExercises))
+            }
+        }
+    }
+    
+    func deleteCustomExercise(_ exercise: CustomExercise, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        print("=== FIRESTORE DELETE CUSTOM EXERCISE CALLED ===")
+        print("Exercise ID: \(exercise.id)")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            print("No authenticated user")
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let userCollection = db.collection("users").document(userID).collection("custom_exercises")
+        let rootCollection = db.collection("custom_exercises")
+        
+        let dispatchGroup = DispatchGroup()
+        var hasError = false
+        var lastError: Error?
+        
+        // Delete from user collection
+        dispatchGroup.enter()
+        userCollection.document(exercise.id.uuidString).delete { error in
+            if let error = error {
+                print("Error deleting custom exercise from user collection: \(error)")
+                hasError = true
+                lastError = error
+            } else {
+                print("Successfully deleted custom exercise from user collection")
+            }
+            dispatchGroup.leave()
+        }
+        
+        // Delete from root collection
+        dispatchGroup.enter()
+        rootCollection.document(exercise.id.uuidString).delete { error in
+            if let error = error {
+                print("Error deleting custom exercise from root collection: \(error)")
+                hasError = true
+                lastError = error
+            } else {
+                print("Successfully deleted custom exercise from root collection")
+            }
+            dispatchGroup.leave()
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if hasError {
+                completion(.failure(lastError ?? FirestoreError.unknown))
+            } else {
+                print("Successfully deleted custom exercise from Firestore")
+                completion(.success(()))
+            }
+        }
+    }
 }
 
 // MARK: - User Profile Model

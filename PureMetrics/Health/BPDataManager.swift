@@ -1010,18 +1010,48 @@ class BPDataManager: ObservableObject {
     func addCustomExercise(_ exercise: CustomExercise) {
         customExercises.append(exercise)
         saveCustomExercises()
+        
+        // Also save to Firestore
+        firestoreService.saveCustomExercise(exercise) { result in
+            switch result {
+            case .success:
+                print("Successfully saved custom exercise to Firestore")
+            case .failure(let error):
+                print("Error saving custom exercise to Firestore: \(error)")
+            }
+        }
     }
     
     func updateCustomExercise(_ exercise: CustomExercise) {
         if let index = customExercises.firstIndex(where: { $0.id == exercise.id }) {
             customExercises[index] = exercise
             saveCustomExercises()
+            
+            // Also update in Firestore
+            firestoreService.saveCustomExercise(exercise) { result in
+                switch result {
+                case .success:
+                    print("Successfully updated custom exercise in Firestore")
+                case .failure(let error):
+                    print("Error updating custom exercise in Firestore: \(error)")
+                }
+            }
         }
     }
     
     func deleteCustomExercise(_ exercise: CustomExercise) {
         customExercises.removeAll { $0.id == exercise.id }
         saveCustomExercises()
+        
+        // Also delete from Firestore
+        firestoreService.deleteCustomExercise(exercise) { result in
+            switch result {
+            case .success:
+                print("Successfully deleted custom exercise from Firestore")
+            case .failure(let error):
+                print("Error deleting custom exercise from Firestore: \(error)")
+            }
+        }
     }
     
     private func saveCustomExercises() {
@@ -1040,6 +1070,23 @@ class BPDataManager: ObservableObject {
             customExercises = try JSONDecoder().decode([CustomExercise].self, from: data)
         } catch {
             print("Error loading custom exercises: \(error)")
+        }
+    }
+    
+    func loadCustomExercisesFromFirestore() {
+        firestoreService.loadCustomExercises { result in
+            switch result {
+            case .success(let exercises):
+                DispatchQueue.main.async {
+                    self.customExercises = exercises
+                    self.saveCustomExercises() // Save to UserDefaults as backup
+                    print("Successfully loaded \(exercises.count) custom exercises from Firestore")
+                }
+            case .failure(let error):
+                print("Error loading custom exercises from Firestore: \(error)")
+                // Fallback to local data if Firestore fails
+                self.loadCustomExercises()
+            }
         }
     }
     
