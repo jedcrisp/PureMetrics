@@ -294,7 +294,20 @@ class FirestoreService: ObservableObject {
     }
     
     private func loadSpecificDataType(_ dataType: HealthDataType, completion: @escaping (Result<[UnifiedHealthData], Error>) -> Void) {
-        // Try user-specific collection first, then fallback to root collection
+        // For nutrition entries, only use user-specific collections to prevent data leakage
+        if dataType == .nutritionEntry {
+            guard let userCollection = dataTypeCollection(dataType) else {
+                print("Error: No user collection available for loading \(dataType.rawValue) data")
+                completion(.failure(FirestoreError.noUser))
+                return
+            }
+            
+            print("Loading \(dataType.rawValue) from user-specific collection only: \(userCollection.path)")
+            tryLoadFromCollections([userCollection], dataType: dataType, completion: completion)
+            return
+        }
+        
+        // For other data types, try user-specific collection first, then fallback to root collection
         let userCollection = dataTypeCollection(dataType)
         let rootCollection = rootDataTypeCollection(dataType)
         
@@ -1551,31 +1564,15 @@ class FirestoreService: ObservableObject {
             return
         }
         
-        // Use new date-based collections ONLY
-        let userCollection = nutritionEntryCollection(for: date)
-        let rootCollection = rootNutritionEntryCollection(for: date)
-        
-        var collections: [CollectionReference] = []
-        
-        // Add date-based collections
-        if let userCol = userCollection {
-            collections.append(userCol)
-            print("Will try date-based user collection: \(userCol.path)")
-        }
-        if let rootCol = rootCollection {
-            collections.append(rootCol)
-            print("Will try date-based root collection: \(rootCol.path)")
-        }
-        
-        guard !collections.isEmpty else {
-            print("Error: No collections available for loading nutrition entries")
+        // Use user-specific date-based collections ONLY to prevent data leakage
+        guard let userCollection = nutritionEntryCollection(for: date) else {
+            print("Error: No user collection available for loading nutrition entries for date")
             completion(.failure(FirestoreError.noUser))
             return
         }
         
-        // Use date-based collections only
-        print("Loading from date-based collections...")
-        tryLoadNutritionEntriesFromDateBasedCollections(collections, completion: completion)
+        print("Loading nutrition entries from user-specific date-based collection only: \(userCollection.path)")
+        tryLoadNutritionEntriesFromDateBasedCollections([userCollection], completion: completion)
     }
     
     // New method specifically for loading from date-based collections
