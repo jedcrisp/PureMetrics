@@ -21,7 +21,6 @@ struct FitnessView: View {
     @State private var showingDeleteConfirmation: Bool = false
     @State private var showingCompleteConfirmation: Bool = false
     @State private var showingCustomWorkoutBuilder: Bool = false
-    @State private var showingCustomWorkoutSelector: Bool = false
     @State private var hasSessionBeenSaved: Bool = false
     @State private var uiUpdateTrigger: Int = 0
     @State private var exerciseStartTimes: [Int: Date] = [:]
@@ -120,7 +119,7 @@ struct FitnessView: View {
             )
         }
         .sheet(isPresented: $showingWorkoutSelector) {
-            WorkoutSelector(
+            UnifiedWorkoutSelector(
                 workoutManager: workoutManager,
                 selectedWorkout: .constant(nil)
             ) { workout in
@@ -137,12 +136,6 @@ struct FitnessView: View {
         .sheet(isPresented: $showingCustomWorkoutBuilder) {
             CustomWorkoutBuilder()
                 .environmentObject(dataManager)
-        }
-        .sheet(isPresented: $showingCustomWorkoutSelector) {
-            CustomWorkoutSelector(selectedWorkout: .constant(nil)) { workout in
-                startCustomWorkoutSession(workout)
-                showingCustomWorkoutSelector = false
-            }
         }
         .sheet(isPresented: $showingFilterSettings) {
             MaxFilterSettingsView(filterSettings: filterSettings)
@@ -564,7 +557,7 @@ struct FitnessView: View {
                 // Custom Workouts Button (if any exist)
                 if !dataManager.customWorkouts.isEmpty {
                     Button(action: {
-                        showingCustomWorkoutSelector = true
+                        showingWorkoutSelector = true
                     }) {
                         HStack(spacing: 12) {
                             Image(systemName: "bookmark.circle.fill")
