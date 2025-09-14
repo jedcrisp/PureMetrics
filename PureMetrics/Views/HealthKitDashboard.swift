@@ -335,6 +335,20 @@ struct HealthKitDashboard: View {
                 .padding()
                 .background(Color(.systemGray6))
                 .cornerRadius(8)
+                
+                // Lean Body Mass
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Lean Body Mass")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(healthKitManager.formattedLeanBodyMass)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
             }
         }
         .padding()

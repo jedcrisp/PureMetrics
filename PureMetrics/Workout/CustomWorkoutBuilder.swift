@@ -11,24 +11,31 @@ struct CustomWorkoutBuilder: View {
     @State private var showingSaveConfirmation = false
     @State private var editingIndex: Int?
     @State private var exerciseSetInputs: [Int: [SetInput]] = [:]
+    @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Header
-                headerSection
-                
-                // Workout Info
-                workoutInfoSection
-                
-                // Exercises List
-                exercisesSection
-                
-                // Add Exercise Button
-                addExerciseSection
-                
-                // Save Button
-                saveButtonSection
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header
+                    headerSection
+                    
+                    // Workout Info
+                    workoutInfoSection
+                    
+                    // Exercises List
+                    exercisesSection
+                    
+                    // Add Exercise Button
+                    addExerciseSection
+                    
+                    // Save Button
+                    saveButtonSection
+                }
+                .padding(.bottom, 20)
+            }
+            .onTapGesture {
+                isTextFieldFocused = false
             }
             .navigationTitle("Custom Workout")
             .navigationBarTitleDisplayMode(.inline)
@@ -151,40 +158,38 @@ struct CustomWorkoutBuilder: View {
             if selectedExercises.isEmpty {
                 emptyExercisesView
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(Array(selectedExercises.enumerated()), id: \.offset) { index, exercise in
-                            VStack(spacing: 12) {
-                                ExerciseBuilderCard(
+                LazyVStack(spacing: 16) {
+                    ForEach(Array(selectedExercises.enumerated()), id: \.offset) { index, exercise in
+                        VStack(spacing: 12) {
+                            ExerciseBuilderCard(
+                                exercise: exercise,
+                                index: index,
+                                isEditing: editingIndex == index,
+                                onEdit: {
+                                    toggleEditExercise(at: index)
+                                },
+                                onDelete: {
+                                    deleteExercise(at: index)
+                                }
+                            )
+                            
+                            // Inline editing when selected
+                            if editingIndex == index {
+                                InlineExerciseEditor(
                                     exercise: exercise,
-                                    index: index,
-                                    isEditing: editingIndex == index,
-                                    onEdit: {
-                                        toggleEditExercise(at: index)
+                                    exerciseIndex: index,
+                                    setInputs: getSetInputs(for: index),
+                                    onAddSet: {
+                                        addNewSetInput(for: index)
                                     },
-                                    onDelete: {
-                                        deleteExercise(at: index)
+                                    onUpdateSet: { setIndex, reps, weight in
+                                        updateSetInput(exerciseIndex: index, setIndex: setIndex, reps: reps)
+                                        updateSetInput(exerciseIndex: index, setIndex: setIndex, weight: weight)
+                                    },
+                                    onRemoveSet: { setIndex in
+                                        removeSetInput(exerciseIndex: index, setIndex: setIndex)
                                     }
                                 )
-                                
-                                // Inline editing when selected
-                                if editingIndex == index {
-                                    InlineExerciseEditor(
-                                        exercise: exercise,
-                                        exerciseIndex: index,
-                                        setInputs: getSetInputs(for: index),
-                                        onAddSet: {
-                                            addNewSetInput(for: index)
-                                        },
-                                        onUpdateSet: { setIndex, reps, weight in
-                                            updateSetInput(exerciseIndex: index, setIndex: setIndex, reps: reps)
-                                            updateSetInput(exerciseIndex: index, setIndex: setIndex, weight: weight)
-                                        },
-                                        onRemoveSet: { setIndex in
-                                            removeSetInput(exerciseIndex: index, setIndex: setIndex)
-                                        }
-                                    )
-                                }
                             }
                         }
                     }
@@ -467,9 +472,10 @@ struct InlineExerciseEditor: View {
     let onAddSet: () -> Void
     let onUpdateSet: (Int, String, String) -> Void
     let onRemoveSet: (Int) -> Void
+    @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             // Exercise Name Header
             HStack {
                 Text(exercise.exerciseName)
@@ -481,7 +487,7 @@ struct InlineExerciseEditor: View {
             }
             
             // Set Input Boxes
-            LazyVStack(spacing: 8) {
+            LazyVStack(spacing: 12) {
                 ForEach(Array(setInputs.enumerated()), id: \.element.id) { setIndex, setInput in
                     setInputBox(exerciseCategory: exercise.exerciseCategory, setIndex: setIndex, setInput: setInput)
                 }
@@ -509,7 +515,7 @@ struct InlineExerciseEditor: View {
                 }
             }
         }
-        .padding(12)
+        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemBackground))
@@ -518,10 +524,13 @@ struct InlineExerciseEditor: View {
                         .stroke(Color.blue.opacity(0.3), lineWidth: 1)
                 )
         )
+        .onTapGesture {
+            isTextFieldFocused = false
+        }
     }
     
     private func setInputBox(exerciseCategory: ExerciseCategory, setIndex: Int, setInput: SetInput) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             // Set Header
             HStack {
                 Text("Set \(setIndex + 1)")
@@ -547,10 +556,10 @@ struct InlineExerciseEditor: View {
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 12) {
+            ], spacing: 16) {
                 // Reps Input (for most exercises)
                 if shouldShowReps(for: exerciseCategory) {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Reps")
                             .font(.caption)
                             .fontWeight(.medium)
@@ -566,13 +575,14 @@ struct InlineExerciseEditor: View {
                             .font(.system(size: 16, weight: .medium, design: .rounded))
                             .multilineTextAlignment(.center)
                             .keyboardType(.numberPad)
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 12)
+                            .focused($isTextFieldFocused)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: 10)
                                     .fill(Color(.systemGray6))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
+                                        RoundedRectangle(cornerRadius: 10)
                                             .stroke(Color(.systemGray4), lineWidth: 1)
                                     )
                             )
@@ -586,7 +596,7 @@ struct InlineExerciseEditor: View {
                 
                 // Weight Input (for strength exercises)
                 if shouldShowWeight(for: exerciseCategory) {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Weight")
                             .font(.caption)
                             .fontWeight(.medium)
@@ -602,13 +612,14 @@ struct InlineExerciseEditor: View {
                             .font(.system(size: 16, weight: .medium, design: .rounded))
                             .multilineTextAlignment(.center)
                             .keyboardType(.decimalPad)
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 12)
+                            .focused($isTextFieldFocused)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: 10)
                                     .fill(Color(.systemGray6))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
+                                        RoundedRectangle(cornerRadius: 10)
                                             .stroke(Color(.systemGray4), lineWidth: 1)
                                     )
                             )
@@ -743,39 +754,39 @@ struct ExerciseBuilderCard: View {
                 
                 Spacer()
                 
-                HStack(spacing: 16) {
+                HStack(spacing: 8) {
                     Button(action: onEdit) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Image(systemName: isEditing ? "checkmark" : "pencil")
-                                .font(.subheadline)
+                                .font(.caption)
                                 .fontWeight(.medium)
                             Text(isEditing ? "Done" : "Edit")
-                                .font(.subheadline)
+                                .font(.caption)
                                 .fontWeight(.medium)
                         }
                         .foregroundColor(isEditing ? .green : .blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 6)
                                 .fill(isEditing ? Color.green.opacity(0.1) : Color.blue.opacity(0.1))
                         )
                     }
                     
                     Button(action: onDelete) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Image(systemName: "trash")
-                                .font(.subheadline)
+                                .font(.caption)
                                 .fontWeight(.medium)
                             Text("Delete")
-                                .font(.subheadline)
+                                .font(.caption)
                                 .fontWeight(.medium)
                         }
                         .foregroundColor(.red)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 6)
                                 .fill(Color.red.opacity(0.1))
                         )
                     }

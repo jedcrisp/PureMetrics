@@ -40,6 +40,7 @@ class HealthKitManager: ObservableObject {
     @Published var flightsClimbed: Int = 0
     @Published var currentWeight: Double = 0
     @Published var bodyFatPercentage: Double = 0
+    @Published var leanBodyMass: Double = 0
     @Published var averageHeartRate: Double = 0
     
     // Health data types we want to read
@@ -498,6 +499,10 @@ class HealthKitManager: ObservableObject {
     
     var formattedBodyFatPercentage: String {
         return String(format: "%.1f%%", bodyFatPercentage)
+    }
+    
+    var formattedLeanBodyMass: String {
+        return String(format: "%.1f lbs", leanBodyMass)
     }
     
     var formattedAverageHeartRate: String {

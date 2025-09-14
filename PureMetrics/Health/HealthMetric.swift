@@ -8,6 +8,7 @@ enum MetricType: String, CaseIterable, Codable {
     case bloodSugar = "Blood Sugar"
     case heartRate = "Heart Rate"
     case bodyFat = "Body Fat %"
+    case leanBodyMass = "Lean Body Mass"
     
     var unit: String {
         switch self {
@@ -16,6 +17,7 @@ enum MetricType: String, CaseIterable, Codable {
         case .bloodSugar: return "mg/dL"
         case .heartRate: return "bpm"
         case .bodyFat: return "%"
+        case .leanBodyMass: return "lbs"
         }
     }
     
@@ -26,6 +28,7 @@ enum MetricType: String, CaseIterable, Codable {
         case .bloodSugar: return "orange"
         case .heartRate: return "red"
         case .bodyFat: return "purple"
+        case .leanBodyMass: return "teal"
         }
     }
     
@@ -36,6 +39,7 @@ enum MetricType: String, CaseIterable, Codable {
         case .bloodSugar: return "drop.fill"
         case .heartRate: return "heart.circle.fill"
         case .bodyFat: return "figure.arms.open"
+        case .leanBodyMass: return "figure.strengthtraining.traditional"
         }
     }
     
@@ -46,6 +50,7 @@ enum MetricType: String, CaseIterable, Codable {
         case .bloodSugar: return "100"
         case .heartRate: return "72"
         case .bodyFat: return "15.0"
+        case .leanBodyMass: return "130.0"
         }
     }
 }
@@ -80,6 +85,8 @@ struct HealthMetric: Codable, Identifiable {
             return value >= 30 && value <= 200
         case .bodyFat:
             return value >= 1 && value <= 50
+        case .leanBodyMass:
+            return value >= 50 && value <= 400
         }
     }
     
@@ -87,7 +94,7 @@ struct HealthMetric: Codable, Identifiable {
         switch type {
         case .bloodPressure:
             return "\(Int(value)) \(type.unit)"
-        case .weight, .bloodSugar, .heartRate, .bodyFat:
+        case .weight, .bloodSugar, .heartRate, .bodyFat, .leanBodyMass:
             return "\(Int(value)) \(type.unit)"
         }
     }
@@ -95,7 +102,7 @@ struct HealthMetric: Codable, Identifiable {
     var formattedValue: String {
         if type == .bloodPressure {
             return "\(Int(value))"
-        } else if type == .weight || type == .bloodSugar || type == .bodyFat {
+        } else if type == .weight || type == .bloodSugar || type == .bodyFat || type == .leanBodyMass {
             return String(format: "%.1f", value)
         } else {
             return "\(Int(value))"

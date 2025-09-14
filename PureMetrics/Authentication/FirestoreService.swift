@@ -522,6 +522,7 @@ class FirestoreService: ObservableObject {
             case .bloodSugar: dataType = .bloodSugar
             case .heartRate: dataType = .heartRate
             case .bodyFat: dataType = .bodyFat
+            case .leanBodyMass: dataType = .leanBodyMass
             }
             
             guard let collection = dataTypeCollection(dataType) else {
@@ -2059,6 +2060,7 @@ enum HealthDataType: String, CaseIterable, Codable {
     case bloodSugar = "blood_sugar"
     case heartRate = "heart_rate"
     case bodyFat = "body_fat"
+    case leanBodyMass = "lean_body_mass"
     case personalRecords = "personal_records"
     case nutritionEntry = "nutrition_entry"
     case nutritionGoals = "nutrition_goals"

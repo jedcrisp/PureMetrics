@@ -17,6 +17,7 @@ struct SessionView: View {
     @State private var bloodSugar = ""
     @State private var additionalHeartRate = ""
     @State private var bodyFat = ""
+    @State private var leanBodyMass = ""
     
     var body: some View {
         NavigationView {
@@ -142,7 +143,7 @@ struct SessionView: View {
             // Metric Type Selector
             MetricTypeSelector(
                 selectedType: $selectedMetricType,
-                availableTypes: [.bloodPressure, .weight, .bloodSugar, .heartRate]
+                availableTypes: [.bloodPressure, .weight, .bloodSugar, .heartRate, .bodyFat, .leanBodyMass]
             )
             .padding(.horizontal, 4)
             
@@ -360,6 +361,7 @@ struct SessionView: View {
         case .bloodSugar: return .orange
         case .heartRate: return .red
         case .bodyFat: return .purple
+        case .leanBodyMass: return .teal
         }
     }
     
@@ -380,6 +382,10 @@ struct SessionView: View {
         case .bodyFat: return Binding(
             get: { bodyFat },
             set: { bodyFat = $0 }
+        )
+        case .leanBodyMass: return Binding(
+            get: { leanBodyMass },
+            set: { leanBodyMass = $0 }
         )
         case .bloodPressure: return Binding(
             get: { systolic },

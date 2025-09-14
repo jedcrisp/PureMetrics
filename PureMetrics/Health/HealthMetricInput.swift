@@ -52,6 +52,7 @@ struct HealthMetricInput: View {
         case .bloodSugar: return .orange
         case .heartRate: return .red
         case .bodyFat: return .purple
+        case .leanBodyMass: return .teal
         }
     }
     
@@ -59,7 +60,7 @@ struct HealthMetricInput: View {
         switch type {
         case .bloodPressure, .heartRate:
             return .numberPad
-        case .weight, .bloodSugar, .bodyFat:
+        case .weight, .bloodSugar, .bodyFat, .leanBodyMass:
             return .decimalPad
         }
     }
@@ -76,7 +77,7 @@ struct BloodPressureInput: View {
     var body: some View {
         HStack(spacing: 16) {
             // Systolic
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 HStack {
                     Text("Systolic")
                         .font(.headline)
@@ -91,11 +92,11 @@ struct BloodPressureInput: View {
                 }
                 
                 TextField("120", text: $systolic)
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
                     .multilineTextAlignment(.center)
                     .keyboardType(.numberPad)
-                    .padding(.vertical, 20)
-                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
                             .fill(Color.red.opacity(0.08))
@@ -117,13 +118,13 @@ struct BloodPressureInput: View {
             VStack {
                 Spacer()
                 Text("/")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundColor(.secondary)
                 Spacer()
             }
             
             // Diastolic
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 HStack {
                     Text("Diastolic")
                         .font(.headline)
@@ -138,11 +139,11 @@ struct BloodPressureInput: View {
                 }
                 
                 TextField("80", text: $diastolic)
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
                     .multilineTextAlignment(.center)
                     .keyboardType(.numberPad)
-                    .padding(.vertical, 20)
-                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
                             .fill(Color.blue.opacity(0.08))
@@ -255,6 +256,7 @@ struct MetricTypeCard: View {
         case .bloodSugar: return .orange
         case .heartRate: return .red
         case .bodyFat: return .purple
+        case .leanBodyMass: return .teal
         }
     }
 }

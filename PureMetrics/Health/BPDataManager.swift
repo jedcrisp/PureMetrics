@@ -1823,6 +1823,7 @@ class BPDataManager: ObservableObject {
                 case .bloodSugar: dataType = .bloodSugar
                 case .heartRate: dataType = .heartRate
                 case .bodyFat: dataType = .bodyFat
+                case .leanBodyMass: dataType = .leanBodyMass
                 }
                 
                 return UnifiedHealthData(
