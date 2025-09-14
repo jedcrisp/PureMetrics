@@ -353,10 +353,11 @@ struct CustomWorkoutBuilder: View {
         var plannedSets: [PlannedSet] = []
         for (setIndex, setInput) in setInputs.enumerated() {
             if let reps = Int(setInput.reps), reps > 0 {
+                let weight = Double(setInput.weight) ?? 0.0
                 let plannedSet = PlannedSet(
                     setNumber: setIndex + 1,
                     reps: reps,
-                    weight: Double(setInput.weight)
+                    weight: weight
                 )
                 plannedSets.append(plannedSet)
             }
@@ -369,7 +370,7 @@ struct CustomWorkoutBuilder: View {
                 exerciseType: exerciseType,
                 sets: setInputs.count,
                 reps: Int(setInputs.first?.reps ?? "10") ?? 10,
-                weight: Double(setInputs.first?.weight ?? "0"),
+                weight: Double(setInputs.first?.weight ?? "0") ?? 0.0,
                 time: originalExercise.time,
                 restTime: originalExercise.restTime,
                 notes: originalExercise.notes,
@@ -380,7 +381,7 @@ struct CustomWorkoutBuilder: View {
                 customExercise: customExercise,
                 sets: setInputs.count,
                 reps: Int(setInputs.first?.reps ?? "10") ?? 10,
-                weight: Double(setInputs.first?.weight ?? "0"),
+                weight: Double(setInputs.first?.weight ?? "0") ?? 0.0,
                 time: originalExercise.time,
                 restTime: originalExercise.restTime,
                 notes: originalExercise.notes,
@@ -450,8 +451,21 @@ struct CustomWorkoutBuilder: View {
     }
     
     private func saveCustomWorkout() {
+        // Validate workout name
+        let trimmedName = workoutName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            // Show error or handle empty name
+            return
+        }
+        
+        // Validate that we have exercises
+        guard !selectedExercises.isEmpty else {
+            // Show error or handle empty exercises
+            return
+        }
+        
         let customWorkout = CustomWorkout(
-            name: workoutName,
+            name: trimmedName,
             description: workoutDescription.isEmpty ? nil : workoutDescription,
             exercises: selectedExercises,
             createdDate: Date(),
