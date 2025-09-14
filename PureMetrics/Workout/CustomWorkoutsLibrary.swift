@@ -45,6 +45,7 @@ struct CustomWorkoutsLibrary: View {
         }
         .sheet(isPresented: $showingWorkoutBuilder) {
             CustomWorkoutBuilder()
+                .environmentObject(dataManager)
         }
         .sheet(isPresented: $showingWorkoutDetails) {
             if let workout = selectedWorkout {
