@@ -2,8 +2,12 @@ import SwiftUI
 
 struct OneRepMaxDashboard: View {
     @ObservedObject var oneRepMaxManager: OneRepMaxManager
+    @StateObject private var filterSettings = MaxFilterSettings()
+    @StateObject private var liftSettings = FitnessLiftSettings()
     @State private var showingAddRecord = false
     @State private var showingAddCustomLift = false
+    @State private var showingFilterSettings = false
+    @State private var showingLiftSelection = false
     @State private var selectedLift: String?
     @State private var newCustomLiftName = ""
     @State private var editingRecord: OneRepMax?
@@ -48,19 +52,33 @@ struct OneRepMaxDashboard: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button("Add Personal Record") {
-                            selectedLift = "" // Clear selection so user can choose any lift
-                            showingAddRecord = true
+                    HStack {
+                        Button(action: {
+                            showingLiftSelection = true
+                        }) {
+                            Image(systemName: "gearshape")
                         }
-                        Button("Add Custom Lift") {
-                            showingAddCustomLift = true
+                        
+                        Button(action: {
+                            showingFilterSettings = true
+                        }) {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
                         }
-                        Button("Sync Now") {
-                            oneRepMaxManager.forceSync()
+                        
+                        Menu {
+                            Button("Add Personal Record") {
+                                selectedLift = "" // Clear selection so user can choose any lift
+                                showingAddRecord = true
+                            }
+                            Button("Add Custom Lift") {
+                                showingAddCustomLift = true
+                            }
+                            Button("Sync Now") {
+                                oneRepMaxManager.forceSync()
+                            }
+                        } label: {
+                            Image(systemName: "plus")
                         }
-                    } label: {
-                        Image(systemName: "plus")
                     }
                 }
             }
@@ -76,6 +94,16 @@ struct OneRepMaxDashboard: View {
                 customLiftName: $newCustomLiftName,
                 oneRepMaxManager: oneRepMaxManager,
                 isPresented: $showingAddCustomLift
+            )
+        }
+        .sheet(isPresented: $showingFilterSettings) {
+            MaxFilterSettingsView(filterSettings: filterSettings)
+        }
+        .sheet(isPresented: $showingLiftSelection) {
+            FilteredOneRepMaxDashboard(
+                oneRepMaxManager: oneRepMaxManager,
+                liftSettings: liftSettings,
+                filterSettings: filterSettings
             )
         }
         .sheet(isPresented: Binding<Bool>(
@@ -148,11 +176,14 @@ struct OneRepMaxDashboard: View {
                 .foregroundColor(.blue)
             }
             
+            // Filter Summary
+            FilterSummaryView(filterSettings: filterSettings)
+            
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                ForEach(oneRepMaxManager.getAllLifts(), id: \.self) { lift in
+                ForEach(filteredLifts, id: \.self) { lift in
                     LiftCard(
                         liftName: lift,
                         personalRecord: oneRepMaxManager.getPersonalRecord(for: lift),
@@ -165,6 +196,13 @@ struct OneRepMaxDashboard: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var filteredLifts: [String] {
+        let allLifts = oneRepMaxManager.getAllLifts()
+        return filterSettings.getFilteredLifts(allLifts, customLifts: oneRepMaxManager.customLifts)
     }
     
 }

@@ -51,6 +51,7 @@ struct HealthMetricInput: View {
         case .weight: return .green
         case .bloodSugar: return .orange
         case .heartRate: return .red
+        case .bodyFat: return .purple
         }
     }
     
@@ -58,7 +59,7 @@ struct HealthMetricInput: View {
         switch type {
         case .bloodPressure, .heartRate:
             return .numberPad
-        case .weight, .bloodSugar:
+        case .weight, .bloodSugar, .bodyFat:
             return .decimalPad
         }
     }
@@ -169,14 +170,14 @@ struct MetricTypeSelector: View {
     let availableTypes: [MetricType]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "heart.text.square.fill")
-                    .font(.title3)
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.blue)
                 
                 Text("Health Metric")
-                    .font(.headline)
+                    .font(.subheadline)
                     .fontWeight(.semibold)
                 
                 Spacer()
@@ -185,7 +186,7 @@ struct MetricTypeSelector: View {
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
-            ], spacing: 8) {
+            ], spacing: 4) {
                 ForEach(availableTypes, id: \.self) { type in
                     MetricTypeCard(
                         type: type,
@@ -205,24 +206,25 @@ struct MetricTypeCard: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 8) {
+            VStack(spacing: 4) {
                 // Icon with background
                 ZStack {
                     Circle()
                         .fill(isSelected ? colorForType(type) : colorForType(type).opacity(0.1))
-                        .frame(width: 40, height: 40)
+                        .frame(width: 32, height: 32)
                     
                     Image(systemName: type.icon)
-                        .font(.title3)
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(isSelected ? .white : colorForType(type))
                 }
                 
                 // Title
                 Text(type.rawValue)
-                    .font(.caption)
+                    .font(.caption2)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(2)
                 
                 // Unit
                 Text(type.unit)
@@ -230,14 +232,14 @@ struct MetricTypeCard: View {
                     .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 4)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? colorForType(type).opacity(0.1) : Color(.systemGray6))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(isSelected ? colorForType(type) : Color.clear, lineWidth: 1.5)
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isSelected ? colorForType(type) : Color.clear, lineWidth: 1.0)
                     )
             )
             .scaleEffect(isSelected ? 1.02 : 1.0)
@@ -252,6 +254,7 @@ struct MetricTypeCard: View {
         case .weight: return .green
         case .bloodSugar: return .orange
         case .heartRate: return .red
+        case .bodyFat: return .purple
         }
     }
 }

@@ -4,6 +4,28 @@ import FirebaseAuth
 import FirebaseFirestore
 import FirebaseCore
 
+// MARK: - Migration Support
+
+struct OldNutritionEntry: Codable, Identifiable {
+    let id = UUID()
+    let date: Date
+    let calories: Double
+    let protein: Double
+    let carbohydrates: Double
+    let fat: Double
+    let sodium: Double
+    let sugar: Double
+    let fiber: Double
+    let cholesterol: Double
+    let water: Double
+    let notes: String?
+    let label: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case date, calories, protein, carbohydrates, fat, sodium, sugar, fiber, cholesterol, water, notes, label
+    }
+}
+
 // MARK: - Notification Names
 
 extension Notification.Name {
@@ -102,7 +124,12 @@ class BPDataManager: ObservableObject {
     
     // Nutrition storage
     @Published var nutritionEntries: [NutritionEntry] = []
+    @Published var customNutritionTemplates: [CustomNutritionTemplate] = []
+    
+    // Health notes storage
+    @Published var healthNotes: [HealthNote] = []
     @Published var nutritionGoals: NutritionGoals = NutritionGoals()
+    @Published var nutritionLabelManager = NutritionLabelManager()
     
     // Custom exercises storage
     @Published var customExercises: [CustomExercise] = []
@@ -121,6 +148,7 @@ class BPDataManager: ObservableObject {
     private let nutritionEntriesKey = "NutritionEntries"
     private let nutritionGoalsKey = "NutritionGoals"
     private let customExercisesKey = "CustomExercises"
+    private let lastResetDateKey = "LastNutritionResetDate"
     
     // Firebase services
     private let firestoreService = FirestoreService()
@@ -137,9 +165,17 @@ class BPDataManager: ObservableObject {
         loadFitnessSessions()
         loadHealthMetrics()
         loadCustomWorkouts()
+        loadBeginnerWorkouts() // Load beginner workout templates
         loadNutritionEntries()
         loadNutritionGoals()
+        loadCustomNutritionTemplates()
         loadCustomExercises()
+        
+        // Load nutrition goals from Firestore
+        loadNutritionGoalsFromFirestore()
+        
+        // Check for daily reset
+        checkAndResetDailyProgress()
         
         print("Local data loaded:")
         print("- BP Sessions: \(sessions.count)")
@@ -197,6 +233,13 @@ class BPDataManager: ObservableObject {
         // Add a small delay to prevent rapid-fire sync attempts
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.loadFromFirebase()
+            self?.loadHealthNotesFromFirestore()
+            // Also reload custom nutrition templates when user signs in
+            self?.loadCustomNutritionTemplates()
+            // Load nutrition goals from Firestore
+            self?.loadNutritionGoalsFromFirestore()
+            // Load nutrition entries from Firestore
+            self?.loadNutritionEntriesFromFirestore()
         }
         
         // Add a timeout to prevent indefinite hanging
@@ -527,17 +570,11 @@ class BPDataManager: ObservableObject {
     }
     
     func addCustomExerciseSession(_ customExercise: CustomExercise) -> Bool {
-        // For custom exercises, we need to create a temporary ExerciseType
-        // or modify the system to handle both types
-        // For now, let's create a temporary solution by finding a matching ExerciseType
-        if let matchingExerciseType = customExercise.exerciseType {
-            return addExerciseSession(matchingExerciseType)
-        } else {
-            // If no matching ExerciseType found, we need to handle this differently
-            // For now, let's create a temporary ExerciseType or modify the system
-            print("Custom exercise '\(customExercise.name)' doesn't match any built-in exercise type")
-            return false
-        }
+        // Create a new ExerciseSession with the custom exercise
+        let exerciseSession = ExerciseSession(customExercise: customExercise)
+        currentFitnessSession.addExerciseSession(exerciseSession)
+        print("Successfully added custom exercise '\(customExercise.name)' to fitness session")
+        return true
     }
     
     func loadPreBuiltWorkout(_ workout: PreBuiltWorkout) -> Bool {
@@ -546,8 +583,11 @@ class BPDataManager: ObservableObject {
         
         // Add all exercises from the workout
         for workoutExercise in workout.exercises {
-            let exerciseSession = ExerciseSession(exerciseType: workoutExercise.exerciseType)
-            currentFitnessSession.addExerciseSession(exerciseSession)
+            // Only add built-in exercises (custom exercises can't be converted to ExerciseSession)
+            if let exerciseType = workoutExercise.exerciseType {
+                let exerciseSession = ExerciseSession(exerciseType: exerciseType)
+                currentFitnessSession.addExerciseSession(exerciseSession)
+            }
         }
         
         return true
@@ -611,7 +651,7 @@ class BPDataManager: ObservableObject {
         print("=== SAVING CURRENT FITNESS SESSION ===")
         print("Current session exercise count: \(currentFitnessSession.exerciseSessions.count)")
         for (index, exercise) in currentFitnessSession.exerciseSessions.enumerated() {
-            print("  Exercise \(index) (\(exercise.exerciseType.rawValue)): \(exercise.sets.count) sets")
+            print("  Exercise \(index) (\(exercise.exerciseName)): \(exercise.sets.count) sets")
             for (setIndex, set) in exercise.sets.enumerated() {
                 print("    Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0)")
             }
@@ -672,7 +712,7 @@ class BPDataManager: ObservableObject {
         print("=== SAVING CURRENT SESSION TO FIRESTORE ===")
         print("Current session exercise count: \(currentFitnessSession.exerciseSessions.count)")
         for (index, exercise) in currentFitnessSession.exerciseSessions.enumerated() {
-            print("  Exercise \(index) (\(exercise.exerciseType.rawValue)): \(exercise.sets.count) sets")
+            print("  Exercise \(index) (\(exercise.exerciseName)): \(exercise.sets.count) sets")
             for (setIndex, set) in exercise.sets.enumerated() {
                 print("    Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0)")
             }
@@ -773,6 +813,60 @@ class BPDataManager: ObservableObject {
         }
     }
     
+    // MARK: - Edit Individual Sets in Completed Workouts
+    
+    func updateSetInWorkout(workoutId: UUID, exerciseIndex: Int, setIndex: Int, reps: Int?, weight: Double?, time: Double?) {
+        guard let workoutIndex = fitnessSessions.firstIndex(where: { $0.id == workoutId }) else { return }
+        guard exerciseIndex >= 0 && exerciseIndex < fitnessSessions[workoutIndex].exerciseSessions.count else { return }
+        guard setIndex >= 0 && setIndex < fitnessSessions[workoutIndex].exerciseSessions[exerciseIndex].sets.count else { return }
+        
+        // Create a mutable copy of the workout
+        var updatedWorkout = fitnessSessions[workoutIndex]
+        var updatedSet = updatedWorkout.exerciseSessions[exerciseIndex].sets[setIndex]
+        
+        // Update the set values
+        updatedSet.reps = reps
+        updatedSet.weight = weight
+        updatedSet.time = time
+        
+        updatedWorkout.exerciseSessions[exerciseIndex].sets[setIndex] = updatedSet
+        fitnessSessions[workoutIndex] = updatedWorkout
+        
+        saveFitnessSessions()
+        
+        // Update in Firestore
+        firestoreService.updateFitnessSession(updatedWorkout) { result in
+            switch result {
+            case .success:
+                print("Successfully updated set in Firestore")
+            case .failure(let error):
+                print("Error updating set in Firestore: \(error)")
+            }
+        }
+    }
+    
+    func addSetToCompletedWorkout(workoutId: UUID, exerciseIndex: Int, set: ExerciseSet) {
+        guard let workoutIndex = fitnessSessions.firstIndex(where: { $0.id == workoutId }) else { return }
+        guard exerciseIndex >= 0 && exerciseIndex < fitnessSessions[workoutIndex].exerciseSessions.count else { return }
+        
+        // Create a mutable copy of the workout
+        var updatedWorkout = fitnessSessions[workoutIndex]
+        updatedWorkout.exerciseSessions[exerciseIndex].addSet(set)
+        fitnessSessions[workoutIndex] = updatedWorkout
+        
+        saveFitnessSessions()
+        
+        // Update in Firestore
+        firestoreService.updateFitnessSession(updatedWorkout) { result in
+            switch result {
+            case .success:
+                print("Successfully added set to completed workout in Firestore")
+            case .failure(let error):
+                print("Error adding set to completed workout in Firestore: \(error)")
+            }
+        }
+    }
+    
     func clearWorkoutTemplate() {
         // Clear all exercises from current session
         currentFitnessSession = FitnessSession()
@@ -845,7 +939,9 @@ class BPDataManager: ObservableObject {
         
         // Add exercises from custom workout with pre-populated sets
         for workoutExercise in workout.exercises {
-            var exerciseSession = ExerciseSession(exerciseType: workoutExercise.exerciseType)
+            // Only add built-in exercises (custom exercises can't be converted to ExerciseSession)
+            guard let exerciseType = workoutExercise.exerciseType else { continue }
+            var exerciseSession = ExerciseSession(exerciseType: exerciseType)
             
             // Pre-populate sets if planned sets are available
             if let plannedSets = workoutExercise.plannedSets {
@@ -908,6 +1004,22 @@ class BPDataManager: ObservableObject {
         }
     }
     
+    // MARK: - Beginner Workout Templates
+    
+    func loadBeginnerWorkouts() {
+        // Check if beginner workouts are already loaded
+        let hasBeginnerWorkouts = customWorkouts.contains { workout in
+            workout.name.contains("Beginner")
+        }
+        
+        if !hasBeginnerWorkouts {
+            // Add all beginner workouts
+            customWorkouts.append(contentsOf: BeginnerUpperBodyWorkouts.allWorkouts)
+            saveCustomWorkouts()
+            print("Loaded beginner upper body workout templates")
+        }
+    }
+    
     // MARK: - Nutrition Management
     
     func addNutritionEntry(_ entry: NutritionEntry) {
@@ -957,9 +1069,392 @@ class BPDataManager: ObservableObject {
         }
     }
     
+    func clearNutritionDataFromTime(_ time: Date) {
+        let calendar = Calendar.current
+        let targetHour = calendar.component(.hour, from: time)
+        let targetMinute = calendar.component(.minute, from: time)
+        
+        // Find entries that match the time (within 1 minute tolerance)
+        let entriesToDelete = nutritionEntries.filter { entry in
+            let entryHour = calendar.component(.hour, from: entry.date)
+            let entryMinute = calendar.component(.minute, from: entry.date)
+            return entryHour == targetHour && abs(entryMinute - targetMinute) <= 1
+        }
+        
+        // Delete each matching entry
+        for entry in entriesToDelete {
+            deleteNutritionEntry(entry)
+        }
+        
+        print("Cleared \(entriesToDelete.count) nutrition entries from \(targetHour):\(String(format: "%02d", targetMinute))")
+    }
+    
+    func clearAllNutritionData() {
+        let allEntries = nutritionEntries
+        nutritionEntries.removeAll()
+        saveNutritionEntries()
+        
+        // Also clear from Firestore
+        for entry in allEntries {
+            firestoreService.deleteNutritionEntry(entry) { result in
+                switch result {
+                case .success:
+                    print("Successfully deleted nutrition entry from Firestore")
+                case .failure(let error):
+                    print("Error deleting nutrition entry from Firestore: \(error)")
+                }
+            }
+        }
+        
+        print("Cleared all nutrition data (\(allEntries.count) entries)")
+    }
+    
+    // MARK: - Custom Nutrition Template Management
+    
+    func addCustomNutritionTemplate(_ template: CustomNutritionTemplate) {
+        print("🔍 DEBUG: BPDataManager.addCustomNutritionTemplate called with: \(template.name)")
+        customNutritionTemplates.append(template)
+        print("🔍 DEBUG: Template added. Total templates now: \(customNutritionTemplates.count)")
+        saveCustomNutritionTemplates()
+        print("🔍 DEBUG: saveCustomNutritionTemplates called")
+    }
+    
+    func updateCustomNutritionTemplate(_ template: CustomNutritionTemplate) {
+        if let index = customNutritionTemplates.firstIndex(where: { $0.id == template.id }) {
+            customNutritionTemplates[index] = template
+            saveCustomNutritionTemplates()
+        }
+    }
+    
+    func deleteCustomNutritionTemplate(_ template: CustomNutritionTemplate) {
+        customNutritionTemplates.removeAll { $0.id == template.id }
+        saveCustomNutritionTemplates()
+    }
+    
+    func useCustomNutritionTemplate(_ template: CustomNutritionTemplate) {
+        // Update last used date
+        if let index = customNutritionTemplates.firstIndex(where: { $0.id == template.id }) {
+            var updatedTemplate = template
+            updatedTemplate = CustomNutritionTemplate(
+                name: template.name,
+                calories: template.calories,
+                protein: template.protein,
+                carbohydrates: template.carbohydrates,
+                fat: template.fat,
+                sodium: template.sodium,
+                sugar: template.sugar,
+                addedSugar: template.addedSugar,
+                fiber: template.fiber,
+                cholesterol: template.cholesterol,
+                water: template.water,
+                servingSize: template.servingSize,
+                category: template.category,
+                notes: template.notes
+            )
+            customNutritionTemplates[index] = updatedTemplate
+            saveCustomNutritionTemplates()
+        }
+        
+        // Add as nutrition entry
+        let entry = template.toNutritionEntry()
+        addNutritionEntry(entry)
+    }
+    
+    func getCustomNutritionTemplates(for category: String? = nil) -> [CustomNutritionTemplate] {
+        if let category = category {
+            return customNutritionTemplates.filter { $0.category == category }
+        }
+        return customNutritionTemplates
+    }
+    
+    func searchCustomNutritionTemplates(_ searchText: String) -> [CustomNutritionTemplate] {
+        if searchText.isEmpty {
+            return customNutritionTemplates
+        }
+        return customNutritionTemplates.filter { template in
+            template.name.localizedCaseInsensitiveContains(searchText) ||
+            template.category.localizedCaseInsensitiveContains(searchText) ||
+            (template.notes?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
+    }
+    
+    private func saveCustomNutritionTemplates() {
+        print("🔍 DEBUG: saveCustomNutritionTemplates called with \(customNutritionTemplates.count) templates")
+        // Save to UserDefaults for offline access
+        if let encoded = try? JSONEncoder().encode(customNutritionTemplates) {
+            UserDefaults.standard.set(encoded, forKey: "custom_nutrition_templates")
+            print("🔍 DEBUG: Templates saved to UserDefaults")
+            
+            // Verify the save worked
+            if let savedData = UserDefaults.standard.data(forKey: "custom_nutrition_templates"),
+               let savedTemplates = try? JSONDecoder().decode([CustomNutritionTemplate].self, from: savedData) {
+                print("🔍 DEBUG: Verification - \(savedTemplates.count) templates saved to UserDefaults")
+            } else {
+                print("🔍 DEBUG: Verification failed - could not read back saved templates")
+            }
+        } else {
+            print("🔍 DEBUG: Failed to encode templates for UserDefaults")
+        }
+        
+        // Save to Firestore for sync across devices
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        let db = Firestore.firestore()
+        let templatesRef = db.collection("users").document(userId).collection("customNutritionTemplates")
+        
+        // Delete all existing templates first
+        templatesRef.getDocuments { (snapshot, error) in
+            if let error = error {
+                print("Error getting templates: \(error)")
+                return
+            }
+            
+            let batch = db.batch()
+            for document in snapshot?.documents ?? [] {
+                batch.deleteDocument(document.reference)
+            }
+            
+            // Add all current templates
+            for template in self.customNutritionTemplates {
+                let templateData: [String: Any] = [
+                    "name": template.name,
+                    "calories": template.calories,
+                    "protein": template.protein,
+                    "carbohydrates": template.carbohydrates,
+                    "fat": template.fat,
+                    "sodium": template.sodium,
+                    "sugar": template.sugar,
+                    "addedSugar": template.addedSugar,
+                    "fiber": template.fiber,
+                    "cholesterol": template.cholesterol,
+                    "water": template.water,
+                    "servingSize": template.servingSize,
+                    "category": template.category,
+                    "notes": template.notes ?? "",
+                    "dateCreated": Timestamp(date: template.dateCreated),
+                    "lastUsed": template.lastUsed != nil ? Timestamp(date: template.lastUsed!) : NSNull()
+                ]
+                
+                let docRef = templatesRef.document(template.id.uuidString)
+                batch.setData(templateData, forDocument: docRef)
+            }
+            
+            batch.commit { error in
+                if let error = error {
+                    print("Error saving custom nutrition templates: \(error)")
+                } else {
+                    print("Custom nutrition templates saved to Firestore")
+                }
+            }
+        }
+    }
+    
+    private func loadCustomNutritionTemplates() {
+        print("=== LOAD CUSTOM NUTRITION TEMPLATES CALLED ===")
+        
+        // Load from UserDefaults first (for offline access)
+        if let data = UserDefaults.standard.data(forKey: "custom_nutrition_templates"),
+           let decoded = try? JSONDecoder().decode([CustomNutritionTemplate].self, from: data) {
+            customNutritionTemplates = decoded
+            print("Loaded \(customNutritionTemplates.count) templates from UserDefaults")
+            for template in customNutritionTemplates {
+                print("  - Template: \(template.name) (\(template.servingSize))")
+            }
+        } else {
+            print("No templates found in UserDefaults")
+        }
+        
+        // Load from Firestore for sync across devices
+        guard let userId = Auth.auth().currentUser?.uid else { 
+            print("No authenticated user, skipping Firestore load")
+            return 
+        }
+        
+        print("Loading templates from Firestore for user: \(userId)")
+        
+        let db = Firestore.firestore()
+        let templatesRef = db.collection("users").document(userId).collection("customNutritionTemplates")
+        
+        templatesRef.getDocuments { (snapshot, error) in
+            if let error = error {
+                print("Error loading custom nutrition templates: \(error)")
+                return
+            }
+            
+            print("Firestore returned \(snapshot?.documents.count ?? 0) template documents")
+            
+            var firestoreTemplates: [CustomNutritionTemplate] = []
+            
+            for document in snapshot?.documents ?? [] {
+                let data = document.data()
+                
+                guard let name = data["name"] as? String,
+                      let calories = data["calories"] as? Double,
+                      let protein = data["protein"] as? Double,
+                      let carbohydrates = data["carbohydrates"] as? Double,
+                      let fat = data["fat"] as? Double,
+                      let sodium = data["sodium"] as? Double,
+                      let sugar = data["sugar"] as? Double,
+                      let fiber = data["fiber"] as? Double,
+                      let cholesterol = data["cholesterol"] as? Double,
+                      let water = data["water"] as? Double,
+                      let servingSize = data["servingSize"] as? String,
+                      let category = data["category"] as? String else {
+                    continue
+                }
+                
+                let addedSugar = data["addedSugar"] as? Double ?? 0
+                let notes = data["notes"] as? String
+                let dateCreated = (data["dateCreated"] as? Timestamp)?.dateValue() ?? Date()
+                let lastUsed = (data["lastUsed"] as? Timestamp)?.dateValue()
+                
+                let template = CustomNutritionTemplate(
+                    name: name,
+                    calories: calories,
+                    protein: protein,
+                    carbohydrates: carbohydrates,
+                    fat: fat,
+                    sodium: sodium,
+                    sugar: sugar,
+                    addedSugar: addedSugar,
+                    fiber: fiber,
+                    cholesterol: cholesterol,
+                    water: water,
+                    servingSize: servingSize,
+                    category: category,
+                    notes: notes
+                )
+                
+                firestoreTemplates.append(template)
+            }
+            
+            // Update the templates if we got data from Firestore
+            if !firestoreTemplates.isEmpty {
+                print("Successfully loaded \(firestoreTemplates.count) templates from Firestore")
+                DispatchQueue.main.async {
+                    self.customNutritionTemplates = firestoreTemplates
+                    // Save to UserDefaults for offline access
+                    self.saveCustomNutritionTemplates()
+                    print("Updated customNutritionTemplates to \(self.customNutritionTemplates.count) templates")
+                }
+            } else {
+                print("No templates found in Firestore")
+            }
+        }
+    }
+    
     func updateNutritionGoals(_ goals: NutritionGoals) {
         nutritionGoals = goals
         saveNutritionGoals()
+        
+        // Also save to Firestore
+        firestoreService.saveNutritionGoals(goals) { result in
+            switch result {
+            case .success:
+                print("Successfully saved nutrition goals to Firestore")
+            case .failure(let error):
+                print("Error saving nutrition goals to Firestore: \(error)")
+            }
+        }
+    }
+    
+    func loadNutritionGoalsFromFirestore() {
+        firestoreService.loadNutritionGoals { result in
+            switch result {
+            case .success(let goals):
+                DispatchQueue.main.async {
+                    self.nutritionGoals = goals
+                    self.saveNutritionGoals() // Save to UserDefaults as backup
+                    print("Successfully loaded nutrition goals from Firestore")
+                }
+            case .failure(let error):
+                print("Error loading nutrition goals from Firestore: \(error)")
+            }
+        }
+    }
+    
+    private func checkAndResetDailyProgress() {
+        let calendar = Calendar.current
+        let today = Date()
+        let todayString = calendar.dateInterval(of: .day, for: today)?.start ?? today
+        
+        if let lastResetDate = userDefaults.object(forKey: lastResetDateKey) as? Date {
+            let lastResetString = calendar.dateInterval(of: .day, for: lastResetDate)?.start ?? lastResetDate
+            
+            // If it's a new day, reset progress
+            if !calendar.isDate(todayString, inSameDayAs: lastResetString) {
+                print("New day detected - nutrition progress will reset at midnight")
+                // The progress bars will automatically reset because they calculate based on today's entries
+                userDefaults.set(today, forKey: lastResetDateKey)
+            }
+        } else {
+            // First time running - set today as the reset date
+            userDefaults.set(today, forKey: lastResetDateKey)
+        }
+    }
+    
+    func loadCustomNutritionTemplatesFromFirestore(completion: @escaping (Result<[CustomNutritionTemplate], Error>) -> Void) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            completion(.failure(NSError(domain: "BPDataManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])))
+            return
+        }
+        
+        let db = Firestore.firestore()
+        let templatesRef = db.collection("users").document(userId).collection("customNutritionTemplates")
+        
+        templatesRef.getDocuments { (snapshot, error) in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            var templates: [CustomNutritionTemplate] = []
+            
+            for document in snapshot?.documents ?? [] {
+                let data = document.data()
+                
+                guard let name = data["name"] as? String,
+                      let calories = data["calories"] as? Double,
+                      let protein = data["protein"] as? Double,
+                      let carbohydrates = data["carbohydrates"] as? Double,
+                      let fat = data["fat"] as? Double,
+                      let sodium = data["sodium"] as? Double,
+                      let sugar = data["sugar"] as? Double,
+                      let fiber = data["fiber"] as? Double,
+                      let cholesterol = data["cholesterol"] as? Double,
+                      let water = data["water"] as? Double,
+                      let servingSize = data["servingSize"] as? String,
+                      let category = data["category"] as? String else {
+                    continue
+                }
+                
+                let addedSugar = data["addedSugar"] as? Double ?? 0
+                let notes = data["notes"] as? String
+                let dateCreated = (data["dateCreated"] as? Timestamp)?.dateValue() ?? Date()
+                let lastUsed = (data["lastUsed"] as? Timestamp)?.dateValue()
+                
+                let template = CustomNutritionTemplate(
+                    name: name,
+                    calories: calories,
+                    protein: protein,
+                    carbohydrates: carbohydrates,
+                    fat: fat,
+                    sodium: sodium,
+                    sugar: sugar,
+                    addedSugar: addedSugar,
+                    fiber: fiber,
+                    cholesterol: cholesterol,
+                    water: water,
+                    servingSize: servingSize,
+                    category: category,
+                    notes: notes
+                )
+                
+                templates.append(template)
+            }
+            
+            completion(.success(templates))
+        }
     }
     
     func loadNutritionEntriesFromFirestore() {
@@ -989,14 +1484,55 @@ class BPDataManager: ObservableObject {
     }
     
     private func loadNutritionEntries() {
-        guard let data = userDefaults.data(forKey: nutritionEntriesKey) else { return }
+        print("=== LOAD NUTRITION ENTRIES CALLED ===")
+        
+        guard let data = userDefaults.data(forKey: nutritionEntriesKey) else { 
+            print("No nutrition entries data found in UserDefaults")
+            return 
+        }
+        
+        print("Found nutrition entries data in UserDefaults, attempting to decode...")
         
         do {
             nutritionEntries = try JSONDecoder().decode([NutritionEntry].self, from: data)
+            print("Successfully loaded \(nutritionEntries.count) nutrition entries with new structure")
         } catch {
-            print("Error loading nutrition entries: \(error)")
-            nutritionEntries = []
+            print("Error loading nutrition entries with new structure: \(error)")
+            print("Attempting to migrate old nutrition entries...")
+            
+            // Try to decode with a custom decoder that handles missing addedSugar field
+            do {
+                let oldEntries = try JSONDecoder().decode([OldNutritionEntry].self, from: data)
+                nutritionEntries = oldEntries.map { oldEntry in
+                    NutritionEntry(
+                        date: oldEntry.date,
+                        calories: oldEntry.calories,
+                        protein: oldEntry.protein,
+                        carbohydrates: oldEntry.carbohydrates,
+                        fat: oldEntry.fat,
+                        sodium: oldEntry.sodium,
+                        sugar: oldEntry.sugar,
+                        addedSugar: 0, // Default value for migrated entries
+                        fiber: oldEntry.fiber,
+                        cholesterol: oldEntry.cholesterol,
+                        water: oldEntry.water,
+                        notes: oldEntry.notes,
+                        label: oldEntry.label
+                    )
+                }
+                print("Successfully migrated \(nutritionEntries.count) nutrition entries")
+                saveNutritionEntries() // Save the migrated entries
+            } catch {
+                print("Migration failed: \(error)")
+                nutritionEntries = []
+            }
         }
+        
+        print("Final nutrition entries count: \(nutritionEntries.count)")
+        if !nutritionEntries.isEmpty {
+            print("Sample entry: \(nutritionEntries.first?.label ?? "No label") - \(nutritionEntries.first?.calories ?? 0) calories")
+        }
+        print("=== END LOAD NUTRITION ENTRIES ===")
     }
     
     private func saveNutritionGoals() {
@@ -1210,7 +1746,7 @@ class BPDataManager: ObservableObject {
         for (index, session) in fitnessSessions.enumerated() {
             print("Session \(index): \(session.exerciseSessions.count) exercises")
             for (exIndex, exercise) in session.exerciseSessions.enumerated() {
-                print("  Exercise \(exIndex) (\(exercise.exerciseType.rawValue)): \(exercise.sets.count) sets")
+                print("  Exercise \(exIndex) (\(exercise.exerciseName)): \(exercise.sets.count) sets")
                 for (setIndex, set) in exercise.sets.enumerated() {
                     print("    Set \(setIndex): reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
                 }
@@ -1286,6 +1822,7 @@ class BPDataManager: ObservableObject {
                 case .bloodPressure: dataType = .bloodPressureSession
                 case .bloodSugar: dataType = .bloodSugar
                 case .heartRate: dataType = .heartRate
+                case .bodyFat: dataType = .bodyFat
                 }
                 
                 return UnifiedHealthData(
@@ -1424,6 +1961,19 @@ class BPDataManager: ObservableObject {
             dispatchGroup.leave()
         }
         
+        // Load Custom Nutrition Templates
+        dispatchGroup.enter()
+        loadCustomNutritionTemplatesFromFirestore { [weak self] result in
+            switch result {
+            case .success(let templates):
+                self?.customNutritionTemplates = templates
+                print("Loaded \(templates.count) custom nutrition templates from Firebase")
+            case .failure(let error):
+                print("Error loading custom nutrition templates: \(error)")
+            }
+            dispatchGroup.leave()
+        }
+        
         dispatchGroup.notify(queue: .main) { [weak self] in
             guard let self = self else { return }
             
@@ -1502,6 +2052,46 @@ class BPDataManager: ObservableObject {
         print("=== FORCE RELOAD FROM FIREBASE ===")
         hasSyncedForCurrentSession = false
         loadFromFirebase()
+    }
+    
+    func forceReloadCustomNutritionTemplates() {
+        print("=== FORCE RELOAD CUSTOM NUTRITION TEMPLATES ===")
+        loadCustomNutritionTemplates()
+    }
+    
+    func forceReloadNutritionGoals() {
+        print("=== FORCE RELOAD NUTRITION GOALS ===")
+        loadNutritionGoalsFromFirestore()
+    }
+    
+    func forceReloadNutritionEntries() {
+        print("=== FORCE RELOAD NUTRITION ENTRIES ===")
+        loadNutritionEntriesFromFirestore()
+    }
+    
+    func loadNutritionEntriesForDate(_ date: Date) {
+        print("=== LOAD NUTRITION ENTRIES FOR DATE ===")
+        print("Date: \(date)")
+        
+        firestoreService.loadNutritionEntriesForDate(date) { result in
+            switch result {
+            case .success(let entries):
+                DispatchQueue.main.async {
+                    // Filter out any existing entries for this date and add new ones
+                    let calendar = Calendar.current
+                    self.nutritionEntries.removeAll { entry in
+                        calendar.isDate(entry.date, inSameDayAs: date)
+                    }
+                    self.nutritionEntries.append(contentsOf: entries)
+                    self.saveNutritionEntries() // Save to UserDefaults as backup
+                    print("Successfully loaded \(entries.count) nutrition entries for date from Firestore")
+                }
+            case .failure(let error):
+                print("Error loading nutrition entries for date from Firestore: \(error)")
+                // Fall back to local data filtering
+                self.loadNutritionEntries()
+            }
+        }
     }
     
     func forceReloadBPSessions() {
@@ -1684,6 +2274,124 @@ class BPDataManager: ObservableObject {
         } catch {
             syncError = "Failed to create backup: \(error.localizedDescription)"
         }
+    }
+    
+    // MARK: - Health Notes Management
+    
+    func saveHealthNote(_ note: HealthNote) {
+        guard let userId = userProfile?.id else { return }
+        
+        let noteWithUserId = HealthNote(
+            id: note.id ?? "",
+            userId: userId,
+            metricType: note.metricType,
+            date: note.date,
+            note: note.note,
+            createdAt: note.createdAt,
+            updatedAt: Date()
+        )
+        
+        // Add to local array
+        if let index = healthNotes.firstIndex(where: { $0.id == note.id }) {
+            healthNotes[index] = noteWithUserId
+        } else {
+            healthNotes.append(noteWithUserId)
+        }
+        
+        // Save to Firestore
+        saveHealthNoteToFirestore(noteWithUserId)
+    }
+    
+    func deleteHealthNote(_ note: HealthNote) {
+        guard let noteId = note.id else { return }
+        
+        // Remove from local array
+        healthNotes.removeAll { $0.id == noteId }
+        
+        // Delete from Firestore
+        deleteHealthNoteFromFirestore(noteId)
+    }
+    
+    func getHealthNotes(for metricType: String, on date: Date) -> [HealthNote] {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        return healthNotes.filter { note in
+            note.metricType == metricType &&
+            note.date >= startOfDay &&
+            note.date < endOfDay
+        }
+    }
+    
+    func getHealthNotes(for metricType: String) -> [HealthNote] {
+        return healthNotes.filter { $0.metricType == metricType }
+    }
+    
+    private func saveHealthNoteToFirestore(_ note: HealthNote) {
+        guard let userId = userProfile?.id else { return }
+        
+        let db = Firestore.firestore()
+        let collection = db.collection("healthNotes")
+        
+        if let noteId = note.id {
+            // Update existing note
+            collection.document(noteId).setData(note.toDictionary()) { error in
+                if let error = error {
+                    print("Error updating health note: \(error.localizedDescription)")
+                }
+            }
+        } else {
+            // Create new note
+            var newNote = note
+            let docRef = collection.addDocument(data: note.toDictionary()) { error in
+                if let error = error {
+                    print("Error saving health note: \(error.localizedDescription)")
+                } else {
+                    print("Health note saved successfully")
+                }
+            }
+            newNote.id = docRef.documentID
+        }
+    }
+    
+    private func deleteHealthNoteFromFirestore(_ noteId: String) {
+        let db = Firestore.firestore()
+        let collection = db.collection("healthNotes")
+        
+        collection.document(noteId).delete { error in
+            if let error = error {
+                print("Error deleting health note: \(error.localizedDescription)")
+            } else {
+                print("Health note deleted successfully")
+            }
+        }
+    }
+    
+    private func loadHealthNotesFromFirestore() {
+        guard let userId = userProfile?.id else { return }
+        
+        let db = Firestore.firestore()
+        let collection = db.collection("healthNotes")
+        
+        collection.whereField("userId", isEqualTo: userId)
+            .order(by: "date", descending: true)
+            .getDocuments { [weak self] snapshot, error in
+                if let error = error {
+                    print("Error loading health notes: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else { return }
+                
+                let notes = documents.compactMap { doc in
+                    HealthNote.fromDictionary(doc.data(), documentId: doc.documentID)
+                }
+                
+                DispatchQueue.main.async {
+                    self?.healthNotes = notes
+                }
+            }
     }
     
     // MARK: - Validation

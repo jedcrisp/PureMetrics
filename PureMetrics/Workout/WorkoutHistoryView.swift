@@ -213,7 +213,7 @@ struct WorkoutHistoryView: View {
         if !searchText.isEmpty {
             workouts = workouts.filter { workout in
                 workout.exerciseSessions.contains { exercise in
-                    exercise.exerciseType.rawValue.localizedCaseInsensitiveContains(searchText)
+                    exercise.exerciseName.localizedCaseInsensitiveContains(searchText)
                 }
             }
         }
@@ -344,7 +344,7 @@ struct FitnessWorkoutCard: View {
     }
     
     private var exercisePreview: String {
-        let exerciseNames = workout.exerciseSessions.prefix(3).map { $0.exerciseType.rawValue }
+        let exerciseNames = workout.exerciseSessions.prefix(3).map { $0.exerciseName }
         let preview = exerciseNames.joined(separator: ", ")
         
         if workout.exerciseSessions.count > 3 {

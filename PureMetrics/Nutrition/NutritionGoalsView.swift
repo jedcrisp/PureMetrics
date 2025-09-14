@@ -11,6 +11,8 @@ struct NutritionGoalsView: View {
     @State private var dailyFat: String = ""
     @State private var dailySodium: String = ""
     @State private var dailySugar: String = ""
+    @State private var dailyNaturalSugar: String = ""
+    @State private var dailyAddedSugar: String = ""
     @State private var dailyFiber: String = ""
     @State private var dailyWater: String = ""
     
@@ -20,7 +22,9 @@ struct NutritionGoalsView: View {
         GoalField(label: "Carbohydrates", value: "dailyCarbohydrates", unit: "g", icon: "leaf.fill", color: .green),
         GoalField(label: "Fat", value: "dailyFat", unit: "g", icon: "drop.fill", color: .blue),
         GoalField(label: "Sodium", value: "dailySodium", unit: "mg", icon: "cube.fill", color: .purple),
-        GoalField(label: "Sugar", value: "dailySugar", unit: "g", icon: "sparkles", color: .pink),
+        GoalField(label: "Total Sugar", value: "dailySugar", unit: "g", icon: "sparkles", color: .pink),
+        GoalField(label: "Natural Sugar", value: "dailyNaturalSugar", unit: "g", icon: "leaf.fill", color: .green),
+        GoalField(label: "Added Sugar", value: "dailyAddedSugar", unit: "g", icon: "exclamationmark.triangle.fill", color: .red),
         GoalField(label: "Fiber", value: "dailyFiber", unit: "g", icon: "leaf.arrow.circlepath", color: .mint),
         GoalField(label: "Water", value: "dailyWater", unit: "oz", icon: "drop.circle.fill", color: .cyan)
     ]
@@ -161,6 +165,8 @@ struct NutritionGoalsView: View {
         dailyFat = String(Int(goals.dailyFat))
         dailySodium = String(Int(goals.dailySodium))
         dailySugar = String(Int(goals.dailySugar))
+        dailyNaturalSugar = String(Int(goals.dailyNaturalSugar))
+        dailyAddedSugar = String(Int(goals.dailyAddedSugar))
         dailyFiber = String(Int(goals.dailyFiber))
         dailyWater = String(Int(goals.dailyWater))
     }
@@ -173,6 +179,8 @@ struct NutritionGoalsView: View {
         case "dailyFat": return dailyFat
         case "dailySodium": return dailySodium
         case "dailySugar": return dailySugar
+        case "dailyNaturalSugar": return dailyNaturalSugar
+        case "dailyAddedSugar": return dailyAddedSugar
         case "dailyFiber": return dailyFiber
         case "dailyWater": return dailyWater
         default: return ""
@@ -187,6 +195,8 @@ struct NutritionGoalsView: View {
         case "dailyFat": dailyFat = value
         case "dailySodium": dailySodium = value
         case "dailySugar": dailySugar = value
+        case "dailyNaturalSugar": dailyNaturalSugar = value
+        case "dailyAddedSugar": dailyAddedSugar = value
         case "dailyFiber": dailyFiber = value
         case "dailyWater": dailyWater = value
         default: break
@@ -201,6 +211,8 @@ struct NutritionGoalsView: View {
             dailyFat: Double(dailyFat) ?? goals.dailyFat,
             dailySodium: Double(dailySodium) ?? goals.dailySodium,
             dailySugar: Double(dailySugar) ?? goals.dailySugar,
+            dailyNaturalSugar: Double(dailyNaturalSugar) ?? goals.dailyNaturalSugar,
+            dailyAddedSugar: Double(dailyAddedSugar) ?? goals.dailyAddedSugar,
             dailyFiber: Double(dailyFiber) ?? goals.dailyFiber,
             dailyWater: Double(dailyWater) ?? goals.dailyWater
         )

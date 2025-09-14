@@ -3,9 +3,13 @@ import SwiftUI
 struct FitnessView: View {
     @ObservedObject var dataManager: BPDataManager
     @StateObject private var workoutManager = PreBuiltWorkoutManager()
+    @StateObject private var filterSettings = MaxFilterSettings()
+    @StateObject private var liftSettings = FitnessLiftSettings()
     @State private var selectedExerciseType: ExerciseType? = .benchPress
     @State private var showingExerciseSelector = false
     @State private var showingWorkoutSelector = false
+    @State private var showingFilterSettings = false
+    @State private var showingRepMaxSelection = false
     @State private var selectedExerciseIndices: Set<Int> = []
     @State private var useManualTime = false
     @State private var manualDate = Date()
@@ -36,18 +40,22 @@ struct FitnessView: View {
                         headerSection
                         
                         // Content
-                        VStack(spacing: 12) {
+                        VStack(spacing: 6) {
                             // One Rep Max Dashboard
                             oneRepMaxSection
                             
                             // Rep Max Estimation
                             repMaxEstimationSection
                             
-                            // Session Info
-                            sessionInfoSection
+                            // Start Session Button (when exercises are selected but session not active)
+                            if !dataManager.currentFitnessSession.exerciseSessions.isEmpty && !dataManager.currentFitnessSession.isActive && !dataManager.currentFitnessSession.isPaused {
+                                startSessionButton
+                            }
                             
-                            // Add Exercise Button
-                            addExerciseSection
+                            // Add Exercise Button (only show when no exercises are selected)
+                            if dataManager.currentFitnessSession.exerciseSessions.isEmpty {
+                                addExerciseSection
+                            }
                             
                             
                             // Current Exercises
@@ -76,14 +84,14 @@ struct FitnessView: View {
             .onDisappear {
                 stopTimer()
             }
-            .onChange(of: dataManager.currentFitnessSession.isActive) { isActive in
+            .onChange(of: dataManager.currentFitnessSession.isActive) { _, isActive in
                 if isActive {
                     startTimer()
                 } else {
                     stopTimer()
                 }
             }
-            .onChange(of: dataManager.currentFitnessSession.isPaused) { isPaused in
+            .onChange(of: dataManager.currentFitnessSession.isPaused) { _, isPaused in
                 if isPaused {
                     stopTimer()
                 } else if dataManager.currentFitnessSession.isActive {
@@ -136,6 +144,12 @@ struct FitnessView: View {
                 showingCustomWorkoutSelector = false
             }
         }
+        .sheet(isPresented: $showingFilterSettings) {
+            MaxFilterSettingsView(filterSettings: filterSettings)
+        }
+        .sheet(isPresented: $showingRepMaxSelection) {
+            RepMaxLiftSelectionView(settings: liftSettings)
+        }
         .alert("Delete Workout Template", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Delete", role: .destructive) {
@@ -171,28 +185,37 @@ struct FitnessView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .frame(height: 80)
+            .frame(height: 60)
             .overlay(
                 VStack(spacing: 0) {
                     // Top section with app name, status, and New Session button
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 0) {
-                                Text("PureMetrics")
-                                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                                    .foregroundColor(.white)
-                                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                                
-                                Text(" Fitness")
-                                    .font(.system(size: 20, weight: .medium, design: .rounded))
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                            }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("PureMetrics")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                            
+                            Text("Fitness")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
                         }
                         
                         Spacer()
                         
-                        HStack(spacing: 16) {
+                            HStack(spacing: 16) {
+                            // Date Display
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(useManualTime ? manualDate : Date(), style: .date)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                                
+                                Text(useManualTime ? manualTime : Date(), style: .time)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white.opacity(0.8))
+                            }
+                            
                             // Live Session Timer
                             if dataManager.currentFitnessSession.isActive || dataManager.currentFitnessSession.isPaused {
                                 VStack(alignment: .trailing, spacing: 4) {
@@ -247,7 +270,7 @@ struct FitnessView: View {
     // MARK: - One Rep Max Section
     
     private var oneRepMaxSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("One Rep Max")
                     .font(.headline)
@@ -272,9 +295,10 @@ struct FitnessView: View {
                     
                     LazyVGrid(columns: [
                         GridItem(.flexible()),
+                        GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 8) {
-                        ForEach(dataManager.oneRepMaxManager.personalRecords.prefix(6), id: \.id) { record in
+                        ForEach(filteredPRRecords, id: \.id) { record in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(record.liftName)
                                     .font(.caption)
@@ -317,7 +341,7 @@ struct FitnessView: View {
     // MARK: - Rep Max Estimation Section
     
     private var repMaxEstimationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("Rep Max Estimations")
                     .font(.headline)
@@ -325,9 +349,26 @@ struct FitnessView: View {
                 
                 Spacer()
                 
-                Text("Based on 1RM")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 12) {
+                    Text("Based on 1RM")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        showingRepMaxSelection = true
+                    }) {
+                        Text("View All")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Button(action: {
+                        showingFilterSettings = true
+                    }) {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .foregroundColor(.blue)
+                    }
+                }
             }
             
             if !dataManager.oneRepMaxManager.personalRecords.isEmpty {
@@ -335,22 +376,21 @@ struct FitnessView: View {
                     GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: 12) {
-                    ForEach(Array(dataManager.oneRepMaxManager.personalRecords.prefix(4).enumerated()), id: \.element.id) { index, record in
-                        if record.recordType == .weight {
-                            RepMaxEstimationCard(
-                                record: record,
-                                isExpanded: expandedRepMaxCards.contains(record.id),
-                                onTap: {
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        if expandedRepMaxCards.contains(record.id) {
-                                            expandedRepMaxCards.remove(record.id)
-                                        } else {
-                                            expandedRepMaxCards.insert(record.id)
-                                        }
+                    ForEach(Array(filteredRepMaxRecords.enumerated()), id: \.element.id) { index, record in
+                        RepMaxEstimationCard(
+                            record: record,
+                            isExpanded: expandedRepMaxCards.contains(record.id),
+                            onTap: {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    if expandedRepMaxCards.contains(record.id) {
+                                        expandedRepMaxCards.remove(record.id)
+                                    } else {
+                                        expandedRepMaxCards.insert(record.id)
                                     }
                                 }
-                            )
-                        }
+                            },
+                            filterSettings: filterSettings
+                        )
                     }
                 }
             } else {
@@ -376,113 +416,33 @@ struct FitnessView: View {
         )
     }
     
-    // MARK: - Session Info Section
     
-    private var sessionInfoSection: some View {
-        HStack(spacing: 30) {
-            // Sets Count
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                    
-                    Text("\(totalSetsCount)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.blue)
-                }
-                
-                VStack(spacing: 2) {
-                    Text("Sets")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    Text("Total")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
+    // MARK: - Start Session Button
+    
+    private var startSessionButton: some View {
+        Button(action: startFitnessSession) {
+            HStack(spacing: 10) {
+                Image(systemName: "play.circle.fill")
+                    .font(.title3)
+                Text("Start Session")
+                    .font(.headline)
+                    .fontWeight(.semibold)
             }
-            
-            // Reps Count
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.orange.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                    
-                    Text("\(totalRepsCount)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.orange)
-                }
-                
-                VStack(spacing: 2) {
-                    Text("Reps")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    Text("Total")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            // Volume Count
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.green.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                    
-                    Text("\(Int(totalVolume))")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.green)
-                }
-                
-                VStack(spacing: 2) {
-                    Text("Volume")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    Text("lbs")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            // Cardio Time
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.purple.opacity(0.1))
-                        .frame(width: 50, height: 50)
-                    
-                    Image(systemName: "heart.fill")
-                        .font(.title3)
-                        .foregroundColor(.purple)
-                }
-                
-                VStack(spacing: 2) {
-                    Text("Cardio")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    Text(formatDuration(currentSessionCardioTime))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                }
-            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.green, Color.green.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
+            )
+            .foregroundColor(.white)
         }
-        .frame(maxWidth: .infinity)
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
-        )
     }
     
     // MARK: - Add Exercise Section
@@ -627,7 +587,7 @@ struct FitnessView: View {
                 }
             }
         }
-        .padding(28)
+        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 24)
                 .fill(Color(.systemBackground))
@@ -681,7 +641,7 @@ struct FitnessView: View {
     // MARK: - Current Exercises Section
     
     private var currentExercisesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: "list.bullet.circle.fill")
                     .font(.title3)
@@ -705,9 +665,32 @@ struct FitnessView: View {
                     )
             }
             
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 6) {
                 ForEach(Array(dataManager.currentFitnessSession.exerciseSessions.enumerated()), id: \.element.id) { index, exerciseSession in
                     exerciseRow(exerciseSession: exerciseSession, index: index)
+                }
+                
+                // Add Individual Exercise Button (only if there are exercises)
+                if !dataManager.currentFitnessSession.exerciseSessions.isEmpty {
+                    Button(action: {
+                        showingExerciseSelector = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle")
+                                .font(.caption)
+                            Text("Add Individual Exercise")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.blue.opacity(0.1))
+                        )
+                    }
+                    .padding(.top, 8)
                 }
             }
         }
@@ -725,17 +708,17 @@ struct FitnessView: View {
             HStack {
                 ZStack {
                     Circle()
-                        .fill(colorForExerciseType(exerciseSession.exerciseType).opacity(0.1))
+                        .fill(colorForExerciseSession(exerciseSession).opacity(0.1))
                         .frame(width: 40, height: 40)
                     
-                    Image(systemName: exerciseSession.exerciseType.icon)
+                    Image(systemName: exerciseSession.exerciseType?.icon ?? "dumbbell")
                         .font(.title3)
-                        .foregroundColor(colorForExerciseType(exerciseSession.exerciseType))
+                        .foregroundColor(colorForExerciseSession(exerciseSession))
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(exerciseSession.exerciseType.rawValue)
+                        Text(exerciseSession.exerciseName)
                             .font(.headline)
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
@@ -747,7 +730,7 @@ struct FitnessView: View {
                             Text("Time: \(formatDuration(getExerciseRunningTime(exerciseIndex: index)))")
                                 .font(.caption)
                                 .fontWeight(.medium)
-                                .foregroundColor(colorForExerciseType(exerciseSession.exerciseType))
+                                .foregroundColor(colorForExerciseSession(exerciseSession))
                                 .id("\(uiUpdateTrigger)-\(timerUpdate)") // Update with timer
                         }
                     }
@@ -847,7 +830,7 @@ struct FitnessView: View {
         VStack(spacing: 12) {
             // Exercise Name Header
             HStack {
-                Text(exerciseSession.exerciseType.rawValue)
+                Text(exerciseSession.exerciseName)
                     .font(.headline)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
@@ -858,7 +841,64 @@ struct FitnessView: View {
             // Set Input Boxes
             LazyVStack(spacing: 8) {
                 ForEach(Array(getSetInputs(for: exerciseIndex).enumerated()), id: \.element.id) { setIndex, setInput in
-                    setInputBox(exerciseType: exerciseSession.exerciseType, setIndex: setIndex, exerciseIndex: exerciseIndex, setInput: setInput)
+                    if let exerciseType = exerciseSession.exerciseType {
+                        setInputBox(exerciseType: exerciseType, setIndex: setIndex, exerciseIndex: exerciseIndex, setInput: setInput)
+                    } else {
+                        // For custom exercises, show a simplified input box
+                        VStack(spacing: 8) {
+                            HStack {
+                                Text("Set \(setIndex + 1)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                if setIndex > 0 {
+                                    Button(action: {
+                                        // Remove set functionality would go here
+                                    }) {
+                                        Image(systemName: "minus.circle.fill")
+                                            .foregroundColor(.red)
+                                    }
+                                }
+                            }
+                            
+                            HStack {
+                                TextField("Reps", text: Binding(
+                                    get: { setInput.reps },
+                                    set: { newValue in
+                                        // Update the set input
+                                        if exerciseIndex < dataManager.currentFitnessSession.exerciseSessions.count {
+                                            var updatedInputs = getSetInputs(for: exerciseIndex)
+                                            if setIndex < updatedInputs.count {
+                                                updatedInputs[setIndex].reps = newValue
+                                                setSetInputs(for: exerciseIndex, inputs: updatedInputs)
+                                            }
+                                        }
+                                    }
+                                ))
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.numberPad)
+                                
+                                TextField("Weight", text: Binding(
+                                    get: { setInput.weight },
+                                    set: { newValue in
+                                        // Update the set input
+                                        if exerciseIndex < dataManager.currentFitnessSession.exerciseSessions.count {
+                                            var updatedInputs = getSetInputs(for: exerciseIndex)
+                                            if setIndex < updatedInputs.count {
+                                                updatedInputs[setIndex].weight = newValue
+                                                setSetInputs(for: exerciseIndex, inputs: updatedInputs)
+                                            }
+                                        }
+                                    }
+                                ))
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.decimalPad)
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(8)
+                    }
                 }
                 
                 // Add new set button
@@ -876,13 +916,13 @@ struct FitnessView: View {
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(colorForExerciseType(exerciseSession.exerciseType).opacity(0.1))
+                            .fill(colorForExerciseSession(exerciseSession).opacity(0.1))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(colorForExerciseType(exerciseSession.exerciseType).opacity(0.3), lineWidth: 1)
+                                    .stroke(colorForExerciseSession(exerciseSession).opacity(0.3), lineWidth: 1)
                             )
                     )
-                    .foregroundColor(colorForExerciseType(exerciseSession.exerciseType))
+                    .foregroundColor(colorForExerciseSession(exerciseSession))
                 }
             }
         }
@@ -892,7 +932,7 @@ struct FitnessView: View {
                 .fill(Color(.systemBackground))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(colorForExerciseType(exerciseSession.exerciseType).opacity(0.3), lineWidth: 1)
+                        .stroke(colorForExerciseSession(exerciseSession).opacity(0.3), lineWidth: 1)
                 )
         )
     }
@@ -1084,6 +1124,10 @@ struct FitnessView: View {
         }
     }
     
+    private func setSetInputs(for exerciseIndex: Int, inputs: [SetInput]) {
+        exerciseSetInputs[exerciseIndex] = inputs
+    }
+    
     
     private func updateSetInput(exerciseIndex: Int, setIndex: Int, reps: String? = nil, weight: String? = nil, time: String? = nil, distance: String? = nil) {
         guard var inputs = exerciseSetInputs[exerciseIndex],
@@ -1205,32 +1249,6 @@ struct FitnessView: View {
     
     private var actionButtonsSection: some View {
         VStack(spacing: 20) {
-            // Show Start Session button if there are exercises but no active session
-            if !dataManager.currentFitnessSession.exerciseSessions.isEmpty && !dataManager.currentFitnessSession.isActive && !dataManager.currentFitnessSession.isPaused {
-                Button(action: startFitnessSession) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "play.circle.fill")
-                            .font(.title3)
-                        Text("Start Session")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.green, Color.green.opacity(0.8)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
-                    )
-                    .foregroundColor(.white)
-                }
-            }
             
             if dataManager.currentFitnessSession.isActive {
                 VStack(spacing: 12) {
@@ -1433,58 +1451,7 @@ struct FitnessView: View {
     }
     
     
-    private var totalSetsCount: Int {
-        // Count saved sets from data manager
-        let savedSets = dataManager.currentFitnessSession.totalSets
-        
-        // Count current set inputs that have valid data
-        let currentSetInputs = exerciseSetInputs.values.flatMap { $0 }.filter { $0.isValid }.count
-        
-        return savedSets + currentSetInputs
-    }
     
-    private var totalRepsCount: Int {
-        // Count reps from saved sets
-        let savedReps = dataManager.currentFitnessSession.exerciseSessions.flatMap { $0.sets }.compactMap { $0.reps }.reduce(0, +)
-        
-        // Count reps from current set inputs that have valid data
-        let currentReps = exerciseSetInputs.values.flatMap { $0 }.compactMap { Int($0.reps) }.reduce(0, +)
-        
-        return savedReps + currentReps
-    }
-    
-    private var totalVolume: Double {
-        // Calculate volume from saved sets
-        let savedVolume = dataManager.currentFitnessSession.exerciseSessions.flatMap { $0.sets }.compactMap { set in
-            guard let reps = set.reps, let weight = set.weight else { return nil }
-            return Double(reps) * weight
-        }.reduce(0.0) { $0 + $1 }
-        
-        // Calculate volume from current set inputs
-        let currentVolume = exerciseSetInputs.values.flatMap { $0 }.compactMap { setInput in
-            guard let reps = Int(setInput.reps), let weight = Double(setInput.weight) else { return nil }
-            return Double(reps) * weight
-        }.reduce(0.0) { $0 + $1 }
-        
-        return savedVolume + currentVolume
-    }
-    
-    
-    private var currentSessionCardioTime: TimeInterval {
-        // Calculate total cardio time from current session's sets (saved + current inputs)
-        let savedCardioTime = dataManager.currentFitnessSession.exerciseSessions.reduce(0) { total, exerciseSession in
-            exerciseSession.sets.reduce(0) { exerciseTotal, set in
-                exerciseTotal + (set.time ?? 0)
-            }
-        }
-        
-        let currentInputCardioTime = exerciseSetInputs.values.flatMap { $0 }.reduce(0) { total, setInput in
-            let timeInSeconds = setInput.time.isEmpty ? 0 : parseTimeInput(setInput.time) ?? 0
-            return total + timeInSeconds
-        }
-        
-        return savedCardioTime + currentInputCardioTime
-    }
     
     // MARK: - Actions
     
@@ -1672,6 +1639,25 @@ struct FitnessView: View {
         }
     }
     
+    private func colorForExerciseSession(_ session: ExerciseSession) -> Color {
+        if let exerciseType = session.exerciseType {
+            return colorForExerciseType(exerciseType)
+        } else if let customExercise = session.customExercise {
+            // Use category-based colors for custom exercises
+            switch customExercise.category {
+            case .upperBody: return .blue
+            case .lowerBody: return .green
+            case .coreAbs: return .orange
+            case .cardio: return .red
+            case .fullBody: return .purple
+            case .machineBased: return .cyan
+            case .olympic: return .yellow
+            }
+        }
+        return .gray
+    }
+    
+    
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
@@ -1705,8 +1691,19 @@ struct FitnessView: View {
         timer?.invalidate()
         timer = nil
     }
+    
+    // MARK: - Computed Properties for Filtered Records
+    
+    private var filteredPRRecords: [OneRepMax] {
+        let allRecords = dataManager.oneRepMaxManager.personalRecords
+        return allRecords.prefix(6).map { $0 }
+    }
+    
+    private var filteredRepMaxRecords: [OneRepMax] {
+        let allRecords = dataManager.oneRepMaxManager.personalRecords.filter { $0.recordType == .weight }
+        return allRecords.prefix(4).map { $0 }
+    }
 }
-
 
 // MARK: - Exercise Selector View
 
@@ -1880,15 +1877,20 @@ struct RepMaxEstimationCard: View {
     let record: OneRepMax
     let isExpanded: Bool
     let onTap: () -> Void
+    let filterSettings: MaxFilterSettings
     
     private var repEstimations: [(reps: Int, weight: Double)] {
         let oneRepMax = record.value
-        return [
+        let allEstimations = [
             (2, OneRepMaxCalculator.calculateWeightForReps(oneRepMax: oneRepMax, targetReps: 2)),
             (3, OneRepMaxCalculator.calculateWeightForReps(oneRepMax: oneRepMax, targetReps: 3)),
             (5, OneRepMaxCalculator.calculateWeightForReps(oneRepMax: oneRepMax, targetReps: 5)),
             (10, OneRepMaxCalculator.calculateWeightForReps(oneRepMax: oneRepMax, targetReps: 10))
         ]
+        
+        return allEstimations.filter { estimation in
+            filterSettings.shouldShowRepEstimation(estimation.0)
+        }
     }
     
     var body: some View {

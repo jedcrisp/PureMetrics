@@ -245,6 +245,12 @@ struct WorkoutDetailView: View {
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
 }
 
 // MARK: - Stat Card
@@ -291,11 +297,14 @@ struct ExerciseDetailCard: View {
     let exerciseIndex: Int
     let onDeleteSet: (Int) -> Void
     
+    @State private var showingEditSet = false
+    @State private var setToEdit: (set: ExerciseSet, index: Int)?
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Exercise Header
             HStack {
-                Text("\(index). \(exercise.exerciseType.rawValue)")
+                Text("\(index). \(exercise.exerciseName)")
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
@@ -339,11 +348,36 @@ struct ExerciseDetailCard: View {
                     }
                 }
                 
-                if isEditing && !exercise.sets.isEmpty {
-                    Text("Tap 'Remove' or swipe left on any set to delete it")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .italic()
+                if isEditing {
+                    if !exercise.sets.isEmpty {
+                        Text("Tap 'Edit' to modify a set, 'Remove' to delete it, or swipe left for quick actions")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .italic()
+                    }
+                    
+                    // Add Set Button
+                    Button(action: {
+                        setToEdit = (set: ExerciseSet(), index: exercise.sets.count)
+                        showingEditSet = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text("Add Set")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.blue.opacity(0.1))
+                        )
+                    }
+                    .padding(.top, 8)
                 }
                 
                 ForEach(Array(exercise.sets.enumerated()), id: \.offset) { setIndex, set in
@@ -367,7 +401,7 @@ struct ExerciseDetailCard: View {
                         }
                         
                         if let time = set.time, time > 0 {
-                            Text("(\(Int(time))s)")
+                            Text("(\(formatTime(time)))")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -375,29 +409,58 @@ struct ExerciseDetailCard: View {
                         Spacer()
                         
                         if isEditing {
-                            Button(action: {
-                                onDeleteSet(setIndex)
-                            }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "trash")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    Text("Remove")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    setToEdit = (set: set, index: setIndex)
+                                    showingEditSet = true
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "pencil")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        Text("Edit")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                    }
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.blue.opacity(0.1))
+                                    )
                                 }
-                                .foregroundColor(.red)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.red.opacity(0.1))
-                                )
+                                
+                                Button(action: {
+                                    onDeleteSet(setIndex)
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "trash")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        Text("Remove")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                    }
+                                    .foregroundColor(.red)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.red.opacity(0.1))
+                                    )
+                                }
                             }
                         }
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         if isEditing {
+                            Button("Edit Set") {
+                                setToEdit = (set: set, index: setIndex)
+                                showingEditSet = true
+                            }
+                            .tint(.blue)
+                            
                             Button("Remove Set") {
                                 onDeleteSet(setIndex)
                             }
@@ -428,6 +491,43 @@ struct ExerciseDetailCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
+        .sheet(isPresented: $showingEditSet) {
+            if let setToEdit = setToEdit {
+                EditSetView(
+                    set: setToEdit.set,
+                    onSave: { updatedSet in
+                        if setToEdit.index < exercise.sets.count {
+                            // Editing existing set
+                            dataManager.updateSetInWorkout(
+                                workoutId: workoutId,
+                                exerciseIndex: exerciseIndex,
+                                setIndex: setToEdit.index,
+                                reps: updatedSet.reps,
+                                weight: updatedSet.weight,
+                                time: updatedSet.time
+                            )
+                        } else {
+                            // Adding new set
+                            dataManager.addSetToCompletedWorkout(
+                                workoutId: workoutId,
+                                exerciseIndex: exerciseIndex,
+                                set: updatedSet
+                            )
+                        }
+                        self.setToEdit = nil
+                    },
+                    onCancel: {
+                        self.setToEdit = nil
+                    }
+                )
+            }
+        }
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 

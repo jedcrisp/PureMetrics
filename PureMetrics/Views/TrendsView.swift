@@ -4,17 +4,16 @@ import Charts
 struct TrendsView: View {
     @ObservedObject var dataManager: BPDataManager
     @State private var selectedTimeRange: TimeRange = .week
-    @State private var selectedMetric: Metric = .systolic
-    @State private var selectedExerciseType: ExerciseType = .benchPress
+    @State private var selectedMetric: Metric = .bloodPressure
     
     
     enum Metric: String, CaseIterable {
-        case systolic = "Systolic"
-        case diastolic = "Diastolic"
+        case bloodPressure = "Blood Pressure"
         case heartRate = "Heart Rate"
         case weight = "Weight"
         case bloodSugar = "Blood Sugar"
-        case fitness = "Fitness"
+        case bodyFatPercentage = "Body Fat %"
+        case leanBodyMass = "Lean Body Mass"
     }
     
     var body: some View {
@@ -26,6 +25,7 @@ struct TrendsView: View {
                 
                 ScrollView {
                     VStack(spacing: 0) {
+                        
                         // Header Section
                         headerSection
                         
@@ -37,43 +37,28 @@ struct TrendsView: View {
                             // Metric Selector
                             metricSelector
                             
-                            // Exercise Type Selector (only for fitness metric)
-                            if selectedMetric == .fitness {
-                                exerciseTypeSelector
-                            }
                             
-                            // Daily Readings Section
-                            dailyReadingsSection
                             
                             // Combined BP Chart (only show for BP metrics)
-                            if !filteredSessions.isEmpty && (selectedMetric == .systolic || selectedMetric == .diastolic) {
+                            if !filteredSessions.isEmpty && selectedMetric == .bloodPressure {
                                 combinedChartSection
                             }
                             
                             // Individual Metric Chart
-                            if selectedMetric == .fitness {
-                                if !fitnessChartData.isEmpty {
-                                    fitnessChartSection
-                                } else {
-                                    fitnessEmptyStateView
-                                }
-                            } else if !chartData.isEmpty {
+                            if !chartData.isEmpty {
                                 chartSection
                             } else {
                                 emptyStateView
                             }
                             
                             // Rolling Averages (only for BP metrics)
-                            if !dataManager.sessions.isEmpty && (selectedMetric == .systolic || selectedMetric == .diastolic) {
+                            if !dataManager.sessions.isEmpty && selectedMetric == .bloodPressure {
                                 rollingAveragesSection
                             }
                             
+                            
                             // Statistics Summary
-                            if selectedMetric == .fitness {
-                                if !fitnessChartData.isEmpty {
-                                    fitnessSummarySection
-                                }
-                            } else if !chartData.isEmpty {
+                            if !chartData.isEmpty {
                                 statisticsSummary
                             }
                         }
@@ -84,9 +69,21 @@ struct TrendsView: View {
             }
             .navigationTitle("")
             .navigationBarHidden(true)
-            .onChange(of: availableExercises) { newExercises in
-                if !newExercises.isEmpty && !newExercises.contains(selectedExerciseType) {
-                    selectedExerciseType = newExercises.first!
+            .onChange(of: selectedMetric) { _ in
+                if selectedMetric == .weight || selectedMetric == .bodyFatPercentage || selectedMetric == .leanBodyMass {
+                    fetchHealthKitData()
+                } else {
+                    healthKitDataPoints = []
+                }
+            }
+            .onChange(of: selectedTimeRange) { _ in
+                if selectedMetric == .weight || selectedMetric == .bodyFatPercentage || selectedMetric == .leanBodyMass {
+                    fetchHealthKitData()
+                }
+            }
+            .onAppear {
+                if selectedMetric == .weight || selectedMetric == .bodyFatPercentage || selectedMetric == .leanBodyMass {
+                    fetchHealthKitData()
                 }
             }
         }
@@ -102,7 +99,7 @@ struct TrendsView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .frame(height: 120)
+            .frame(height: 80)
             .overlay(
                 VStack(spacing: 8) {
                     HStack {
@@ -118,39 +115,6 @@ struct TrendsView: View {
                         }
                         
                         Spacer()
-                        
-                        HStack(spacing: 16) {
-                            // Data History Button
-                            NavigationLink(destination: DataHistoryView(dataManager: dataManager)) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "list.bullet")
-                                        .font(.system(size: 14, weight: .medium))
-                                    Text("See History")
-                                        .font(.system(size: 14, weight: .medium))
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(Color.white.opacity(0.2))
-                                )
-                            }
-                            
-                            if !filteredSessions.isEmpty {
-                                VStack(alignment: .trailing, spacing: 4) {
-                                    Text("Sessions")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.white.opacity(0.8))
-                                    
-                                    Text("\(filteredSessions.count)")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.white)
-                                }
-                            }
-                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
@@ -188,6 +152,23 @@ struct TrendsView: View {
                     .fontWeight(.semibold)
                 
                 Spacer()
+                
+                // Data History Button
+                NavigationLink(destination: DataHistoryView(dataManager: dataManager)) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("See History")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                }
             }
             
             Picker("Time Range", selection: $selectedTimeRange) {
@@ -244,49 +225,6 @@ struct TrendsView: View {
         )
     }
     
-    // MARK: - Exercise Type Selector
-    
-    private var exerciseTypeSelector: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "dumbbell.fill")
-                    .font(.title3)
-                    .foregroundColor(.orange)
-                
-                Text("Exercise Type")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Text("\(availableExercises.count) exercises")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            if availableExercises.isEmpty {
-                Text("No fitness data available. Start tracking workouts to see trends.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-            } else {
-                Picker("Exercise Type", selection: $selectedExerciseType) {
-                    ForEach(availableExercises, id: \.self) { exerciseType in
-                        Text(exerciseType.rawValue).tag(exerciseType)
-                    }
-                }
-                .pickerStyle(MenuPickerStyle())
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        )
-    }
     
     // MARK: - Combined Chart Section
     
@@ -304,23 +242,23 @@ struct TrendsView: View {
                 Spacer()
             }
             
-            Chart {
-                ForEach(combinedChartData, id: \.date) { dataPoint in
-                    PointMark(
-                        x: .value("Date", dataPoint.date),
-                        y: .value("Systolic", dataPoint.systolic)
-                    )
-                    .foregroundStyle(.red)
-                    .symbolSize(50)
-                    
-                    PointMark(
-                        x: .value("Date", dataPoint.date),
-                        y: .value("Diastolic", dataPoint.diastolic)
-                    )
-                    .foregroundStyle(.blue)
-                    .symbolSize(50)
+                Chart {
+                    ForEach(combinedChartData, id: \.date) { dataPoint in
+                        PointMark(
+                            x: .value("Date", dataPoint.date),
+                            y: .value("Systolic", dataPoint.systolic)
+                        )
+                        .foregroundStyle(.red)
+                        .symbolSize(50)
+
+                        PointMark(
+                            x: .value("Date", dataPoint.date),
+                            y: .value("Diastolic", dataPoint.diastolic)
+                        )
+                        .foregroundStyle(.blue)
+                        .symbolSize(50)
+                    }
                 }
-            }
             .frame(height: 250)
             .chartYScale(domain: 60...180)
             .chartXAxis {
@@ -373,6 +311,45 @@ struct TrendsView: View {
     
     // MARK: - Chart Section
     
+    private var chartView: some View {
+        Chart {
+            ForEach(chartData, id: \.date) { dataPoint in
+                if selectedMetric == .bloodPressure || selectedMetric == .heartRate {
+                    PointMark(
+                        x: .value("Date", dataPoint.date),
+                        y: .value(selectedMetric.rawValue, dataPoint.value)
+                    )
+                    .foregroundStyle(chartColor)
+                    .symbolSize(50)
+                } else {
+                    BarMark(
+                        x: .value("Date", dataPoint.date),
+                        y: .value(selectedMetric.rawValue, dataPoint.value)
+                    )
+                    .foregroundStyle(chartColor)
+                    .cornerRadius(4)
+                }
+            }
+        }
+        .frame(height: 200)
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .day)) { value in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.month().day())
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let doubleValue = value.as(Double.self) {
+                        Text(String(format: "%.0f", doubleValue))
+                    }
+                }
+            }
+        }
+    }
+    
     private var chartSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -387,34 +364,7 @@ struct TrendsView: View {
                 Spacer()
             }
             
-            Chart {
-                ForEach(chartData, id: \.date) { dataPoint in
-                    PointMark(
-                        x: .value("Date", dataPoint.date),
-                        y: .value(selectedMetric.rawValue, dataPoint.value)
-                    )
-                    .foregroundStyle(chartColor)
-                    .symbolSize(50)
-                }
-            }
-            .frame(height: 200)
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { value in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month().day())
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisGridLine()
-                    AxisValueLabel {
-                        if let intValue = value.as(Int.self) {
-                            Text("\(intValue)")
-                        }
-                    }
-                }
-            }
-            .chartYScale(domain: yAxisRange)
+            chartView
         }
         .padding(20)
         .background(
@@ -424,130 +374,9 @@ struct TrendsView: View {
         )
     }
     
-    // MARK: - Fitness Chart Section
-    
-    private var fitnessChartSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "dumbbell.fill")
-                    .font(.title2)
-                    .foregroundColor(.orange)
-                
-                Text("\(selectedExerciseType.rawValue) Progress")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                
-                Spacer()
-                
-                // Trend indicator
-                if let analysis = fitnessTrendAnalysis {
-                    HStack(spacing: 4) {
-                        Image(systemName: analysis.overallTrend.icon)
-                            .foregroundColor(analysis.overallTrend.color)
-                        Text(analysis.weightChangeString)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(analysis.overallTrend.color)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(analysis.overallTrend.color.opacity(0.1))
-                    )
-                }
-            }
-            
-            Chart {
-                ForEach(fitnessChartData, id: \.date) { dataPoint in
-                    // Average Weight Points
-                    PointMark(
-                        x: .value("Date", dataPoint.date),
-                        y: .value("Average Weight", dataPoint.averageWeight)
-                    )
-                    .foregroundStyle(.orange)
-                    .symbolSize(50)
-                    
-                    // Max Weight Points
-                    if dataPoint.maxWeight > dataPoint.averageWeight {
-                        PointMark(
-                            x: .value("Date", dataPoint.date),
-                            y: .value("Max Weight", dataPoint.maxWeight)
-                        )
-                        .foregroundStyle(.red)
-                        .symbolSize(40)
-                    }
-                }
-            }
-            .frame(height: 200)
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { value in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month().day())
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisGridLine()
-                    AxisValueLabel {
-                        if let intValue = value.as(Int.self) {
-                            Text("\(intValue)")
-                        }
-                    }
-                }
-            }
-            
-            // Legend
-            HStack(spacing: 20) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(Color.orange)
-                        .frame(width: 12, height: 12)
-                    Text("Average Weight")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-                
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 12, height: 12)
-                    Text("Max Weight")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-                
-                Spacer()
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        )
-    }
     
     // MARK: - Empty State View
     
-    // MARK: - Daily Readings Section
-    
-    private var dailyReadingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Daily Readings")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-            }
-            
-            DailyReadingsView(dataManager: dataManager)
-                .frame(height: 300)
-        }
-        .padding(.horizontal, 20)
-    }
     
     private var emptyStateView: some View {
         VStack(spacing: 20) {
@@ -575,41 +404,6 @@ struct TrendsView: View {
         )
     }
     
-    // MARK: - Fitness Empty State View
-    
-    private var fitnessEmptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "dumbbell.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.orange.opacity(0.6))
-            
-            Text("No Fitness Data")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
-            
-            if availableExercises.isEmpty {
-                Text("Start tracking your workouts to see progress over time.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            } else {
-                Text("No \(selectedExerciseType.rawValue.lowercased()) data in the selected time range. Try a different exercise or time period.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        )
-    }
     
     // MARK: - Rolling Averages Section
     
@@ -693,7 +487,8 @@ struct TrendsView: View {
                 )
                 
                 SummaryCard(
-                    title: selectedMetric == .weight || selectedMetric == .bloodSugar ? "Readings" : "Sessions",
+                    title: selectedMetric == .weight || selectedMetric == .bloodSugar ? "Readings" : 
+                           selectedMetric == .bodyFatPercentage || selectedMetric == .leanBodyMass ? "Days Tracked" : "Sessions",
                     value: "\(chartData.count)",
                     color: chartColor
                 )
@@ -707,64 +502,6 @@ struct TrendsView: View {
         )
     }
     
-    // MARK: - Fitness Summary Section
-    
-    private var fitnessSummarySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "dumbbell.fill")
-                    .font(.title2)
-                    .foregroundColor(.orange)
-                
-                Text("\(selectedExerciseType.rawValue) Summary")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                
-                Spacer()
-            }
-            
-            if let analysis = fitnessTrendAnalysis {
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 16) {
-                    FitnessSummaryCard(
-                        title: "Average Weight",
-                        value: String(format: "%.1f", analysis.averageWeight),
-                        subtitle: "lbs",
-                        color: .orange
-                    )
-                    
-                    FitnessSummaryCard(
-                        title: "Max Weight",
-                        value: String(format: "%.1f", analysis.maxWeight),
-                        subtitle: "lbs",
-                        color: .red
-                    )
-                    
-                    FitnessSummaryCard(
-                        title: "Weight Change",
-                        value: analysis.weightChangeString,
-                        subtitle: analysis.overallTrend.description,
-                        color: analysis.overallTrend.color
-                    )
-                    
-                    FitnessSummaryCard(
-                        title: "Sessions",
-                        value: "\(analysis.totalSessions)",
-                        subtitle: "workouts",
-                        color: .blue
-                    )
-                }
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-        )
-    }
     
     // MARK: - Computed Properties
     
@@ -789,15 +526,15 @@ struct TrendsView: View {
     
     private var chartData: [ChartDataPoint] {
         switch selectedMetric {
-        case .systolic, .diastolic, .heartRate:
+        case .bloodPressure, .heartRate:
             // Use BP session data for these metrics
             return filteredSessions.map { session in
                 let value: Double
                 switch selectedMetric {
-                case .systolic:
+                case .bloodPressure:
+                    // For blood pressure, we'll use systolic as the primary value for the individual chart
+                    // The combined chart will show both systolic and diastolic
                     value = session.averageSystolic
-                case .diastolic:
-                    value = session.averageDiastolic
                 case .heartRate:
                     value = session.averageHeartRate ?? 0
                 default:
@@ -846,8 +583,9 @@ struct TrendsView: View {
                     )
                 }.sorted { $0.date < $1.date }
             
-        case .fitness:
-            return [] // Fitness data is handled separately
+        case .bodyFatPercentage, .leanBodyMass:
+            // Use HealthKit data for these metrics
+            return getHealthKitChartData()
         }
     }
     
@@ -863,50 +601,21 @@ struct TrendsView: View {
     
     private var chartColor: Color {
         switch selectedMetric {
-        case .systolic:
+        case .bloodPressure:
             return .red
-        case .diastolic:
-            return .blue
         case .heartRate:
             return .green
         case .weight:
             return .purple
         case .bloodSugar:
             return .orange
-        case .fitness:
-            return .orange
+        case .bodyFatPercentage:
+            return .pink
+        case .leanBodyMass:
+            return .cyan
         }
     }
     
-    private var fitnessChartData: [FitnessTrendData] {
-        dataManager.getFitnessTrends(for: selectedExerciseType, timeRange: selectedTimeRange)
-    }
-    
-    private var fitnessTrendAnalysis: FitnessTrendAnalysis? {
-        dataManager.getFitnessTrendAnalysis(for: selectedExerciseType, timeRange: selectedTimeRange)
-    }
-    
-    private var availableExercises: [ExerciseType] {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        let cutoffDate: Date
-        switch selectedTimeRange {
-        case .week:
-            cutoffDate = calendar.date(byAdding: .weekOfYear, value: -1, to: now) ?? now
-        case .month:
-            cutoffDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
-        case .threeMonths:
-            cutoffDate = calendar.date(byAdding: .month, value: -3, to: now) ?? now
-        case .year:
-            cutoffDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
-        }
-        
-        let filteredSessions = dataManager.fitnessSessions.filter { $0.startTime >= cutoffDate }
-        let exerciseTypes = Set(filteredSessions.flatMap { $0.exerciseSessions.map { $0.exerciseType } })
-        
-        return Array(exerciseTypes).sorted { $0.rawValue < $1.rawValue }
-    }
     
     private var averageValue: Double {
         guard !chartData.isEmpty else { return 0 }
@@ -923,7 +632,7 @@ struct TrendsView: View {
     
     private var yAxisRange: ClosedRange<Double> {
         switch selectedMetric {
-        case .systolic, .diastolic:
+        case .bloodPressure:
             return 60...180
         case .heartRate:
             return 40...120
@@ -933,53 +642,347 @@ struct TrendsView: View {
             return minWeight...maxWeight
         case .bloodSugar:
             return 60...200
-        case .fitness:
-            return 0...100
+        case .bodyFatPercentage:
+            let minBodyFat = minValue > 0 ? minValue - 2 : 0
+            let maxBodyFat = maxValue > 0 ? maxValue + 2 : 25
+            return minBodyFat...maxBodyFat
+        case .leanBodyMass:
+            let minLeanBodyMass = minValue > 0 ? minValue - 5 : 0
+            let maxLeanBodyMass = maxValue > 0 ? maxValue + 5 : 200
+            return minLeanBodyMass...maxLeanBodyMass
         }
     }
     
     private var emptyStateMessage: String {
         switch selectedMetric {
-        case .systolic, .diastolic, .heartRate:
+        case .bloodPressure, .heartRate:
             return "Start recording your blood pressure to see trends over time."
         case .weight:
             return "Start recording your weight to see trends over time."
         case .bloodSugar:
             return "Start recording your blood sugar to see trends over time."
-        case .fitness:
-            return "Start tracking your workouts to see progress over time."
+        case .bodyFatPercentage:
+            return "Enable Apple Health integration to see your body fat trends."
+        case .leanBodyMass:
+            return "Enable Apple Health integration to see your lean body mass trends."
         }
     }
     
     private var headerSubtitle: String {
-        switch selectedMetric {
-        case .systolic, .diastolic:
-            return "Blood Pressure Analysis"
-        case .heartRate:
-            return "Heart Rate Tracking"
-        case .weight:
-            return "Weight Tracking"
-        case .bloodSugar:
-            return "Blood Sugar Monitoring"
-        case .fitness:
-            return "Fitness Progress"
-        }
+        return "Health Trends"
     }
     
     private func metricColor(_ metric: Metric) -> Color {
         switch metric {
-        case .systolic:
+        case .bloodPressure:
             return .red
-        case .diastolic:
-            return .blue
         case .heartRate:
             return .green
         case .weight:
             return .purple
         case .bloodSugar:
             return .orange
-        case .fitness:
-            return .orange
+        case .bodyFatPercentage:
+            return .pink
+        case .leanBodyMass:
+            return .cyan
+        }
+    }
+    
+    // MARK: - HealthKit Status Section
+    
+    private var healthKitStatusSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "heart.fill")
+                    .font(.title2)
+                    .foregroundColor(.red)
+                
+                Text("Apple Health Status")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                
+                Spacer()
+            }
+            
+            if dataManager.healthKitManager.isHealthKitEnabled {
+                if dataManager.healthKitManager.isAuthorized {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Connected to Apple Health")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Spacer()
+                        }
+                        
+                        // Current values and data status
+                        VStack(spacing: 12) {
+                            if isLoadingHealthKitData {
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Loading \(selectedMetric.rawValue.lowercased()) data...")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(12)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            } else if !healthKitDataPoints.isEmpty {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    Text("Found \(healthKitDataPoints.count) data points")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Button("Refresh") {
+                                        fetchHealthKitData()
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(12)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            } else {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.orange)
+                                    Text("No \(selectedMetric.rawValue.lowercased()) data found in selected time range")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Button("Refresh") {
+                                        fetchHealthKitData()
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(12)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            }
+                            
+                            // Current day values
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 12) {
+                                if selectedMetric == .weight {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Current Weight")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text(dataManager.healthKitManager.formattedCurrentWeight)
+                                            .font(.title3)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.purple)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(8)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text("Authorization Required")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Spacer()
+                        }
+                        
+                        Text("Enable Apple Health access to view your \(selectedMetric.rawValue.lowercased()) trends.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                        
+                        Button("Enable Health Access") {
+                            dataManager.healthKitManager.requestAuthorization()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
+                    }
+                }
+            } else {
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "heart.slash")
+                            .foregroundColor(.gray)
+                        Text("Apple Health Disabled")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Spacer()
+                    }
+                    
+                    Text("Enable Apple Health integration to view your \(selectedMetric.rawValue.lowercased()) trends.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                    
+                    Button("Enable Health Data") {
+                        dataManager.healthKitManager.toggleHealthKit()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
+    // MARK: - HealthKit Status Card
+    
+    private var healthKitStatusCard: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: dataManager.healthKitManager.isHealthKitEnabled ? "heart.fill" : "heart.slash")
+                    .foregroundColor(dataManager.healthKitManager.isHealthKitEnabled ? .red : .gray)
+                
+                Text("Apple Health Integration")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+            }
+            
+            if !dataManager.healthKitManager.isHealthKitEnabled {
+                VStack(spacing: 8) {
+                    Text("HealthKit is not enabled")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Enable Apple Health integration to view your health data trends")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    Button("Enable HealthKit") {
+                        dataManager.healthKitManager.isHealthKitEnabled = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            } else if !dataManager.healthKitManager.isAuthorized {
+                VStack(spacing: 8) {
+                    Text("HealthKit permissions needed")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Grant permissions to access your health data")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    Button("Grant Permissions") {
+                        dataManager.healthKitManager.requestAuthorization()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            } else {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    
+                    Text("HealthKit connected")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+    
+    // MARK: - HealthKit Data Functions
+    
+    @State private var healthKitDataPoints: [ChartDataPoint] = []
+    @State private var isLoadingHealthKitData = false
+    
+    private func getHealthKitChartData() -> [ChartDataPoint] {
+        return healthKitDataPoints
+    }
+    
+    private func fetchHealthKitData() {
+        print("=== FETCH HEALTHKIT DATA CALLED ===")
+        print("Selected metric: \(selectedMetric)")
+        print("HealthKit authorized: \(dataManager.healthKitManager.isAuthorized)")
+        print("HealthKit enabled: \(dataManager.healthKitManager.isHealthKitEnabled)")
+        
+        // For HealthKit metrics, always try to fetch data (simulator will return sample data)
+        guard selectedMetric == .weight || selectedMetric == .bodyFatPercentage || selectedMetric == .leanBodyMass else {
+            print("Not a HealthKit metric, returning")
+            return
+        }
+        
+        isLoadingHealthKitData = true
+        
+        let calendar = Calendar.current
+        let now = Date()
+        
+        let cutoffDate: Date
+        switch selectedTimeRange {
+        case .week:
+            cutoffDate = calendar.date(byAdding: .weekOfYear, value: -1, to: now) ?? now
+        case .month:
+            cutoffDate = calendar.date(byAdding: .month, value: -1, to: now) ?? now
+        case .threeMonths:
+            cutoffDate = calendar.date(byAdding: .month, value: -3, to: now) ?? now
+        case .year:
+            cutoffDate = calendar.date(byAdding: .year, value: -1, to: now) ?? now
+        }
+        
+        switch selectedMetric {
+        case .weight:
+            dataManager.healthKitManager.fetchHistoricalWeightData(from: cutoffDate, to: now) { dataPoints in
+                self.healthKitDataPoints = dataPoints.map { point in
+                    ChartDataPoint(date: point.date, value: point.value)
+                }
+                self.isLoadingHealthKitData = false
+            }
+        case .bodyFatPercentage:
+            dataManager.healthKitManager.fetchHistoricalBodyFatPercentageData(from: cutoffDate, to: now) { dataPoints in
+                self.healthKitDataPoints = dataPoints.map { point in
+                    ChartDataPoint(date: point.date, value: point.value)
+                }
+                self.isLoadingHealthKitData = false
+            }
+        case .leanBodyMass:
+            dataManager.healthKitManager.fetchHistoricalLeanBodyMassData(from: cutoffDate, to: now) { dataPoints in
+                self.healthKitDataPoints = dataPoints.map { point in
+                    ChartDataPoint(date: point.date, value: point.value)
+                }
+                self.isLoadingHealthKitData = false
+            }
+        default:
+            healthKitDataPoints = []
+            isLoadingHealthKitData = false
         }
     }
     
@@ -1079,48 +1082,6 @@ struct SummaryCard: View {
     }
 }
 
-// MARK: - Fitness Summary Card Component
-
-struct FitnessSummaryCard: View {
-    let title: String
-    let value: String
-    let subtitle: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.1))
-                    .frame(width: 50, height: 50)
-                
-                Text(value)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(color)
-                    .multilineTextAlignment(.center)
-            }
-            
-            Text(title)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-        )
-    }
-}
 
 // MARK: - Metric Card Component
 

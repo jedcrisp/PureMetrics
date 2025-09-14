@@ -1,6 +1,8 @@
 import SwiftUI
 import FirebaseCore
 import GoogleSignIn
+import UserNotifications
+import UIKit
 
 @main
 struct PureMetricsApp: App {
@@ -40,11 +42,32 @@ struct PureMetricsApp: App {
                 if FirebaseApp.app() == nil {
                     FirebaseApp.configure()
                 }
+                
+                // Clear notification badge when app becomes active
+                clearNotificationBadge()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                // Clear notification badge when app becomes active
+                clearNotificationBadge()
             }
             .onOpenURL { url in
                 // Handle Google Sign-In URL
                 GIDSignIn.sharedInstance.handle(url)
             }
         }
+    }
+    
+    // MARK: - Notification Badge Management
+    
+    private func clearNotificationBadge() {
+        // Clear the app icon badge
+        DispatchQueue.main.async {
+            UIApplication.shared.applicationIconBadgeNumber = 0
+        }
+        
+        // Also clear any delivered notifications
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        
+        print("Cleared notification badge and delivered notifications")
     }
 }

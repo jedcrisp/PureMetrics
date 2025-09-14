@@ -7,77 +7,132 @@ struct NutritionSummaryCard: View {
     let goals: NutritionGoals
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Main Stats
-            HStack(spacing: 20) {
+        VStack(spacing: 10) {
+            // Main Stats - Compact
+            HStack(spacing: 12) {
                 StatItem(
                     icon: "flame.fill",
-                    value: "\(Int(summary.totalCalories))",
+                    value: "\(summary.totalCalories.isFinite && !summary.totalCalories.isNaN ? Int(summary.totalCalories) : 0)",
                     label: "Calories",
                     color: .orange
-                )
-                
-                StatItem(
-                    icon: "drop.fill",
-                    value: "\(Int(summary.totalWater))",
-                    label: "Water (oz)",
-                    color: .blue
                 )
                 
                 StatItem(
                     icon: "scalemass.fill",
-                    value: "\(Int(summary.totalProtein))",
-                    label: "Protein (g)",
+                    value: "\(summary.totalProtein.isFinite && !summary.totalProtein.isNaN ? Int(summary.totalProtein) : 0)",
+                    label: "Protein",
                     color: .red
+                )
+                
+                StatItem(
+                    icon: "drop.fill",
+                    value: "\(summary.totalWater.isFinite && !summary.totalWater.isNaN ? Int(summary.totalWater) : 0)",
+                    label: "Water",
+                    color: .blue
                 )
             }
             
-            // Macro Breakdown
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Macros")
+            
+            // Goals Progress Section - All Visible
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Daily Goals Progress")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
                 
-                HStack(spacing: 16) {
-                    MacroItem(
-                        label: "Carbs",
-                        value: "\(Int(summary.totalCarbohydrates))g",
-                        color: .green
+                VStack(spacing: 5) {
+                    // All progress bars visible
+                    ProgressBar(
+                        label: "Calories",
+                        current: summary.totalCalories,
+                        goal: goals.dailyCalories,
+                        unit: "cal",
+                        color: .orange
                     )
                     
-                    MacroItem(
-                        label: "Fat",
-                        value: "\(Int(summary.totalFat))g",
+                    ProgressBar(
+                        label: "Protein",
+                        current: summary.totalProtein,
+                        goal: goals.dailyProtein,
+                        unit: "g",
+                        color: .red
+                    )
+                    
+                    ProgressBar(
+                        label: "Water",
+                        current: summary.totalWater,
+                        goal: goals.dailyWater,
+                        unit: "oz",
                         color: .blue
                     )
                     
-                    MacroItem(
+                    ProgressBar(
+                        label: "Carbs",
+                        current: summary.totalCarbohydrates,
+                        goal: goals.dailyCarbohydrates,
+                        unit: "g",
+                        color: .green
+                    )
+                    
+                    ProgressBar(
+                        label: "Fat",
+                        current: summary.totalFat,
+                        goal: goals.dailyFat,
+                        unit: "g",
+                        color: .blue
+                    )
+                    
+                    ProgressBar(
+                        label: "Total Sugar",
+                        current: summary.totalSugar,
+                        goal: goals.dailySugar,
+                        unit: "g",
+                        color: .pink
+                    )
+                    
+                    ProgressBar(
+                        label: "Natural Sugar",
+                        current: summary.totalNaturalSugar,
+                        goal: goals.dailyNaturalSugar,
+                        unit: "g",
+                        color: .green
+                    )
+                    
+                    ProgressBar(
+                        label: "Added Sugar",
+                        current: summary.totalAddedSugar,
+                        goal: goals.dailyAddedSugar,
+                        unit: "g",
+                        color: .red
+                    )
+                    
+                    ProgressBar(
+                        label: "Sodium",
+                        current: summary.totalSodium,
+                        goal: goals.dailySodium,
+                        unit: "mg",
+                        color: .purple
+                    )
+                    
+                    ProgressBar(
                         label: "Fiber",
-                        value: "\(Int(summary.totalFiber))g",
+                        current: summary.totalFiber,
+                        goal: goals.dailyFiber,
+                        unit: "g",
                         color: .mint
+                    )
+                    
+                    ProgressBar(
+                        label: "Cholesterol",
+                        current: summary.totalCholesterol,
+                        goal: goals.dailyCholesterol,
+                        unit: "mg",
+                        color: .indigo
                     )
                 }
             }
-            
-            // Additional Nutrients
-            HStack(spacing: 16) {
-                NutrientItem(
-                    label: "Sodium",
-                    value: summary.totalSodium >= 1000 ? 
-                        "\(String(format: "%.1f", summary.totalSodium / 1000))g" : 
-                        "\(Int(summary.totalSodium))mg",
-                    color: .purple
-                )
-                
-                NutrientItem(
-                    label: "Sugar",
-                    value: "\(Int(summary.totalSugar))g",
-                    color: .pink
-                )
-            }
         }
-        .padding(16)
+        .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemBackground))
@@ -86,81 +141,6 @@ struct NutritionSummaryCard: View {
     }
 }
 
-// MARK: - Goals Progress Card
-
-struct GoalsProgressCard: View {
-    let summary: NutritionSummary
-    let goals: NutritionGoals
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            // Progress Bars
-            VStack(spacing: 12) {
-                ProgressBar(
-                    label: "Calories",
-                    current: summary.totalCalories,
-                    goal: goals.dailyCalories,
-                    unit: "cal",
-                    color: .orange
-                )
-                
-                ProgressBar(
-                    label: "Protein",
-                    current: summary.totalProtein,
-                    goal: goals.dailyProtein,
-                    unit: "g",
-                    color: .red
-                )
-                
-                ProgressBar(
-                    label: "Carbs",
-                    current: summary.totalCarbohydrates,
-                    goal: goals.dailyCarbohydrates,
-                    unit: "g",
-                    color: .green
-                )
-                
-                ProgressBar(
-                    label: "Fat",
-                    current: summary.totalFat,
-                    goal: goals.dailyFat,
-                    unit: "g",
-                    color: .blue
-                )
-                
-                ProgressBar(
-                    label: "Sodium",
-                    current: summary.totalSodium,
-                    goal: goals.dailySodium,
-                    unit: "mg",
-                    color: .purple
-                )
-                
-                ProgressBar(
-                    label: "Fiber",
-                    current: summary.totalFiber,
-                    goal: goals.dailyFiber,
-                    unit: "g",
-                    color: .mint
-                )
-                
-                ProgressBar(
-                    label: "Water",
-                    current: summary.totalWater,
-                    goal: goals.dailyWater,
-                    unit: "oz",
-                    color: .cyan
-                )
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-        )
-    }
-}
 
 // MARK: - Stat Item
 
@@ -171,18 +151,18 @@ struct StatItem: View {
     let color: Color
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.title3)
                 .foregroundColor(color)
             
             Text(value)
-                .font(.title3)
+                .font(.headline)
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
             
             Text(label)
-                .font(.caption)
+                .font(.caption2)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -255,10 +235,10 @@ struct ProgressBar: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(label)
-                    .font(.subheadline)
+                    .font(.caption)
                     .fontWeight(.medium)
                     .foregroundColor(.primary)
                 
@@ -272,20 +252,21 @@ struct ProgressBar: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     // Background
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 3)
                         .fill(Color(.systemGray5))
-                        .frame(height: 8)
+                        .frame(height: 5)
                     
                     // Progress
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 3)
                         .fill(isOverGoal ? Color.red : color)
-                        .frame(width: geometry.size.width * progress, height: 8)
+                        .frame(width: geometry.size.width * progress, height: 5)
                 }
             }
-            .frame(height: 8)
+            .frame(height: 5)
         }
     }
 }
+
 
 #Preview {
     VStack(spacing: 20) {
@@ -293,16 +274,6 @@ struct ProgressBar: View {
             summary: NutritionSummary(
                 entries: [
                     NutritionEntry(calories: 500, protein: 25, carbohydrates: 60, fat: 15, water: 16)
-                ],
-                goals: NutritionGoals()
-            ),
-            goals: NutritionGoals()
-        )
-        
-        GoalsProgressCard(
-            summary: NutritionSummary(
-                entries: [
-                    NutritionEntry(calories: 1500, protein: 100, carbohydrates: 200, fat: 50, water: 32)
                 ],
                 goals: NutritionGoals()
             ),

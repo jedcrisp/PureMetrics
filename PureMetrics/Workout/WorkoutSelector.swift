@@ -8,6 +8,8 @@ struct WorkoutSelector: View {
     @State private var selectedCategory: WorkoutCategory? = nil
     @State private var selectedDifficulty: WorkoutDifficulty? = nil
     @State private var showFavoritesOnly = false
+    @State private var showingWorkoutPreview = false
+    @State private var previewWorkout: PreBuiltWorkout? = nil
     
     private var filteredWorkouts: [PreBuiltWorkout] {
         var workouts = workoutManager.workouts
@@ -131,9 +133,8 @@ struct WorkoutSelector: View {
                             workout: workout,
                             isSelected: selectedWorkout?.id == workout.id,
                             onTap: {
-                                selectedWorkout = workout
-                                onWorkoutSelected(workout)
-                                presentationMode.wrappedValue.dismiss()
+                                previewWorkout = workout
+                                showingWorkoutPreview = true
                             },
                             onFavorite: {
                                 workoutManager.toggleFavorite(workout)
@@ -146,6 +147,22 @@ struct WorkoutSelector: View {
                 .listStyle(PlainListStyle())
             }
             .navigationBarHidden(true)
+        }
+        .sheet(isPresented: $showingWorkoutPreview) {
+            if let workout = previewWorkout {
+                PreBuiltWorkoutPreview(
+                    workout: workout,
+                    onSelect: {
+                        selectedWorkout = workout
+                        onWorkoutSelected(workout)
+                        showingWorkoutPreview = false
+                        presentationMode.wrappedValue.dismiss()
+                    },
+                    onCancel: {
+                        showingWorkoutPreview = false
+                    }
+                )
+            }
         }
     }
 }

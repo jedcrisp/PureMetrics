@@ -132,6 +132,7 @@ class OneRepMaxManager: ObservableObject {
         "Snatch",
         "Clean & Jerk",
         "Incline Bench Press",
+        "Hex Bar Deadlift",
         "Sumo Deadlift",
         "Romanian Deadlift",
         "1 Mile Run",

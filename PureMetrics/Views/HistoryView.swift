@@ -4,6 +4,7 @@ struct HistoryView: View {
     @ObservedObject var dataManager: BPDataManager
     @State private var showingDeleteAlert = false
     @State private var sessionToDelete: BPSession?
+    @State private var showingAllSessions = false
     
     var body: some View {
         NavigationView {
@@ -55,18 +56,59 @@ struct HistoryView: View {
     // MARK: - Sessions List View
     
     private var sessionsListView: some View {
-        List {
-            ForEach(dataManager.sessions) { session in
-                sessionRow(session: session)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button("Delete", role: .destructive) {
-                            sessionToDelete = session
-                            showingDeleteAlert = true
+        VStack(spacing: 0) {
+            List {
+                ForEach(displayedSessions) { session in
+                    sessionRow(session: session)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button("Delete", role: .destructive) {
+                                sessionToDelete = session
+                                showingDeleteAlert = true
+                            }
                         }
+                }
+            }
+            .listStyle(PlainListStyle())
+            
+            // Show "See All" button if there are more sessions
+            if sortedSessions.count > 5 {
+                Button(action: {
+                    showingAllSessions.toggle()
+                }) {
+                    HStack {
+                        Text(showingAllSessions ? "Show Less" : "See All (\(sortedSessions.count) sessions)")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        Image(systemName: showingAllSessions ? "chevron.up" : "chevron.down")
+                            .font(.caption)
                     }
+                    .foregroundColor(.blue)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
         }
-        .listStyle(PlainListStyle())
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var sortedSessions: [BPSession] {
+        dataManager.sessions.sorted { $0.startTime > $1.startTime }
+    }
+    
+    private var displayedSessions: [BPSession] {
+        if showingAllSessions {
+            return sortedSessions
+        } else {
+            return Array(sortedSessions.prefix(5))
+        }
     }
     
     // MARK: - Session Row

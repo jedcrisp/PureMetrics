@@ -16,6 +16,7 @@ struct SessionView: View {
     @State private var weight = ""
     @State private var bloodSugar = ""
     @State private var additionalHeartRate = ""
+    @State private var bodyFat = ""
     
     var body: some View {
         NavigationView {
@@ -30,12 +31,9 @@ struct SessionView: View {
                         headerSection
                         
                         // Session Content (always visible)
-                        VStack(spacing: 24) {
+                        VStack(spacing: 16) {
                             // Entry Form - Made more prominent
                             entryFormSection
-                            
-                            
-                            
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
@@ -66,54 +64,33 @@ struct SessionView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .frame(height: 100)
+            .frame(height: 80)
             .overlay(
                 VStack(spacing: 0) {
-                    // Top section with app name, status, and New Session button
+                    // Top section with app name and subtitle
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("PureMetrics")
                                 .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                            
+                            Text("Health")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
                         }
                         
                         Spacer()
                         
-                        HStack(spacing: 8) {
-                            // HealthKit Dashboard Button
-                            NavigationLink(destination: HealthKitDashboard(healthKitManager: dataManager.healthKitManager)) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 12, weight: .medium))
-                                    Text("Health")
-                                        .font(.system(size: 12, weight: .medium))
-                                }
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(useManualTime ? manualDate : Date(), style: .date)
+                                .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .fill(Color.white.opacity(0.2))
-                                )
-                            }
+                                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                             
-                            // Health Metrics List Button
-                            NavigationLink(destination: HealthMetricsListView(dataManager: dataManager)) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "list.bullet")
-                                        .font(.system(size: 12, weight: .medium))
-                                    Text("All Metrics")
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .fill(Color.white.opacity(0.2))
-                                )
-                            }
+                            Text(useManualTime ? manualTime : Date(), style: .time)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.8))
                         }
                     }
                     .padding(.horizontal, 20)
@@ -143,18 +120,18 @@ struct SessionView: View {
     // MARK: - Entry Form Section
     
     private var entryFormSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             // Header with improved design
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Add Health Reading")
-                            .font(.title2)
+                            .font(.title3)
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
                         
                         Text("Select a metric type and enter your values")
-                            .font(.subheadline)
+                            .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     
@@ -170,7 +147,7 @@ struct SessionView: View {
             .padding(.horizontal, 4)
             
             // Dynamic Input Fields based on selected metric type
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 if selectedMetricType == .bloodPressure {
                     BloodPressureInput(systolic: $systolic, diastolic: $diastolic)
                 } else {
@@ -182,10 +159,10 @@ struct SessionView: View {
                 
                 // Heart Rate (only for Blood Pressure)
                 if selectedMetricType == .bloodPressure {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 8) {
                         HStack {
                             Text("Heart Rate")
-                                .font(.headline)
+                                .font(.subheadline)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.green)
                             
@@ -201,10 +178,10 @@ struct SessionView: View {
                         }
                         
                         TextField("72", text: $heartRate)
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
                             .multilineTextAlignment(.center)
                             .keyboardType(.numberPad)
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 12)
                             .padding(.horizontal, 16)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
@@ -219,46 +196,49 @@ struct SessionView: View {
             }
             
             // Manual Date/Time Selection
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "calendar")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
                     Toggle("Use Manual Date/Time", isOn: $useManualTime)
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 
                 if useManualTime {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 8) {
                         DatePicker("Date", selection: $manualDate, displayedComponents: .date)
                             .datePickerStyle(CompactDatePickerStyle())
                         
                         DatePicker("Time", selection: $manualTime, displayedComponents: .hourAndMinute)
                             .datePickerStyle(CompactDatePickerStyle())
                     }
-                    .padding(16)
+                    .padding(12)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 8)
                             .fill(Color(.systemGray6))
                     )
                 }
             }
             
+            // Health Notes Section
+            healthNotesSection
+            
             // Add Reading Button
             Button(action: addReading) {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
                     Text("Add Reading")
-                        .font(.headline)
+                        .font(.subheadline)
                         .fontWeight(.semibold)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
+                .padding(.vertical, 14)
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 12)
                         .fill(
                             canAddReading ? 
                             LinearGradient(colors: [Color.blue, Color.blue.opacity(0.8)], startPoint: .leading, endPoint: .trailing) :
@@ -266,15 +246,15 @@ struct SessionView: View {
                         )
                 )
                 .foregroundColor(.white)
-                .shadow(color: canAddReading ? .blue.opacity(0.3) : .clear, radius: 8, x: 0, y: 4)
+                .shadow(color: canAddReading ? .blue.opacity(0.3) : .clear, radius: 6, x: 0, y: 3)
             }
             .disabled(!canAddReading)
         }
-        .padding(28)
+        .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 24)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+                .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 3)
         )
     }
     
@@ -379,6 +359,7 @@ struct SessionView: View {
         case .weight: return .green
         case .bloodSugar: return .orange
         case .heartRate: return .red
+        case .bodyFat: return .purple
         }
     }
     
@@ -396,6 +377,10 @@ struct SessionView: View {
             get: { additionalHeartRate },
             set: { additionalHeartRate = $0 }
         )
+        case .bodyFat: return Binding(
+            get: { bodyFat },
+            set: { bodyFat = $0 }
+        )
         case .bloodPressure: return Binding(
             get: { systolic },
             set: { systolic = $0 }
@@ -410,9 +395,26 @@ struct SessionView: View {
         weight = ""
         bloodSugar = ""
         additionalHeartRate = ""
+        bodyFat = ""
     }
     
     private func dismissKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+    
+    // MARK: - Health Notes Section
+    
+    private var healthNotesSection: some View {
+        HealthNotesView(
+            metricType: selectedMetricType.rawValue,
+            date: useManualTime ? manualDate : Date(),
+            dataManager: dataManager
+        )
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        )
     }
 }

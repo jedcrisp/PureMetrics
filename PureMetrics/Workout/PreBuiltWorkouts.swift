@@ -38,7 +38,10 @@ struct PreBuiltWorkout: Identifiable, Codable {
 
 struct WorkoutExercise: Identifiable, Codable {
     let id = UUID()
-    let exerciseType: ExerciseType
+    let exerciseType: ExerciseType?
+    let customExercise: CustomExercise?
+    let exerciseName: String // Display name for the exercise
+    let exerciseCategory: ExerciseCategory // Category for UI purposes
     let sets: Int
     let reps: Int?
     let weight: Double? // in lbs
@@ -48,11 +51,15 @@ struct WorkoutExercise: Identifiable, Codable {
     let plannedSets: [PlannedSet]? // Detailed set information
     
     enum CodingKeys: String, CodingKey {
-        case exerciseType, sets, reps, weight, time, restTime, notes, plannedSets
+        case exerciseType, customExercise, exerciseName, exerciseCategory, sets, reps, weight, time, restTime, notes, plannedSets
     }
     
+    // Initialize with built-in exercise
     init(exerciseType: ExerciseType, sets: Int, reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval? = nil, notes: String? = nil, plannedSets: [PlannedSet]? = nil) {
         self.exerciseType = exerciseType
+        self.customExercise = nil
+        self.exerciseName = exerciseType.rawValue
+        self.exerciseCategory = exerciseType.category
         self.sets = sets
         self.reps = reps
         self.weight = weight
@@ -60,6 +67,26 @@ struct WorkoutExercise: Identifiable, Codable {
         self.restTime = restTime
         self.notes = notes
         self.plannedSets = plannedSets
+    }
+    
+    // Initialize with custom exercise
+    init(customExercise: CustomExercise, sets: Int, reps: Int? = nil, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval? = nil, notes: String? = nil, plannedSets: [PlannedSet]? = nil) {
+        self.exerciseType = nil
+        self.customExercise = customExercise
+        self.exerciseName = customExercise.name
+        self.exerciseCategory = customExercise.category
+        self.sets = sets
+        self.reps = reps
+        self.weight = weight
+        self.time = time
+        self.restTime = restTime
+        self.notes = notes
+        self.plannedSets = plannedSets
+    }
+    
+    // Computed property to check if this is a custom exercise
+    var isCustomExercise: Bool {
+        return customExercise != nil
     }
 }
 
@@ -155,6 +182,344 @@ class PreBuiltWorkoutManager: ObservableObject {
     
     private func loadPreBuiltWorkouts() {
         workouts = [
+            // Beginner Upper Body Workouts
+            PreBuiltWorkout(
+                name: "Beginner Chest Workout",
+                category: .upperBody,
+                description: "Perfect for building chest strength and muscle. Focus on proper form and controlled movements.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .benchPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Start with lighter weight, focus on full range of motion"),
+                    WorkoutExercise(exerciseType: .inclineBenchPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Targets upper chest, keep core tight"),
+                    WorkoutExercise(exerciseType: .chestFly, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Control the weight, feel the stretch in your chest"),
+                    WorkoutExercise(exerciseType: .weightedPushUps, sets: 3, reps: 10, weight: nil, time: nil, restTime: 60, notes: "Use bodyweight if no weight available, keep straight line"),
+                    WorkoutExercise(exerciseType: .squeezePress, sets: 2, reps: 15, weight: nil, time: nil, restTime: 45, notes: "Light weight, focus on squeezing chest muscles")
+                ],
+                estimatedDuration: 40,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "Beginner Back Workout",
+                category: .upperBody,
+                description: "Build a strong, defined back with these essential exercises. Focus on pulling movements.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .latPulldown, sets: 3, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Pull to chest, squeeze shoulder blades together"),
+                    WorkoutExercise(exerciseType: .bentOverRows, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Keep back straight, pull elbows back"),
+                    WorkoutExercise(exerciseType: .deadlifts, sets: 3, reps: 6, weight: nil, time: nil, restTime: 120, notes: "Start light, focus on hip hinge movement"),
+                    WorkoutExercise(exerciseType: .singleArmDumbbellRow, sets: 3, reps: 10, weight: nil, time: nil, restTime: 60, notes: "One arm at a time, support with other hand"),
+                    WorkoutExercise(exerciseType: .invertedRow, sets: 2, reps: 8, weight: nil, time: nil, restTime: 60, notes: "Use bodyweight, adjust angle for difficulty")
+                ],
+                estimatedDuration: 45,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "Beginner Shoulders Workout",
+                category: .upperBody,
+                description: "Develop strong, rounded shoulders with these targeted exercises. Perfect for shoulder stability.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .overheadPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Press straight up, keep core tight"),
+                    WorkoutExercise(exerciseType: .lateralRaise, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Light weight, raise to shoulder height"),
+                    WorkoutExercise(exerciseType: .frontRaise, sets: 3, reps: 10, weight: nil, time: nil, restTime: 60, notes: "Alternate arms, control the movement"),
+                    WorkoutExercise(exerciseType: .rearDeltFly, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Bent over position, squeeze shoulder blades"),
+                    WorkoutExercise(exerciseType: .uprightRow, sets: 2, reps: 10, weight: nil, time: nil, restTime: 45, notes: "Keep elbows high, pull to chest level")
+                ],
+                estimatedDuration: 35,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "Beginner Arms Workout",
+                category: .upperBody,
+                description: "Build strong biceps and triceps with these essential arm exercises. Focus on controlled movements.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .barbellCurl, sets: 3, reps: 10, weight: nil, time: nil, restTime: 60, notes: "Keep elbows at sides, full range of motion"),
+                    WorkoutExercise(exerciseType: .dumbbellCurl, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Alternate arms, squeeze at the top"),
+                    WorkoutExercise(exerciseType: .closeGripBenchPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Narrow grip, focus on triceps"),
+                    WorkoutExercise(exerciseType: .skullCrushers, sets: 3, reps: 10, weight: nil, time: nil, restTime: 60, notes: "Keep elbows stable, lower to forehead"),
+                    WorkoutExercise(exerciseType: .tricepsKickback, sets: 2, reps: 12, weight: nil, time: nil, restTime: 45, notes: "Bent over position, extend arm back")
+                ],
+                estimatedDuration: 35,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "Beginner Chest & Back Workout",
+                category: .upperBody,
+                description: "Complete upper body workout targeting both chest and back muscles. Great for balanced development.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .benchPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Start with chest, focus on form"),
+                    WorkoutExercise(exerciseType: .latPulldown, sets: 3, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Pull to chest, engage lats"),
+                    WorkoutExercise(exerciseType: .inclineBenchPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Upper chest focus, controlled movement"),
+                    WorkoutExercise(exerciseType: .bentOverRows, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Pull elbows back, squeeze shoulder blades"),
+                    WorkoutExercise(exerciseType: .chestFly, sets: 2, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Stretch and squeeze, feel the burn")
+                ],
+                estimatedDuration: 50,
+                difficulty: .beginner
+            ),
+            
+            // Beginner Lower Body Workouts
+            PreBuiltWorkout(
+                name: "Beginner Legs Workout",
+                category: .lowerBody,
+                description: "Build strong legs and glutes with these fundamental lower body exercises. Perfect for beginners.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .squat, sets: 3, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Keep your back straight, go as low as comfortable"),
+                    WorkoutExercise(exerciseType: .lunges, sets: 3, reps: 8, weight: nil, time: nil, restTime: 60, notes: "Alternate legs, maintain balance"),
+                    WorkoutExercise(exerciseType: .legPress, sets: 3, reps: 12, weight: nil, time: nil, restTime: 90, notes: "Start with lighter weight, focus on form"),
+                    WorkoutExercise(exerciseType: .standingCalfRaise, sets: 3, reps: 15, weight: nil, time: nil, restTime: 45, notes: "Slow and controlled movement"),
+                    WorkoutExercise(exerciseType: .gluteBridge, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Squeeze glutes at the top")
+                ],
+                estimatedDuration: 35,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "Beginner Glutes Workout",
+                category: .lowerBody,
+                description: "Target your glutes specifically with these beginner-friendly exercises for a stronger backside.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .gluteBridge, sets: 3, reps: 15, weight: nil, time: nil, restTime: 60, notes: "Hold at the top for 2 seconds"),
+                    WorkoutExercise(exerciseType: .hipThrust, sets: 3, reps: 12, weight: nil, time: nil, restTime: 90, notes: "Use a bench or elevated surface"),
+                    WorkoutExercise(exerciseType: .donkeyCalfRaise, sets: 3, reps: 12, weight: nil, time: nil, restTime: 45, notes: "Keep core tight, slow movement"),
+                    WorkoutExercise(exerciseType: .lateralRaise, sets: 3, reps: 10, weight: nil, time: nil, restTime: 45, notes: "Maintain balance, controlled motion"),
+                    WorkoutExercise(exerciseType: .squat, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Wide stance, toes pointed out")
+                ],
+                estimatedDuration: 30,
+                difficulty: .beginner
+            ),
+            
+            // Beginner Full Body Workouts
+            PreBuiltWorkout(
+                name: "Beginner Full Body Workout",
+                category: .fullBody,
+                description: "A complete workout targeting all major muscle groups. Perfect for building overall strength.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .squat, sets: 3, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Foundation movement for legs"),
+                    WorkoutExercise(exerciseType: .weightedPushUps, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Modify on knees if needed"),
+                    WorkoutExercise(exerciseType: .bentOverRows, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Keep back straight, pull to chest"),
+                    WorkoutExercise(exerciseType: .overheadPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Start with lighter weights"),
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 3, reps: nil, weight: nil, time: 30, restTime: 60, notes: "Hold for 30 seconds, keep core tight")
+                ],
+                estimatedDuration: 45,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "Beginner HIIT Workout",
+                category: .fullBody,
+                description: "High-intensity interval training for beginners. Build endurance and burn calories.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .jumpingJacks, sets: 4, reps: 20, weight: nil, time: nil, restTime: 30, notes: "Warm up movement"),
+                    WorkoutExercise(exerciseType: .mountainClimbers, sets: 4, reps: 15, weight: nil, time: nil, restTime: 30, notes: "Keep core engaged"),
+                    WorkoutExercise(exerciseType: .burpees, sets: 4, reps: 8, weight: nil, time: nil, restTime: 45, notes: "Modify as needed"),
+                    WorkoutExercise(exerciseType: .highKnees, sets: 4, reps: 20, weight: nil, time: nil, restTime: 30, notes: "Run in place, lift knees high"),
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 4, reps: nil, weight: nil, time: 20, restTime: 30, notes: "Hold for 20 seconds")
+                ],
+                estimatedDuration: 25,
+                difficulty: .beginner
+            ),
+            
+            // Beginner Core Workouts
+            PreBuiltWorkout(
+                name: "Beginner Core Workout",
+                category: .core,
+                description: "Build a strong core foundation with these beginner-friendly abdominal exercises.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 3, reps: nil, weight: nil, time: 30, restTime: 60, notes: "Hold for 30 seconds, keep straight line"),
+                    WorkoutExercise(exerciseType: .weightedCrunch, sets: 3, reps: 15, weight: nil, time: nil, restTime: 45, notes: "Lift shoulders off ground"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 3, reps: 20, weight: nil, time: nil, restTime: 45, notes: "Rotate torso side to side"),
+                    WorkoutExercise(exerciseType: .hangingLegRaise, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Keep legs straight, control movement"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 3, reps: 20, weight: nil, time: nil, restTime: 45, notes: "Alternate elbow to knee")
+                ],
+                estimatedDuration: 20,
+                difficulty: .beginner
+            ),
+            
+            PreBuiltWorkout(
+                name: "Beginner Abs & Obliques",
+                category: .core,
+                description: "Target your abs and obliques with these beginner core exercises for a stronger midsection.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .weightedCrunch, sets: 3, reps: 15, weight: nil, time: nil, restTime: 45, notes: "Focus on upper abs"),
+                    WorkoutExercise(exerciseType: .sideBend, sets: 3, reps: nil, weight: nil, time: 20, restTime: 60, notes: "Hold for 20 seconds each side"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 3, reps: 20, weight: nil, time: nil, restTime: 45, notes: "Engage obliques"),
+                    WorkoutExercise(exerciseType: .abRollout, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Keep lower back pressed to floor"),
+                    WorkoutExercise(exerciseType: .turkishGetUp, sets: 3, reps: 10, weight: nil, time: nil, restTime: 60, notes: "Alternate arm and leg")
+                ],
+                estimatedDuration: 25,
+                difficulty: .beginner
+            ),
+            
+            // Intermediate Upper Body Workouts
+            PreBuiltWorkout(
+                name: "Intermediate Chest Workout",
+                category: .upperBody,
+                description: "Advanced chest training with heavier weights and more complex movements. Build serious chest strength and size.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .benchPress, sets: 4, reps: 6, weight: nil, time: nil, restTime: 120, notes: "Heavy weight, focus on explosive power and full range of motion"),
+                    WorkoutExercise(exerciseType: .inclineBenchPress, sets: 4, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Upper chest focus, control the negative portion"),
+                    WorkoutExercise(exerciseType: .declineBenchPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Lower chest emphasis, maintain tight core"),
+                    WorkoutExercise(exerciseType: .chestFly, sets: 3, reps: 12, weight: nil, time: nil, restTime: 75, notes: "Stretch and squeeze, perfect form over weight"),
+                    WorkoutExercise(exerciseType: .weightedPushUps, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Add weight plate or resistance band for extra challenge")
+                ],
+                estimatedDuration: 55,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Intermediate Back Workout",
+                category: .upperBody,
+                description: "Comprehensive back development with compound movements and isolation exercises. Build a powerful, defined back.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .deadlifts, sets: 4, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Heavy compound movement, perfect your form before adding weight"),
+                    WorkoutExercise(exerciseType: .bentOverRows, sets: 4, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Pull to lower chest, squeeze shoulder blades together"),
+                    WorkoutExercise(exerciseType: .latPulldown, sets: 4, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Wide grip, pull to upper chest, control the negative"),
+                    WorkoutExercise(exerciseType: .tBarRow, sets: 3, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Neutral grip, focus on lat activation"),
+                    WorkoutExercise(exerciseType: .singleArmDumbbellRow, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "One arm at a time, focus on mind-muscle connection")
+                ],
+                estimatedDuration: 60,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Intermediate Shoulders Workout",
+                category: .upperBody,
+                description: "Advanced shoulder training for strength, size, and stability. Develop powerful, rounded deltoids.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .overheadPress, sets: 4, reps: 6, weight: nil, time: nil, restTime: 120, notes: "Heavy weight, press straight up, keep core tight"),
+                    WorkoutExercise(exerciseType: .pushPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Use leg drive for heavier weight, explosive movement"),
+                    WorkoutExercise(exerciseType: .lateralRaise, sets: 4, reps: 12, weight: nil, time: nil, restTime: 75, notes: "Control the weight, raise to shoulder height, slight forward angle"),
+                    WorkoutExercise(exerciseType: .rearDeltFly, sets: 4, reps: 15, weight: nil, time: nil, restTime: 60, notes: "Bent over position, squeeze rear delts, control the movement"),
+                    WorkoutExercise(exerciseType: .uprightRow, sets: 3, reps: 10, weight: nil, time: nil, restTime: 75, notes: "Narrow grip, pull to chest level, avoid shoulder impingement")
+                ],
+                estimatedDuration: 50,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Intermediate Arms Workout",
+                category: .upperBody,
+                description: "Advanced arm training with supersets and drop sets. Build massive, defined biceps and triceps.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .barbellCurl, sets: 4, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Heavy weight, full range of motion, squeeze at the top"),
+                    WorkoutExercise(exerciseType: .closeGripBenchPress, sets: 4, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Narrow grip, focus on triceps, control the negative"),
+                    WorkoutExercise(exerciseType: .concentrationCurl, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "One arm at a time, perfect form, squeeze the bicep"),
+                    WorkoutExercise(exerciseType: .skullCrushers, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Keep elbows stable, lower to forehead, extend fully"),
+                    WorkoutExercise(exerciseType: .cableCurl, sets: 3, reps: 15, weight: nil, time: nil, restTime: 45, notes: "Constant tension, squeeze at the peak contraction")
+                ],
+                estimatedDuration: 45,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Intermediate Chest & Back Workout",
+                category: .upperBody,
+                description: "High-intensity upper body training combining chest and back exercises. Build serious upper body strength.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .benchPress, sets: 4, reps: 6, weight: nil, time: nil, restTime: 120, notes: "Heavy compound movement, explosive power"),
+                    WorkoutExercise(exerciseType: .bentOverRows, sets: 4, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Pull to lower chest, squeeze shoulder blades"),
+                    WorkoutExercise(exerciseType: .inclineBenchPress, sets: 3, reps: 8, weight: nil, time: nil, restTime: 90, notes: "Upper chest focus, control the movement"),
+                    WorkoutExercise(exerciseType: .latPulldown, sets: 3, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Wide grip, pull to upper chest"),
+                    WorkoutExercise(exerciseType: .chestFly, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Stretch and squeeze, perfect form")
+                ],
+                estimatedDuration: 65,
+                difficulty: .intermediate
+            ),
+            
+            // Intermediate Lower Body Workouts
+            PreBuiltWorkout(
+                name: "Intermediate Legs Workout",
+                category: .lowerBody,
+                description: "Advanced leg training with heavier weights and more challenging movements. Build serious leg strength.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .squat, sets: 4, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Heavy weight, focus on depth and form"),
+                    WorkoutExercise(exerciseType: .deadlifts, sets: 4, reps: 6, weight: nil, time: nil, restTime: 120, notes: "Keep back straight, drive through heels"),
+                    WorkoutExercise(exerciseType: .splitSquats, sets: 3, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Elevated rear foot, focus on front leg"),
+                    WorkoutExercise(exerciseType: .legPress, sets: 4, reps: 12, weight: nil, time: nil, restTime: 90, notes: "Heavy weight, full range of motion"),
+                    WorkoutExercise(exerciseType: .standingCalfRaise, sets: 4, reps: 20, weight: nil, time: nil, restTime: 60, notes: "Slow and controlled, hold at top")
+                ],
+                estimatedDuration: 50,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Intermediate Glutes & Hamstrings",
+                category: .lowerBody,
+                description: "Target glutes and hamstrings with advanced exercises for a stronger posterior chain.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .hipThrust, sets: 4, reps: 12, weight: nil, time: nil, restTime: 90, notes: "Heavy weight, squeeze glutes at top"),
+                    WorkoutExercise(exerciseType: .romanianDeadlift, sets: 4, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Focus on hamstring stretch"),
+                    WorkoutExercise(exerciseType: .nordicCurl, sets: 3, reps: 12, weight: nil, time: nil, restTime: 90, notes: "Use GHR machine or partner"),
+                    WorkoutExercise(exerciseType: .lunges, sets: 3, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Hold weights, long strides"),
+                    WorkoutExercise(exerciseType: .singleLegDeadlift, sets: 3, reps: 15, weight: nil, time: nil, restTime: 60, notes: "One leg at a time, hold at top")
+                ],
+                estimatedDuration: 45,
+                difficulty: .intermediate
+            ),
+            
+            // Intermediate Full Body Workouts
+            PreBuiltWorkout(
+                name: "Intermediate Full Body Workout",
+                category: .fullBody,
+                description: "Complete full body training with compound movements and higher intensity. Build overall strength and muscle.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .squat, sets: 4, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Heavy compound movement"),
+                    WorkoutExercise(exerciseType: .benchPress, sets: 4, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Upper body strength focus"),
+                    WorkoutExercise(exerciseType: .bentOverRows, sets: 4, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Pull to chest, squeeze shoulder blades"),
+                    WorkoutExercise(exerciseType: .overheadPress, sets: 3, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Shoulder strength and stability"),
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 3, reps: nil, weight: nil, time: 45, restTime: 60, notes: "Hold for 45 seconds")
+                ],
+                estimatedDuration: 60,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Intermediate HIIT Workout",
+                category: .fullBody,
+                description: "High-intensity interval training with more challenging exercises. Build endurance and burn fat.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .burpees, sets: 5, reps: 10, weight: nil, time: nil, restTime: 30, notes: "Full burpee with push-up"),
+                    WorkoutExercise(exerciseType: .mountainClimbers, sets: 5, reps: 20, weight: nil, time: nil, restTime: 30, notes: "Fast pace, keep core tight"),
+                    WorkoutExercise(exerciseType: .lunges, sets: 5, reps: 15, weight: nil, time: nil, restTime: 30, notes: "Explosive movement, alternate legs"),
+                    WorkoutExercise(exerciseType: .highKnees, sets: 5, reps: 25, weight: nil, time: nil, restTime: 30, notes: "Maximum effort, lift knees high"),
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 5, reps: nil, weight: nil, time: 30, restTime: 30, notes: "Hold for 30 seconds")
+                ],
+                estimatedDuration: 30,
+                difficulty: .intermediate
+            ),
+            
+            // Intermediate Core Workouts
+            PreBuiltWorkout(
+                name: "Intermediate Core Workout",
+                category: .core,
+                description: "Advanced core training with more challenging exercises. Build serious abdominal strength.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 4, reps: nil, weight: nil, time: 45, restTime: 60, notes: "Hold for 45 seconds, keep straight line"),
+                    WorkoutExercise(exerciseType: .hangingLegRaise, sets: 3, reps: 12, weight: nil, time: nil, restTime: 90, notes: "Hang from bar, lift legs to 90 degrees"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 4, reps: 25, weight: nil, time: nil, restTime: 45, notes: "Hold weight, rotate side to side"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 4, reps: 30, weight: nil, time: nil, restTime: 45, notes: "Fast pace, alternate elbow to knee"),
+                    WorkoutExercise(exerciseType: .sideBend, sets: 3, reps: nil, weight: nil, time: 30, restTime: 60, notes: "Hold for 30 seconds each side")
+                ],
+                estimatedDuration: 30,
+                difficulty: .intermediate
+            ),
+            
+            PreBuiltWorkout(
+                name: "Intermediate Abs & Obliques",
+                category: .core,
+                description: "Target abs and obliques with advanced exercises for a stronger, more defined core.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .weightedCrunch, sets: 4, reps: 20, weight: nil, time: nil, restTime: 45, notes: "Hold weight, focus on upper abs"),
+                    WorkoutExercise(exerciseType: .sideBend, sets: 4, reps: nil, weight: nil, time: 30, restTime: 60, notes: "Hold for 30 seconds each side"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 4, reps: 25, weight: nil, time: nil, restTime: 45, notes: "Hold weight, engage obliques"),
+                    WorkoutExercise(exerciseType: .abRollout, sets: 4, reps: 15, weight: nil, time: nil, restTime: 60, notes: "Slow and controlled, keep back flat"),
+                    WorkoutExercise(exerciseType: .turkishGetUp, sets: 4, reps: 12, weight: nil, time: nil, restTime: 60, notes: "Hold position for 2 seconds")
+                ],
+                estimatedDuration: 35,
+                difficulty: .intermediate
+            ),
+            
             // Upper Body Workouts
             PreBuiltWorkout(
                 name: "Push Day",
@@ -587,6 +952,160 @@ class PreBuiltWorkoutManager: ObservableObject {
                 ],
                 estimatedDuration: 30,
                 difficulty: .intermediate
+            ),
+            
+            // Advanced Upper Body Workouts
+            PreBuiltWorkout(
+                name: "Advanced Chest Workout",
+                category: .upperBody,
+                description: "Elite chest training with maximum intensity and advanced techniques. For experienced lifters only.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .benchPress, sets: 5, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Maximum weight, explosive power"),
+                    WorkoutExercise(exerciseType: .inclineBenchPress, sets: 4, reps: 6, weight: nil, time: nil, restTime: 150, notes: "Heavy weight, control the negative"),
+                    WorkoutExercise(exerciseType: .declineBenchPress, sets: 4, reps: 8, weight: nil, time: nil, restTime: 150, notes: "Lower chest focus, heavy weight"),
+                    WorkoutExercise(exerciseType: .chestFly, sets: 4, reps: 12, weight: nil, time: nil, restTime: 120, notes: "Stretch and squeeze, perfect form"),
+                    WorkoutExercise(exerciseType: .weightedDips, sets: 4, reps: 10, weight: nil, time: nil, restTime: 120, notes: "Add weight if possible, full range of motion")
+                ],
+                estimatedDuration: 75,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Advanced Back Workout",
+                category: .upperBody,
+                description: "Elite back training with maximum intensity and advanced techniques. Build a powerful, wide back.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .deadlifts, sets: 5, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Maximum weight, perfect form"),
+                    WorkoutExercise(exerciseType: .pullUps, sets: 4, reps: 8, weight: nil, time: nil, restTime: 150, notes: "Add weight if possible, wide grip"),
+                    WorkoutExercise(exerciseType: .bentOverRows, sets: 4, reps: 8, weight: nil, time: nil, restTime: 150, notes: "Heavy weight, pull to chest"),
+                    WorkoutExercise(exerciseType: .tBarRow, sets: 4, reps: 10, weight: nil, time: nil, restTime: 120, notes: "Squeeze shoulder blades together"),
+                    WorkoutExercise(exerciseType: .rearDeltFly, sets: 4, reps: 15, weight: nil, time: nil, restTime: 90, notes: "External rotation, rear delt focus")
+                ],
+                estimatedDuration: 80,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Advanced Shoulders Workout",
+                category: .upperBody,
+                description: "Elite shoulder training with maximum intensity and advanced techniques. Build powerful, rounded shoulders.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .overheadPress, sets: 5, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Maximum weight, explosive power"),
+                    WorkoutExercise(exerciseType: .arnoldPress, sets: 4, reps: 8, weight: nil, time: nil, restTime: 150, notes: "Full rotation, control the movement"),
+                    WorkoutExercise(exerciseType: .lateralRaise, sets: 4, reps: 12, weight: nil, time: nil, restTime: 120, notes: "Heavy weight, slow and controlled"),
+                    WorkoutExercise(exerciseType: .rearDeltFly, sets: 4, reps: 15, weight: nil, time: nil, restTime: 90, notes: "Squeeze rear delts, perfect form"),
+                    WorkoutExercise(exerciseType: .uprightRow, sets: 4, reps: 10, weight: nil, time: nil, restTime: 120, notes: "Wide grip, pull to chest level")
+                ],
+                estimatedDuration: 70,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Advanced Arms Workout",
+                category: .upperBody,
+                description: "Elite arm training with maximum intensity and advanced techniques. Build massive, strong arms.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .barbellCurl, sets: 5, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Heavy weight, strict form"),
+                    WorkoutExercise(exerciseType: .hammerCurl, sets: 4, reps: 10, weight: nil, time: nil, restTime: 90, notes: "Neutral grip, control the negative"),
+                    WorkoutExercise(exerciseType: .closeGripBenchPress, sets: 4, reps: 8, weight: nil, time: nil, restTime: 120, notes: "Heavy weight, tricep focus"),
+                    WorkoutExercise(exerciseType: .skullCrushers, sets: 4, reps: 12, weight: nil, time: nil, restTime: 90, notes: "Slow and controlled, full extension"),
+                    WorkoutExercise(exerciseType: .weightedDips, sets: 4, reps: 12, weight: nil, time: nil, restTime: 90, notes: "Add weight if possible, full range")
+                ],
+                estimatedDuration: 65,
+                difficulty: .advanced
+            ),
+            
+            // Advanced Lower Body Workouts
+            PreBuiltWorkout(
+                name: "Advanced Legs Workout",
+                category: .lowerBody,
+                description: "Elite leg training with maximum intensity and advanced techniques. Build powerful, strong legs.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .squat, sets: 5, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Maximum weight, perfect depth"),
+                    WorkoutExercise(exerciseType: .deadlifts, sets: 5, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Heavy weight, perfect form"),
+                    WorkoutExercise(exerciseType: .frontSquat, sets: 4, reps: 8, weight: nil, time: nil, restTime: 150, notes: "Front rack position, core tight"),
+                    WorkoutExercise(exerciseType: .splitSquats, sets: 4, reps: 12, weight: nil, time: nil, restTime: 120, notes: "Heavy weight, focus on front leg"),
+                    WorkoutExercise(exerciseType: .standingCalfRaise, sets: 5, reps: 25, weight: nil, time: nil, restTime: 60, notes: "Heavy weight, hold at top")
+                ],
+                estimatedDuration: 90,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Advanced Glutes & Hamstrings",
+                category: .lowerBody,
+                description: "Elite posterior chain training with maximum intensity and advanced techniques. Build powerful glutes and hamstrings.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .hipThrust, sets: 5, reps: 10, weight: nil, time: nil, restTime: 120, notes: "Maximum weight, squeeze glutes"),
+                    WorkoutExercise(exerciseType: .romanianDeadlift, sets: 5, reps: 8, weight: nil, time: nil, restTime: 150, notes: "Heavy weight, focus on hamstring stretch"),
+                    WorkoutExercise(exerciseType: .nordicCurl, sets: 4, reps: 15, weight: nil, time: nil, restTime: 120, notes: "Use GHR machine, full range"),
+                    WorkoutExercise(exerciseType: .lunges, sets: 4, reps: 15, weight: nil, time: nil, restTime: 90, notes: "Heavy weight, long strides"),
+                    WorkoutExercise(exerciseType: .singleLegDeadlift, sets: 4, reps: 20, weight: nil, time: nil, restTime: 90, notes: "One leg at a time, hold at top")
+                ],
+                estimatedDuration: 75,
+                difficulty: .advanced
+            ),
+            
+            // Advanced Full Body Workouts
+            PreBuiltWorkout(
+                name: "Advanced Full Body Workout",
+                category: .fullBody,
+                description: "Elite full body training with maximum intensity and advanced techniques. Build overall strength and power.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .squat, sets: 5, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Maximum weight, perfect form"),
+                    WorkoutExercise(exerciseType: .benchPress, sets: 5, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Heavy weight, explosive power"),
+                    WorkoutExercise(exerciseType: .bentOverRows, sets: 5, reps: 5, weight: nil, time: nil, restTime: 180, notes: "Heavy weight, pull to chest"),
+                    WorkoutExercise(exerciseType: .overheadPress, sets: 4, reps: 8, weight: nil, time: nil, restTime: 150, notes: "Shoulder strength and stability"),
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 4, reps: nil, weight: nil, time: 60, restTime: 90, notes: "Hold for 60 seconds")
+                ],
+                estimatedDuration: 90,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Advanced HIIT Workout",
+                category: .fullBody,
+                description: "Elite high-intensity interval training with maximum intensity and advanced exercises. Build elite endurance.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .burpees, sets: 6, reps: 15, weight: nil, time: nil, restTime: 20, notes: "Maximum effort, full burpee"),
+                    WorkoutExercise(exerciseType: .mountainClimbers, sets: 6, reps: 30, weight: nil, time: nil, restTime: 20, notes: "Fast pace, keep core tight"),
+                    WorkoutExercise(exerciseType: .lunges, sets: 6, reps: 20, weight: nil, time: nil, restTime: 20, notes: "Explosive movement, alternate legs"),
+                    WorkoutExercise(exerciseType: .highKnees, sets: 6, reps: 35, weight: nil, time: nil, restTime: 20, notes: "Maximum effort, lift knees high"),
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 6, reps: nil, weight: nil, time: 45, restTime: 20, notes: "Hold for 45 seconds")
+                ],
+                estimatedDuration: 35,
+                difficulty: .advanced
+            ),
+            
+            // Advanced Core Workouts
+            PreBuiltWorkout(
+                name: "Advanced Core Workout",
+                category: .core,
+                description: "Elite core training with maximum intensity and advanced techniques. Build elite abdominal strength.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .weightedPlank, sets: 5, reps: nil, weight: nil, time: 60, restTime: 60, notes: "Hold for 60 seconds, keep straight line"),
+                    WorkoutExercise(exerciseType: .hangingLegRaise, sets: 4, reps: 15, weight: nil, time: nil, restTime: 120, notes: "Hang from bar, lift legs to 90 degrees"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 5, reps: 30, weight: nil, time: nil, restTime: 45, notes: "Hold heavy weight, rotate side to side"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 5, reps: 40, weight: nil, time: nil, restTime: 45, notes: "Fast pace, alternate elbow to knee"),
+                    WorkoutExercise(exerciseType: .sideBend, sets: 4, reps: nil, weight: nil, time: 45, restTime: 60, notes: "Hold for 45 seconds each side")
+                ],
+                estimatedDuration: 40,
+                difficulty: .advanced
+            ),
+            
+            PreBuiltWorkout(
+                name: "Advanced Abs & Obliques",
+                category: .core,
+                description: "Elite abs and obliques training with maximum intensity and advanced techniques. Build elite core strength.",
+                exercises: [
+                    WorkoutExercise(exerciseType: .weightedCrunch, sets: 5, reps: 25, weight: nil, time: nil, restTime: 45, notes: "Hold heavy weight, focus on upper abs"),
+                    WorkoutExercise(exerciseType: .sideBend, sets: 5, reps: nil, weight: nil, time: 45, restTime: 60, notes: "Hold for 45 seconds each side"),
+                    WorkoutExercise(exerciseType: .russianTwist, sets: 5, reps: 30, weight: nil, time: nil, restTime: 45, notes: "Hold heavy weight, engage obliques"),
+                    WorkoutExercise(exerciseType: .abRollout, sets: 5, reps: 20, weight: nil, time: nil, restTime: 60, notes: "Slow and controlled, keep back flat"),
+                    WorkoutExercise(exerciseType: .turkishGetUp, sets: 5, reps: 15, weight: nil, time: nil, restTime: 60, notes: "Hold position for 3 seconds")
+                ],
+                estimatedDuration: 45,
+                difficulty: .advanced
             )
         ]
     }

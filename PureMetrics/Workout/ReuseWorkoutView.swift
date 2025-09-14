@@ -211,7 +211,11 @@ struct ReuseWorkoutView: View {
         // Add selected exercises
         for index in selectedExercises.sorted() {
             let exercise = workout.exerciseSessions[index]
-            _ = dataManager.addExerciseSession(exercise.exerciseType)
+            if let exerciseType = exercise.exerciseType {
+                _ = dataManager.addExerciseSession(exerciseType)
+            } else if let customExercise = exercise.customExercise {
+                _ = dataManager.addCustomExerciseSession(customExercise)
+            }
         }
         
         // Set custom name if provided
@@ -247,7 +251,7 @@ struct ExerciseSelectionCard: View {
                 
                 // Exercise Info
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(index). \(exercise.exerciseType.rawValue)")
+                    Text("\(index). \(exercise.exerciseName)")
                         .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)

@@ -325,9 +325,9 @@ enum ExerciseType: String, CaseIterable, Codable {
 
 struct ExerciseSet: Codable, Identifiable {
     let id: UUID
-    let reps: Int?
-    let weight: Double?
-    let time: TimeInterval? // in seconds
+    var reps: Int?
+    var weight: Double?
+    var time: TimeInterval? // in seconds
     let distance: Double? // in miles
     let timestamp: Date
     
@@ -381,19 +381,40 @@ struct ExerciseSet: Codable, Identifiable {
 
 struct ExerciseSession: Codable, Identifiable {
     var id: UUID
-    let exerciseType: ExerciseType
+    let exerciseType: ExerciseType?
+    let customExercise: CustomExercise?
     var sets: [ExerciseSet]
     let startTime: Date
     var endTime: Date?
     var isCompleted: Bool = false
     
-    enum CodingKeys: String, CodingKey {
-        case id, exerciseType, sets, startTime, endTime, isCompleted
+    // Computed properties for backward compatibility and convenience
+    var exerciseName: String {
+        return exerciseType?.rawValue ?? customExercise?.name ?? "Unknown Exercise"
     }
     
+    var exerciseCategory: ExerciseCategory {
+        return exerciseType?.category ?? customExercise?.category ?? .upperBody
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id, exerciseType, customExercise, sets, startTime, endTime, isCompleted
+    }
+    
+    // Initialize with built-in exercise
     init(exerciseType: ExerciseType, startTime: Date? = nil) {
         self.id = UUID()
         self.exerciseType = exerciseType
+        self.customExercise = nil
+        self.sets = []
+        self.startTime = startTime ?? Date()
+    }
+    
+    // Initialize with custom exercise
+    init(customExercise: CustomExercise, startTime: Date? = nil) {
+        self.id = UUID()
+        self.exerciseType = nil
+        self.customExercise = customExercise
         self.sets = []
         self.startTime = startTime ?? Date()
     }

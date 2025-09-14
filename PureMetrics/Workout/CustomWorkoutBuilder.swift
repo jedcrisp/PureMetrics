@@ -307,13 +307,23 @@ struct CustomWorkoutBuilder: View {
     }
     
     private func addCustomExercise(_ customExercise: CustomExercise) {
-        // For custom exercises, we need to find a matching ExerciseType
-        if let matchingExerciseType = customExercise.exerciseType {
-            addExercise(matchingExerciseType)
-        } else {
-            // If no matching ExerciseType found, we need to handle this differently
-            print("Custom exercise '\(customExercise.name)' doesn't match any built-in exercise type")
-        }
+        let newExercise = WorkoutExercise(
+            customExercise: customExercise,
+            sets: 3,
+            reps: 10,
+            weight: nil,
+            time: nil,
+            restTime: 60,
+            notes: ""
+        )
+        selectedExercises.append(newExercise)
+        
+        // Initialize set inputs for the new exercise
+        let exerciseIndex = selectedExercises.count - 1
+        initializeSetInputs(for: exerciseIndex)
+        
+        // Automatically start editing mode for custom exercises
+        editingIndex = exerciseIndex
     }
     
     private func toggleEditExercise(at index: Int) {
@@ -348,16 +358,33 @@ struct CustomWorkoutBuilder: View {
         }
         
         // Create new WorkoutExercise with updated values
-        let updatedExercise = WorkoutExercise(
-            exerciseType: originalExercise.exerciseType,
-            sets: setInputs.count,
-            reps: Int(setInputs.first?.reps ?? "10") ?? 10,
-            weight: Double(setInputs.first?.weight ?? "0"),
-            time: originalExercise.time,
-            restTime: originalExercise.restTime,
-            notes: originalExercise.notes,
-            plannedSets: plannedSets
-        )
+        let updatedExercise: WorkoutExercise
+        if let exerciseType = originalExercise.exerciseType {
+            updatedExercise = WorkoutExercise(
+                exerciseType: exerciseType,
+                sets: setInputs.count,
+                reps: Int(setInputs.first?.reps ?? "10") ?? 10,
+                weight: Double(setInputs.first?.weight ?? "0"),
+                time: originalExercise.time,
+                restTime: originalExercise.restTime,
+                notes: originalExercise.notes,
+                plannedSets: plannedSets
+            )
+        } else if let customExercise = originalExercise.customExercise {
+            updatedExercise = WorkoutExercise(
+                customExercise: customExercise,
+                sets: setInputs.count,
+                reps: Int(setInputs.first?.reps ?? "10") ?? 10,
+                weight: Double(setInputs.first?.weight ?? "0"),
+                time: originalExercise.time,
+                restTime: originalExercise.restTime,
+                notes: originalExercise.notes,
+                plannedSets: plannedSets
+            )
+        } else {
+            // Fallback - this shouldn't happen
+            updatedExercise = originalExercise
+        }
         
         selectedExercises[index] = updatedExercise
     }
@@ -445,7 +472,7 @@ struct InlineExerciseEditor: View {
         VStack(spacing: 12) {
             // Exercise Name Header
             HStack {
-                Text(exercise.exerciseType.rawValue)
+                Text(exercise.exerciseName)
                     .font(.headline)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
@@ -456,7 +483,7 @@ struct InlineExerciseEditor: View {
             // Set Input Boxes
             LazyVStack(spacing: 8) {
                 ForEach(Array(setInputs.enumerated()), id: \.element.id) { setIndex, setInput in
-                    setInputBox(exerciseType: exercise.exerciseType, setIndex: setIndex, setInput: setInput)
+                    setInputBox(exerciseCategory: exercise.exerciseCategory, setIndex: setIndex, setInput: setInput)
                 }
                 
                 // Add new set button
@@ -493,7 +520,7 @@ struct InlineExerciseEditor: View {
         )
     }
     
-    private func setInputBox(exerciseType: ExerciseType, setIndex: Int, setInput: SetInput) -> some View {
+    private func setInputBox(exerciseCategory: ExerciseCategory, setIndex: Int, setInput: SetInput) -> some View {
         VStack(spacing: 16) {
             // Set Header
             HStack {
@@ -516,76 +543,152 @@ struct InlineExerciseEditor: View {
                 }
             }
             
-            // Input Fields Grid
+            // Input Fields Grid - Dynamic based on exercise category
             LazyVGrid(columns: [
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                // Reps Input
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Reps")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                    
-                    HStack {
-                        TextField("10", text: Binding(
-                            get: { setInput.reps },
-                            set: { onUpdateSet(setIndex, $0, setInput.weight) }
-                        ))
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .multilineTextAlignment(.center)
-                        .keyboardType(.numberPad)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(.systemGray6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(.systemGray4), lineWidth: 1)
-                                )
-                        )
-                        
-                        Text("reps")
+                // Reps Input (for most exercises)
+                if shouldShowReps(for: exerciseCategory) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Reps")
                             .font(.caption)
+                            .fontWeight(.medium)
                             .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                        
+                        HStack {
+                            TextField("10", text: Binding(
+                                get: { setInput.reps },
+                                set: { onUpdateSet(setIndex, $0, setInput.weight) }
+                            ))
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .keyboardType(.numberPad)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.systemGray6))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                            )
+                            
+                            Text("reps")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
-                // Weight Input
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Weight")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                    
-                    HStack {
-                        TextField("0", text: Binding(
-                            get: { setInput.weight },
-                            set: { onUpdateSet(setIndex, setInput.reps, $0) }
-                        ))
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .multilineTextAlignment(.center)
-                        .keyboardType(.decimalPad)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(.systemGray6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(.systemGray4), lineWidth: 1)
-                                )
-                        )
-                        
-                        Text("lbs")
+                // Weight Input (for strength exercises)
+                if shouldShowWeight(for: exerciseCategory) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Weight")
                             .font(.caption)
+                            .fontWeight(.medium)
                             .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                        
+                        HStack {
+                            TextField("0", text: Binding(
+                                get: { setInput.weight },
+                                set: { onUpdateSet(setIndex, setInput.reps, $0) }
+                            ))
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .keyboardType(.decimalPad)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.systemGray6))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                            )
+                            
+                            Text("lbs")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                // Time Input (for cardio and time-based exercises)
+                if shouldShowTime(for: exerciseCategory) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Time")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                        
+                        HStack {
+                            TextField("9:15", text: Binding(
+                                get: { setInput.time },
+                                set: { _ in }
+                            ))
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .keyboardType(.numbersAndPunctuation)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.systemGray6))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                            )
+                            
+                            Text("min:sec")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                // Distance Input (for cardio exercises)
+                if shouldShowDistance(for: exerciseCategory) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Distance")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                        
+                        HStack {
+                            TextField("3.5", text: Binding(
+                                get: { setInput.distance },
+                                set: { _ in }
+                            ))
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .keyboardType(.decimalPad)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(.systemGray6))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                            )
+                            
+                            Text("mi")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
@@ -595,6 +698,28 @@ struct InlineExerciseEditor: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(.systemGray6))
         )
+    }
+    
+    // MARK: - Input Field Helpers
+    
+    private func shouldShowReps(for category: ExerciseCategory) -> Bool {
+        // Most exercises support reps, except pure cardio
+        return category != .cardio
+    }
+    
+    private func shouldShowWeight(for category: ExerciseCategory) -> Bool {
+        // Strength exercises support weight
+        return [.upperBody, .lowerBody, .coreAbs, .fullBody, .machineBased, .olympic].contains(category)
+    }
+    
+    private func shouldShowTime(for category: ExerciseCategory) -> Bool {
+        // Cardio and some other exercises support time
+        return category == .cardio
+    }
+    
+    private func shouldShowDistance(for category: ExerciseCategory) -> Bool {
+        // Only cardio exercises support distance
+        return category == .cardio
     }
 }
 
@@ -611,7 +736,7 @@ struct ExerciseBuilderCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack {
-                Text("\(index + 1). \(exercise.exerciseType.rawValue)")
+                Text("\(index + 1). \(exercise.exerciseName)")
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
@@ -682,7 +807,7 @@ struct ExerciseBuilderCard: View {
                 if let time = exercise.time {
                     DetailItem(
                         icon: "clock",
-                        value: "\(Int(time))s",
+                        value: formatTime(time),
                         label: "Time"
                     )
                 }
@@ -787,6 +912,12 @@ struct PlannedSetRow: View {
         }
         .padding(.vertical, 4)
     }
+}
+
+private func formatTime(_ time: TimeInterval) -> String {
+    let minutes = Int(time) / 60
+    let seconds = Int(time) % 60
+    return String(format: "%d:%02d", minutes, seconds)
 }
 
 #Preview {

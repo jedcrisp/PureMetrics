@@ -58,6 +58,9 @@ struct CustomWorkout: Codable, Identifiable {
 extension WorkoutExercise {
     init(exerciseType: ExerciseType, sets: Int, reps: Int, weight: Double? = nil, time: TimeInterval? = nil, restTime: TimeInterval = 60, notes: String = "", plannedSets: [PlannedSet]? = nil) {
         self.exerciseType = exerciseType
+        self.customExercise = nil
+        self.exerciseName = exerciseType.rawValue
+        self.exerciseCategory = exerciseType.category
         self.sets = sets
         self.reps = reps
         self.weight = weight
@@ -80,13 +83,19 @@ extension WorkoutExercise {
         }
         
         if let time = time {
-            components.append("\(Int(time))s")
+            components.append(formatTime(time))
         }
         
         if let restTime = restTime {
-            components.append("\(Int(restTime))s rest")
+            components.append("\(formatTime(restTime)) rest")
         }
         
         return components.joined(separator: " • ")
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }

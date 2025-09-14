@@ -8,13 +8,14 @@ enum QuickInputType: String, CaseIterable {
     case sodium = "Sodium"
     case carbs = "Carbs"
     case fat = "Fat"
+    case cholesterol = "Cholesterol"
     
     var unit: String {
         switch self {
         case .calories: return "cal"
         case .water: return "oz"
         case .protein, .fiber, .carbs, .fat: return "g"
-        case .sodium: return "mg"
+        case .sodium, .cholesterol: return "mg"
         }
     }
     
@@ -27,6 +28,7 @@ enum QuickInputType: String, CaseIterable {
         case .sodium: return "drop.triangle.fill"
         case .carbs: return "leaf.fill"
         case .fat: return "circle.fill"
+        case .cholesterol: return "heart.fill"
         }
     }
     
@@ -39,6 +41,7 @@ enum QuickInputType: String, CaseIterable {
         case .sodium: return .purple
         case .carbs: return .yellow
         case .fat: return .brown
+        case .cholesterol: return .pink
         }
     }
 }
@@ -48,12 +51,21 @@ struct NutritionView: View {
     @State private var selectedDate = Date()
     @State private var showingAddEntry = false
     @State private var showingGoals = false
+    @State private var showingScanner = false
+    @State private var showingBarcodeScanner = false
     @State private var showingHistory = false
+    @State private var showingCustomTemplates = false
+    @State private var showingTodaysEntries = false
+    @State private var showingUnifiedEdit = false
     
     // Quick input states
     @State private var showingQuickInput = false
     @State private var selectedQuickInputType: QuickInputType = .calories
     @State private var quickInputValue = ""
+    
+    // Success popup states
+    @State private var showingSuccessPopup = false
+    @State private var successMessage = ""
     
     var body: some View {
         NavigationView {
@@ -68,36 +80,39 @@ struct NutritionView: View {
                         headerSection
                         
                         // Content
-                        VStack(spacing: 16) {
-                            // Date Selector
-                            dateSelector
-                            
+                        VStack(spacing: 12) {
                             // Today's Summary
                             todaysSummarySection
                             
+                            // Food Access Section
+                            foodAccessSection
+                            
                             // Quick Add Buttons
-                            quickAddSection
+                            // quickAddSection
                             
-                            // Recent Entries
-                            recentEntriesSection
-                            
-                            // Goals Progress
-                            goalsProgressSection
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                     }
                 }
             }
             .navigationTitle("")
             .navigationBarHidden(true)
         }
+        .onAppear {
+            // Load nutrition entries for the current selected date when view appears
+            dataManager.loadNutritionEntriesForDate(selectedDate)
+        }
         .sheet(isPresented: $showingAddEntry) {
             AddNutritionEntryView(
                 selectedDate: selectedDate,
                 onSave: { entry in
                     dataManager.addNutritionEntry(entry)
-                }
+                    successMessage = "Food added to summary!"
+                    showingSuccessPopup = true
+                },
+                labelManager: dataManager.nutritionLabelManager,
+                dataManager: dataManager
             )
         }
         .sheet(isPresented: $showingGoals) {
@@ -108,8 +123,31 @@ struct NutritionView: View {
                 }
             )
         }
+        .sheet(isPresented: $showingScanner) {
+            NutritionLabelScanner(dataManager: dataManager)
+        }
+        .sheet(isPresented: $showingBarcodeScanner) {
+            BarcodeScanner(dataManager: dataManager)
+        }
         .sheet(isPresented: $showingHistory) {
             NutritionHistoryView(dataManager: dataManager)
+        }
+        .sheet(isPresented: $showingCustomTemplates) {
+            CustomNutritionTemplatesView(dataManager: dataManager)
+        }
+        .sheet(isPresented: $showingTodaysEntries) {
+            TodaysEntriesView(dataManager: dataManager, selectedDate: selectedDate)
+        }
+        .sheet(isPresented: $showingQuickInput) {
+            QuickInputView(dataManager: dataManager, selectedDate: selectedDate)
+        }
+        .sheet(isPresented: $showingUnifiedEdit) {
+            UnifiedEditView(dataManager: dataManager, isPresented: $showingUnifiedEdit, selectedDate: selectedDate)
+        }
+        .alert("Success", isPresented: $showingSuccessPopup) {
+            Button("OK") { }
+        } message: {
+            Text(successMessage)
         }
     }
     
@@ -127,44 +165,37 @@ struct NutritionView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .frame(height: 100)
+            .frame(height: 65)
             .overlay(
                 VStack(spacing: 0) {
-                    // Top section with app name and buttons
+                    // Top section with app name
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Nutrition")
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("PureMetrics")
+                                .font(.system(size: 26, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                            
+                            Text("Nutrition")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
                         }
                         
                         Spacer()
                         
-                        HStack(spacing: 16) {
-                            // Goals Button
-                            Button(action: {
-                                showingGoals = true
-                            }) {
-                                Image(systemName: "target")
-                                    .font(.title2)
-                                    .foregroundColor(.white)
-                                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                            }
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(selectedDate, style: .date)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                             
-                            // History Button
-                            Button(action: {
-                                showingHistory = true
-                            }) {
-                                Image(systemName: "clock.arrow.circlepath")
-                                    .font(.title2)
-                                    .foregroundColor(.white)
-                                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                            }
+                            Text(selectedDate, style: .time)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.white.opacity(0.8))
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 14)
                     
                     Spacer()
                 }
@@ -209,6 +240,10 @@ struct NutritionView: View {
             DatePicker("", selection: $selectedDate, displayedComponents: .date)
                 .datePickerStyle(CompactDatePickerStyle())
                 .labelsHidden()
+                .onChange(of: selectedDate) { newDate in
+                    // Load nutrition entries for the selected date
+                    dataManager.loadNutritionEntriesForDate(newDate)
+                }
         }
         .padding(16)
         .background(
@@ -218,10 +253,11 @@ struct NutritionView: View {
         )
     }
     
+    
     // MARK: - Today's Summary Section
     
     private var todaysSummarySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Today's Summary")
                     .font(.headline)
@@ -230,30 +266,47 @@ struct NutritionView: View {
                 
                 Spacer()
                 
-                Button(action: {
-                    showingAddEntry = true
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Add Entry")
-                    }
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.green)
-                    )
+                Button("Edit") {
+                    showingUnifiedEdit = true
                 }
+                .font(.subheadline)
+                .foregroundColor(.blue)
             }
             
-            if let summary = todaysSummary {
-                NutritionSummaryCard(summary: summary, goals: dataManager.nutritionGoals)
-            } else {
-                emptySummaryView
+            NutritionSummaryCard(summary: todaysSummary, goals: dataManager.nutritionGoals)
+            
+            // Today's Foods Button
+            Button(action: {
+                showingTodaysEntries = true
+            }) {
+                HStack {
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                    
+                    Text("View Today's Foods")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(
+                        colors: [.indigo, .indigo.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
             }
+            .buttonStyle(PlainButtonStyle())
         }
     }
     
@@ -315,25 +368,75 @@ struct NutritionView: View {
             }
             
             HStack(spacing: 12) {
-                TextField("0", text: $quickInputValue)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .keyboardType(.decimalPad)
-                    .padding(.vertical, 16)
-                    .padding(.horizontal, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(selectedQuickInputType.color.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(selectedQuickInputType.color.opacity(0.3), lineWidth: 2)
-                            )
-                    )
-                
-                Text(selectedQuickInputType.unit)
-                    .font(.headline)
-                    .foregroundColor(selectedQuickInputType.color)
-                    .frame(minWidth: 30)
+                if selectedQuickInputType == .water {
+                    // Water-specific input with common fluid oz options
+                    VStack(spacing: 8) {
+                        // Quick selection buttons for common amounts
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 8) {
+                            ForEach([8, 16, 32, 64], id: \.self) { amount in
+                                Button("\(amount) oz") {
+                                    quickInputValue = "\(amount)"
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(selectedQuickInputType.color)
+                                )
+                            }
+                        }
+                        
+                        // Custom input field
+                        HStack(spacing: 8) {
+                            TextField("0", text: $quickInputValue)
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                                .multilineTextAlignment(.center)
+                                .keyboardType(.decimalPad)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(selectedQuickInputType.color.opacity(0.1))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(selectedQuickInputType.color.opacity(0.3), lineWidth: 1)
+                                        )
+                                )
+                            
+                            Text(selectedQuickInputType.unit)
+                                .font(.headline)
+                                .foregroundColor(selectedQuickInputType.color)
+                                .frame(minWidth: 30)
+                        }
+                    }
+                } else {
+                    // Standard input for other types
+                    TextField("0", text: $quickInputValue)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .multilineTextAlignment(.center)
+                        .keyboardType(.decimalPad)
+                        .padding(.vertical, 16)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(selectedQuickInputType.color.opacity(0.1))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(selectedQuickInputType.color.opacity(0.3), lineWidth: 2)
+                                )
+                        )
+                    
+                    Text(selectedQuickInputType.unit)
+                        .font(.headline)
+                        .foregroundColor(selectedQuickInputType.color)
+                        .frame(minWidth: 30)
+                }
                 
                 Button(action: saveQuickEntry) {
                     HStack(spacing: 6) {
@@ -368,7 +471,7 @@ struct NutritionView: View {
     }
     
     private func getValueForType(_ type: QuickInputType) -> Double {
-        guard let summary = todaysSummary else { return 0 }
+        let summary = todaysSummary
         switch type {
         case .calories: return summary.totalCalories
         case .water: return summary.totalWater
@@ -377,6 +480,7 @@ struct NutritionView: View {
         case .sodium: return summary.totalSodium
         case .carbs: return summary.totalCarbohydrates
         case .fat: return summary.totalFat
+        case .cholesterol: return summary.totalCholesterol
         }
     }
     
@@ -411,32 +515,199 @@ struct NutritionView: View {
         }
     }
     
-    // MARK: - Goals Progress Section
+    // MARK: - Today's Entries Section
     
-    private var goalsProgressSection: some View {
+    private var todaysEntriesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Daily Goals")
+                Text("Today's Entries")
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
                 
                 Spacer()
                 
-                Button("Edit Goals") {
-                    showingGoals = true
+                if !todaysEntries.isEmpty {
+                    Button("View All") {
+                        showingTodaysEntries = true
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
                 }
-                .font(.subheadline)
-                .foregroundColor(.blue)
             }
             
-            if let summary = todaysSummary {
-                GoalsProgressCard(summary: summary, goals: dataManager.nutritionGoals)
+            if todaysEntries.isEmpty {
+                emptyEntriesView
             } else {
-                emptyGoalsView
+                LazyVStack(spacing: 8) {
+                    ForEach(todaysEntries.prefix(5), id: \.id) { entry in
+                        NutritionEntryCard(entry: entry, dataManager: dataManager)
+                    }
+                    
+                    if todaysEntries.count > 5 {
+                        Button(action: {
+                            showingTodaysEntries = true
+                        }) {
+                            HStack {
+                                Text("View \(todaysEntries.count - 5) more entries")
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                        }
+                    }
+                }
             }
         }
     }
+    
+    // MARK: - Food Access Section
+    
+    private var foodAccessSection: some View {
+        VStack(spacing: 8) {
+            Text("Add Food")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+                // Scan Barcode
+                Button(action: {
+                    showingBarcodeScanner = true
+                }) {
+                    VStack(spacing: 6) {
+                        Image(systemName: "barcode.viewfinder")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                        
+                        Text("Scan Barcode")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Quick scan")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 75)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .blue.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(16)
+                }
+                
+                // Quick Add
+                Button(action: {
+                    showingQuickInput = true
+                }) {
+                    VStack(spacing: 6) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                        
+                        Text("Quick Add")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Fast entry")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 75)
+                    .background(
+                        LinearGradient(
+                            colors: [.green, .green.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(16)
+                }
+                
+                // Custom Templates
+                Button(action: {
+                    showingCustomTemplates = true
+                }) {
+                    VStack(spacing: 6) {
+                        Image(systemName: "bookmark.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                        
+                        Text("My Foods")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Saved foods")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 75)
+                    .background(
+                        LinearGradient(
+                            colors: [.purple, .purple.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(16)
+                }
+                
+                // Manual Entry
+                Button(action: {
+                    showingAddEntry = true
+                }) {
+                    VStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                        
+                        Text("Manual Entry")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Type values")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 75)
+                    .background(
+                        LinearGradient(
+                            colors: [.orange, .orange.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(16)
+                }
+                
+            }
+        }
+        .padding(.vertical, 8)
+    }
+    
     
     // MARK: - Empty Views
     
@@ -482,24 +753,6 @@ struct NutritionView: View {
         )
     }
     
-    private var emptyGoalsView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "target")
-                .font(.system(size: 30))
-                .foregroundColor(.secondary)
-            
-            Text("Set your nutrition goals to track progress")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemBackground))
-        )
-    }
     
     // MARK: - Functions
     
@@ -517,6 +770,8 @@ struct NutritionView: View {
             notes: "Quick entry: \(selectedQuickInputType.rawValue)"
         )
         dataManager.addNutritionEntry(entry)
+        successMessage = "\(selectedQuickInputType.rawValue) added to summary!"
+        showingSuccessPopup = true
         quickInputValue = ""
     }
     
@@ -533,17 +788,37 @@ struct NutritionView: View {
         quickInputValue = ""
     }
     
+    private func clearDataFrom231() {
+        let calendar = Calendar.current
+        let today = Date()
+        let targetTime = calendar.date(bySettingHour: 14, minute: 31, second: 0, of: today) ?? today
+        
+        dataManager.clearNutritionDataFromTime(targetTime)
+    }
+    
+    private func clearAllNutritionData() {
+        dataManager.clearAllNutritionData()
+    }
+    
     // MARK: - Computed Properties
     
     private var todaysEntries: [NutritionEntry] {
-        dataManager.nutritionEntries.filter { entry in
+        let allEntries = dataManager.nutritionEntries
+        let filtered = allEntries.filter { entry in
             Calendar.current.isDate(entry.date, inSameDayAs: selectedDate)
         }
+        print("=== NUTRITION VIEW DEBUG ===")
+        print("Total nutrition entries: \(allEntries.count)")
+        print("Today's entries: \(filtered.count)")
+        print("Selected date: \(selectedDate)")
+        if !allEntries.isEmpty {
+            print("Sample entry date: \(allEntries.first?.date ?? Date())")
+        }
+        return filtered
     }
     
-    private var todaysSummary: NutritionSummary? {
+    private var todaysSummary: NutritionSummary {
         let entries = todaysEntries
-        guard !entries.isEmpty else { return nil }
         return NutritionSummary(entries: entries, goals: dataManager.nutritionGoals, date: selectedDate)
     }
 }
@@ -597,10 +872,32 @@ struct NutritionEntryCard: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(entry.date.formatted(date: .omitted, time: .shortened))
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                HStack {
+                    Text(entry.date.formatted(date: .omitted, time: .shortened))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    if let label = entry.label {
+                        HStack(spacing: 4) {
+                            if let nutritionLabel = dataManager.nutritionLabelManager.getLabelByName(label) {
+                                Image(systemName: nutritionLabel.icon)
+                                    .font(.caption2)
+                                    .foregroundColor(nutritionLabel.color)
+                            }
+                            Text(label)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(.systemGray6))
+                        )
+                    }
+                }
                 
                 if let notes = entry.notes, !notes.isEmpty {
                     Text(notes)

@@ -242,7 +242,7 @@ struct CustomWorkoutsLibrary: View {
                 workout.name.localizedCaseInsensitiveContains(searchText) ||
                 workout.description?.localizedCaseInsensitiveContains(searchText) == true ||
                 workout.exercises.contains { exercise in
-                    exercise.exerciseType.rawValue.localizedCaseInsensitiveContains(searchText)
+                    exercise.exerciseName.localizedCaseInsensitiveContains(searchText)
                 }
             }
         }
@@ -406,7 +406,7 @@ struct CustomWorkoutCard: View {
     }
     
     private var exercisePreview: String {
-        let exerciseNames = workout.exercises.prefix(3).map { $0.exerciseType.rawValue }
+        let exerciseNames = workout.exercises.prefix(3).map { $0.exerciseName }
         let preview = exerciseNames.joined(separator: ", ")
         
         if workout.exercises.count > 3 {
@@ -635,7 +635,7 @@ struct CustomExerciseDetailCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Exercise Header
             HStack {
-                Text("\(index). \(exercise.exerciseType.rawValue)")
+                Text("\(index). \(exercise.exerciseName)")
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
@@ -660,7 +660,7 @@ struct CustomExerciseDetailCard: View {
                 
                 DetailItem(
                     icon: "arrow.up.arrow.down",
-                    value: "\(exercise.reps)",
+                    value: "\(exercise.reps ?? 0)",
                     label: "Reps"
                 )
                 
@@ -675,7 +675,7 @@ struct CustomExerciseDetailCard: View {
                 if let time = exercise.time {
                     DetailItem(
                         icon: "clock",
-                        value: "\(Int(time))s",
+                        value: formatTime(time),
                         label: "Time"
                     )
                 }
@@ -712,6 +712,12 @@ struct CustomExerciseDetailCard: View {
                 .fill(Color(.systemBackground))
                 .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         )
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 

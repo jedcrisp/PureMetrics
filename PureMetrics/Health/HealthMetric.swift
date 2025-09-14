@@ -7,6 +7,7 @@ enum MetricType: String, CaseIterable, Codable {
     case weight = "Weight"
     case bloodSugar = "Blood Sugar"
     case heartRate = "Heart Rate"
+    case bodyFat = "Body Fat %"
     
     var unit: String {
         switch self {
@@ -14,6 +15,7 @@ enum MetricType: String, CaseIterable, Codable {
         case .weight: return "lbs"
         case .bloodSugar: return "mg/dL"
         case .heartRate: return "bpm"
+        case .bodyFat: return "%"
         }
     }
     
@@ -23,6 +25,7 @@ enum MetricType: String, CaseIterable, Codable {
         case .weight: return "green"
         case .bloodSugar: return "orange"
         case .heartRate: return "red"
+        case .bodyFat: return "purple"
         }
     }
     
@@ -32,6 +35,7 @@ enum MetricType: String, CaseIterable, Codable {
         case .weight: return "scalemass.fill"
         case .bloodSugar: return "drop.fill"
         case .heartRate: return "heart.circle.fill"
+        case .bodyFat: return "figure.arms.open"
         }
     }
     
@@ -41,6 +45,7 @@ enum MetricType: String, CaseIterable, Codable {
         case .weight: return "150"
         case .bloodSugar: return "100"
         case .heartRate: return "72"
+        case .bodyFat: return "15.0"
         }
     }
 }
@@ -73,6 +78,8 @@ struct HealthMetric: Codable, Identifiable {
             return value >= 20 && value <= 600
         case .heartRate:
             return value >= 30 && value <= 200
+        case .bodyFat:
+            return value >= 1 && value <= 50
         }
     }
     
@@ -80,7 +87,7 @@ struct HealthMetric: Codable, Identifiable {
         switch type {
         case .bloodPressure:
             return "\(Int(value)) \(type.unit)"
-        case .weight, .bloodSugar, .heartRate:
+        case .weight, .bloodSugar, .heartRate, .bodyFat:
             return "\(Int(value)) \(type.unit)"
         }
     }
@@ -88,7 +95,7 @@ struct HealthMetric: Codable, Identifiable {
     var formattedValue: String {
         if type == .bloodPressure {
             return "\(Int(value))"
-        } else if type == .weight || type == .bloodSugar {
+        } else if type == .weight || type == .bloodSugar || type == .bodyFat {
             return String(format: "%.1f", value)
         } else {
             return "\(Int(value))"

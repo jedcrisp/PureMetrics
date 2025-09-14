@@ -280,12 +280,54 @@ struct HealthKitDashboard: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                // Heart Rate
+                // Current Heart Rate
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Heart Rate")
+                    Text("Current HR")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Text(healthKitManager.formattedHeartRate)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                
+                // Average Heart Rate
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Avg Heart Rate")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(healthKitManager.formattedAverageHeartRate)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                
+                // Current Weight
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Weight")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(healthKitManager.formattedCurrentWeight)
+                        .font(.title3)
+                        .fontWeight(.bold)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                
+                // Body Fat Percentage
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Body Fat %")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(healthKitManager.formattedBodyFatPercentage)
                         .font(.title3)
                         .fontWeight(.bold)
                 }

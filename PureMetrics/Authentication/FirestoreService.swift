@@ -67,6 +67,10 @@ class FirestoreService: ObservableObject {
             }
             return UnifiedHealthData(id: id, dataType: dataType, metricType: metricType, value: value, unit: unit, timestamp: timestamp)
             
+        case .nutritionEntry:
+            let nutritionEntry = try decodeNutritionEntry(from: documentData)
+            return UnifiedHealthData(id: id, dataType: dataType, nutritionEntry: nutritionEntry, timestamp: timestamp)
+            
         default:
             throw FirestoreError.decodingError("Unsupported data type: \(dataType)")
         }
@@ -130,6 +134,43 @@ class FirestoreService: ObservableObject {
         return session
     }
     
+    private func decodeNutritionEntry(from documentData: [String: Any]) throws -> NutritionEntry {
+        // Extract nutrition entry fields
+        guard let dateString = documentData["date"] as? String,
+              let date = ISO8601DateFormatter().date(from: dateString),
+              let calories = documentData["calories"] as? Double,
+              let protein = documentData["protein"] as? Double,
+              let carbohydrates = documentData["carbohydrates"] as? Double,
+              let fat = documentData["fat"] as? Double,
+              let sodium = documentData["sodium"] as? Double,
+              let sugar = documentData["sugar"] as? Double,
+              let fiber = documentData["fiber"] as? Double,
+              let cholesterol = documentData["cholesterol"] as? Double,
+              let water = documentData["water"] as? Double else {
+            throw FirestoreError.decodingError("Missing required nutrition entry fields")
+        }
+        
+        let addedSugar = documentData["addedSugar"] as? Double ?? 0
+        let notes = documentData["notes"] as? String
+        let label = documentData["label"] as? String
+        
+        return NutritionEntry(
+            date: date,
+            calories: calories,
+            protein: protein,
+            carbohydrates: carbohydrates,
+            fat: fat,
+            sodium: sodium,
+            sugar: sugar,
+            addedSugar: addedSugar,
+            fiber: fiber,
+            cholesterol: cholesterol,
+            water: water,
+            notes: notes,
+            label: label
+        )
+    }
+    
     private func userCollection() -> CollectionReference? {
         guard let userID = userID else { return nil }
         return db.collection("users").document(userID).collection("health_data")
@@ -140,9 +181,28 @@ class FirestoreService: ObservableObject {
         return db.collection("users").document(userID).collection("health_data").document(dataType.rawValue).collection("data")
     }
     
+    // New method for date-based nutrition entries - using a simpler structure
+    private func nutritionEntryCollection(for date: Date) -> CollectionReference? {
+        guard let userID = userID else { return nil }
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateString = dateFormatter.string(from: date)
+        // Create the path: users/{userId}/health_data/nutrition_entries_by_date/{date}
+        return db.collection("users").document(userID).collection("health_data").document("nutrition_entries_by_date").collection(dateString)
+    }
+    
     // Fallback method to check root-level collections (for existing data)
     private func rootDataTypeCollection(_ dataType: HealthDataType) -> CollectionReference? {
         return db.collection("health_data").document(dataType.rawValue).collection("data")
+    }
+    
+    // Fallback method for root-level date-based nutrition entries
+    private func rootNutritionEntryCollection(for date: Date) -> CollectionReference? {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateString = dateFormatter.string(from: date)
+        // Create the path: health_data/nutrition_entries_by_date/{date}
+        return db.collection("health_data").document("nutrition_entries_by_date").collection(dateString)
     }
     
     // MARK: - Unified Health Data Management
@@ -461,6 +521,7 @@ class FirestoreService: ObservableObject {
             case .bloodPressure: dataType = .bloodPressureSession
             case .bloodSugar: dataType = .bloodSugar
             case .heartRate: dataType = .heartRate
+            case .bodyFat: dataType = .bodyFat
             }
             
             guard let collection = dataTypeCollection(dataType) else {
@@ -516,7 +577,7 @@ class FirestoreService: ObservableObject {
             }
             
             print("Loading \(dataType.rawValue) metrics from Firestore...")
-            collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+            collection.order(by: "timestamp", descending: true).getDocuments { snapshot, error in
                 if let error = error {
                     print("Error loading \(dataType.rawValue) metrics: \(error)")
                     hasError = true
@@ -603,7 +664,7 @@ class FirestoreService: ObservableObject {
         }
         
         print("Loading BP sessions from Firestore...")
-        collection.order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+        collection.order(by: "startTime", descending: true).getDocuments { snapshot, error in
             if let error = error {
                 print("Error loading BP sessions: \(error)")
                 completion(.failure(error))
@@ -686,7 +747,7 @@ class FirestoreService: ObservableObject {
         }
         
         let sessionsCollection = collection.document("fitness_sessions").collection("sessions")
-        sessionsCollection.whereField("type", isEqualTo: "fitness_session").getDocuments { snapshot, error in
+        sessionsCollection.whereField("type", isEqualTo: "fitness_session").order(by: "startTime", descending: true).getDocuments { snapshot, error in
             if let error = error {
                 completion(.failure(error))
                 return
@@ -1371,6 +1432,7 @@ class FirestoreService: ObservableObject {
         print("=== FIRESTORE SAVE NUTRITION ENTRY CALLED ===")
         print("Entry ID: \(entry.id)")
         print("User ID: \(userID ?? "nil")")
+        print("Entry Date: \(entry.date)")
         
         guard let userID = userID else {
             completion(.failure(FirestoreError.noUser))
@@ -1385,15 +1447,19 @@ class FirestoreService: ObservableObject {
             timestamp: entry.date
         )
         
-        // Save to both user-specific and root collections
-        let userCollection = dataTypeCollection(.nutritionEntry)
-        let rootCollection = rootDataTypeCollection(.nutritionEntry)
+        // Use new date-based collections ONLY
+        let userCollection = nutritionEntryCollection(for: entry.date)
+        let rootCollection = rootNutritionEntryCollection(for: entry.date)
+        
+        print("=== COLLECTION PATHS ===")
+        print("Date-based user collection: \(userCollection?.path ?? "nil")")
+        print("Date-based root collection: \(rootCollection?.path ?? "nil")")
         
         let dispatchGroup = DispatchGroup()
         var hasError = false
         var lastError: Error?
         
-        // Save to user-specific collection
+        // Save to new date-based user collection
         if let userCollection = userCollection {
             dispatchGroup.enter()
             do {
@@ -1402,11 +1468,11 @@ class FirestoreService: ObservableObject {
                 
                 userCollection.document(entry.id.uuidString).setData(documentData) { error in
                     if let error = error {
-                        print("Error saving nutrition entry to user collection: \(error)")
+                        print("Error saving nutrition entry to date-based user collection: \(error)")
                         hasError = true
                         lastError = error
                     } else {
-                        print("Successfully saved nutrition entry to user collection")
+                        print("Successfully saved nutrition entry to date-based user collection")
                     }
                     dispatchGroup.leave()
                 }
@@ -1418,7 +1484,7 @@ class FirestoreService: ObservableObject {
             }
         }
         
-        // Save to root collection
+        // Save to new date-based root collection
         if let rootCollection = rootCollection {
             dispatchGroup.enter()
             do {
@@ -1427,11 +1493,11 @@ class FirestoreService: ObservableObject {
                 
                 rootCollection.document(entry.id.uuidString).setData(documentData) { error in
                     if let error = error {
-                        print("Error saving nutrition entry to root collection: \(error)")
+                        print("Error saving nutrition entry to date-based root collection: \(error)")
                         hasError = true
                         lastError = error
                     } else {
-                        print("Successfully saved nutrition entry to root collection")
+                        print("Successfully saved nutrition entry to date-based root collection")
                     }
                     dispatchGroup.leave()
                 }
@@ -1442,6 +1508,7 @@ class FirestoreService: ObservableObject {
                 dispatchGroup.leave()
             }
         }
+        
         
         dispatchGroup.notify(queue: .main) {
             if hasError {
@@ -1470,6 +1537,242 @@ class FirestoreService: ObservableObject {
                 print("Error loading nutrition entries: \(error)")
                 completion(.failure(error))
             }
+        }
+    }
+    
+    func loadNutritionEntriesForDate(_ date: Date, completion: @escaping (Result<[NutritionEntry], Error>) -> Void) {
+        print("=== FIRESTORE LOAD NUTRITION ENTRIES FOR DATE CALLED ===")
+        print("Date: \(date)")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Use new date-based collections ONLY
+        let userCollection = nutritionEntryCollection(for: date)
+        let rootCollection = rootNutritionEntryCollection(for: date)
+        
+        var collections: [CollectionReference] = []
+        
+        // Add date-based collections
+        if let userCol = userCollection {
+            collections.append(userCol)
+            print("Will try date-based user collection: \(userCol.path)")
+        }
+        if let rootCol = rootCollection {
+            collections.append(rootCol)
+            print("Will try date-based root collection: \(rootCol.path)")
+        }
+        
+        guard !collections.isEmpty else {
+            print("Error: No collections available for loading nutrition entries")
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Use date-based collections only
+        print("Loading from date-based collections...")
+        tryLoadNutritionEntriesFromDateBasedCollections(collections, completion: completion)
+    }
+    
+    // New method specifically for loading from date-based collections
+    private func tryLoadNutritionEntriesFromDateBasedCollections(_ collections: [CollectionReference], completion: @escaping (Result<[NutritionEntry], Error>) -> Void) {
+        var remainingCollections = collections
+        var isCompleted = false
+        
+        func tryNextCollection() {
+            guard !remainingCollections.isEmpty else {
+                if !isCompleted {
+                    isCompleted = true
+                    completion(.success([]))
+                }
+                return
+            }
+            
+            let collection = remainingCollections.removeFirst()
+            print("Trying to load from collection: \(collection.path)")
+            
+            // For date-based collections, just get all documents (they're already filtered by date)
+            collection.getDocuments { snapshot, error in
+                guard !isCompleted else { return }
+                
+                if let error = error {
+                    print("Error loading nutrition entries from \(collection.path): \(error)")
+                    // Try next collection
+                    tryNextCollection()
+                    return
+                }
+                
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    print("No documents found in \(collection.path)")
+                    // Try next collection
+                    tryNextCollection()
+                    return
+                }
+                
+                print("Found \(documents.count) documents in \(collection.path)")
+                
+                var entries: [NutritionEntry] = []
+                for document in documents {
+                    do {
+                        let data = document.data()
+                        let jsonData = try JSONSerialization.data(withJSONObject: data)
+                        let unifiedData = try JSONDecoder().decode(UnifiedHealthData.self, from: jsonData)
+                        
+                        if let nutritionEntry = unifiedData.nutritionEntry {
+                            entries.append(nutritionEntry)
+                        }
+                    } catch {
+                        print("Error decoding nutrition entry from document \(document.documentID): \(error)")
+                    }
+                }
+                
+                if !isCompleted {
+                    isCompleted = true
+                    print("Successfully loaded \(entries.count) nutrition entries from date-based collection")
+                    completion(.success(entries))
+                }
+            }
+        }
+        
+        tryNextCollection()
+    }
+    
+    private func tryLoadNutritionEntriesFromCollections(_ collections: [CollectionReference], startDate: Date, endDate: Date, completion: @escaping (Result<[NutritionEntry], Error>) -> Void) {
+        guard !collections.isEmpty else {
+            print("No more collections to try for nutrition entries")
+            completion(.success([]))
+            return
+        }
+        
+        let collection = collections[0]
+        let remainingCollections = Array(collections.dropFirst())
+        
+        print("Trying to load nutrition entries from collection: \(collection.path)")
+        
+        var isCompleted = false
+        
+        // Add timeout for individual requests
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            guard !isCompleted else { return }
+            isCompleted = true
+            print("Timeout loading nutrition entries from \(collection.path)")
+            // Try next collection if available
+            if !remainingCollections.isEmpty {
+                self.tryLoadNutritionEntriesFromCollections(remainingCollections, startDate: startDate, endDate: endDate, completion: completion)
+            } else {
+                completion(.success([]))
+            }
+        }
+        
+        // Check if this is a date-based collection (contains "entries" in path)
+        let isDateBasedCollection = collection.path.contains("entries")
+        
+        if isDateBasedCollection {
+            // For date-based collections, just get all documents (they're already filtered by date)
+            collection.getDocuments { snapshot, error in
+                guard !isCompleted else { return }
+                isCompleted = true
+                
+                if let error = error {
+                    print("Error loading nutrition entries from \(collection.path): \(error)")
+                    
+                    // Try next collection if available
+                    if !remainingCollections.isEmpty {
+                        self.tryLoadNutritionEntriesFromCollections(remainingCollections, startDate: startDate, endDate: endDate, completion: completion)
+                    } else {
+                        completion(.failure(error))
+                    }
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    print("No nutrition entries found in \(collection.path) for date")
+                    // Try next collection if available
+                    if !remainingCollections.isEmpty {
+                        self.tryLoadNutritionEntriesFromCollections(remainingCollections, startDate: startDate, endDate: endDate, completion: completion)
+                    } else {
+                        completion(.success([]))
+                    }
+                    return
+                }
+                
+                print("Found \(documents.count) nutrition entries in \(collection.path) for date")
+                
+                // Parse documents
+                var nutritionEntries: [NutritionEntry] = []
+                for document in documents {
+                    do {
+                        let data = document.data()
+                        let jsonData = try JSONSerialization.data(withJSONObject: data)
+                        let unifiedData = try JSONDecoder().decode(UnifiedHealthData.self, from: jsonData)
+                        
+                        if let nutritionEntry = unifiedData.nutritionEntry {
+                            nutritionEntries.append(nutritionEntry)
+                        }
+                    } catch {
+                        print("Error parsing nutrition entry document \(document.documentID): \(error)")
+                    }
+                }
+                
+                print("Successfully parsed \(nutritionEntries.count) nutrition entries")
+                completion(.success(nutritionEntries))
+            }
+        } else {
+            // For old collections, use date range filtering
+            collection
+                .whereField("timestamp", isGreaterThanOrEqualTo: startDate)
+                .whereField("timestamp", isLessThan: endDate)
+                .getDocuments { snapshot, error in
+                    guard !isCompleted else { return }
+                    isCompleted = true
+                    
+                    if let error = error {
+                        print("Error loading nutrition entries from \(collection.path): \(error)")
+                        
+                        // Try next collection if available
+                        if !remainingCollections.isEmpty {
+                            self.tryLoadNutritionEntriesFromCollections(remainingCollections, startDate: startDate, endDate: endDate, completion: completion)
+                        } else {
+                            completion(.failure(error))
+                        }
+                        return
+                    }
+                    
+                    guard let documents = snapshot?.documents else {
+                        print("No nutrition entries found in \(collection.path) for date range")
+                        // Try next collection if available
+                        if !remainingCollections.isEmpty {
+                            self.tryLoadNutritionEntriesFromCollections(remainingCollections, startDate: startDate, endDate: endDate, completion: completion)
+                        } else {
+                            completion(.success([]))
+                        }
+                        return
+                    }
+                    
+                    print("Found \(documents.count) nutrition entries in \(collection.path) for date range")
+                    
+                    // Parse documents
+                    var nutritionEntries: [NutritionEntry] = []
+                    for document in documents {
+                        do {
+                            let data = document.data()
+                            let jsonData = try JSONSerialization.data(withJSONObject: data)
+                            let unifiedData = try JSONDecoder().decode(UnifiedHealthData.self, from: jsonData)
+                            
+                            if let nutritionEntry = unifiedData.nutritionEntry {
+                                nutritionEntries.append(nutritionEntry)
+                            }
+                        } catch {
+                            print("Error parsing nutrition entry document \(document.documentID): \(error)")
+                        }
+                    }
+                    
+                    print("Successfully parsed \(nutritionEntries.count) nutrition entries")
+                    completion(.success(nutritionEntries))
+                }
         }
     }
     
@@ -1755,8 +2058,164 @@ enum HealthDataType: String, CaseIterable, Codable {
     case weight = "weight"
     case bloodSugar = "blood_sugar"
     case heartRate = "heart_rate"
+    case bodyFat = "body_fat"
     case personalRecords = "personal_records"
     case nutritionEntry = "nutrition_entry"
+    case nutritionGoals = "nutrition_goals"
+}
+
+// MARK: - Nutrition Goals Firestore Methods
+
+extension FirestoreService {
+    func saveNutritionGoals(_ goals: NutritionGoals, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        print("=== FIRESTORE SAVE NUTRITION GOALS CALLED ===")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        do {
+            let data = try JSONEncoder().encode(goals)
+            let goalsData: [String: Any] = [
+                "goals": data,
+                "timestamp": Date(),
+                "userID": userID
+            ]
+            
+            let userCollection = dataTypeCollection(.nutritionGoals)
+            let rootCollection = rootDataTypeCollection(.nutritionGoals)
+            
+            let dispatchGroup = DispatchGroup()
+            var hasError = false
+            var lastError: Error?
+            
+            // Save to user-specific collection
+            if let userCollection = userCollection {
+                dispatchGroup.enter()
+                userCollection.document("goals").setData(goalsData) { error in
+                    if let error = error {
+                        print("Error saving nutrition goals to user collection: \(error)")
+                        hasError = true
+                        lastError = error
+                    } else {
+                        print("Successfully saved nutrition goals to user collection")
+                    }
+                    dispatchGroup.leave()
+                }
+            }
+            
+            // Save to root collection
+            if let rootCollection = rootCollection {
+                dispatchGroup.enter()
+                rootCollection.document("\(userID)_goals").setData(goalsData) { error in
+                    if let error = error {
+                        print("Error saving nutrition goals to root collection: \(error)")
+                        hasError = true
+                        lastError = error
+                    } else {
+                        print("Successfully saved nutrition goals to root collection")
+                    }
+                    dispatchGroup.leave()
+                }
+            }
+            
+            dispatchGroup.notify(queue: .main) {
+                if hasError {
+                    completion(.failure(lastError ?? FirestoreError.unknown))
+                } else {
+                    completion(.success(()))
+                }
+            }
+            
+        } catch {
+            print("Error encoding nutrition goals: \(error)")
+            completion(.failure(FirestoreError.encodingError))
+        }
+    }
+    
+    func loadNutritionGoals(completion: @escaping (Result<NutritionGoals, Error>) -> Void) {
+        print("=== FIRESTORE LOAD NUTRITION GOALS CALLED ===")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let userCollection = dataTypeCollection(.nutritionGoals)
+        let rootCollection = rootDataTypeCollection(.nutritionGoals)
+        
+        // Try user collection first
+        if let userCollection = userCollection {
+            userCollection.document("goals").getDocument { document, error in
+                if let error = error {
+                    print("Error loading nutrition goals from user collection: \(error)")
+                    // Try root collection as fallback
+                    self.loadNutritionGoalsFromRoot(completion: completion)
+                } else if let document = document, document.exists, let data = document.data() {
+                    if let goalsData = data["goals"] as? Data {
+                        do {
+                            let goals = try JSONDecoder().decode(NutritionGoals.self, from: goalsData)
+                            print("Successfully loaded nutrition goals from user collection")
+                            completion(.success(goals))
+                        } catch {
+                            print("Error decoding nutrition goals: \(error)")
+                            completion(.failure(FirestoreError.decodingError(error.localizedDescription)))
+                        }
+                    } else {
+                        print("No nutrition goals data found in user collection")
+                        completion(.success(NutritionGoals()))
+                    }
+                } else {
+                    print("No nutrition goals document found in user collection")
+                    completion(.success(NutritionGoals()))
+                }
+            }
+        } else {
+            // Fallback to root collection
+            loadNutritionGoalsFromRoot(completion: completion)
+        }
+    }
+    
+    private func loadNutritionGoalsFromRoot(completion: @escaping (Result<NutritionGoals, Error>) -> Void) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let rootCollection = rootDataTypeCollection(.nutritionGoals)
+        
+        if let rootCollection = rootCollection {
+            rootCollection.document("\(userID)_goals").getDocument { document, error in
+                if let error = error {
+                    print("Error loading nutrition goals from root collection: \(error)")
+                    completion(.failure(error))
+                } else if let document = document, document.exists, let data = document.data() {
+                    if let goalsData = data["goals"] as? Data {
+                        do {
+                            let goals = try JSONDecoder().decode(NutritionGoals.self, from: goalsData)
+                            print("Successfully loaded nutrition goals from root collection")
+                            completion(.success(goals))
+                        } catch {
+                            print("Error decoding nutrition goals: \(error)")
+                            completion(.failure(FirestoreError.decodingError(error.localizedDescription)))
+                        }
+                    } else {
+                        print("No nutrition goals data found in root collection")
+                        completion(.success(NutritionGoals()))
+                    }
+                } else {
+                    print("No nutrition goals document found in root collection")
+                    completion(.success(NutritionGoals()))
+                }
+            }
+        } else {
+            print("No root collection available for nutrition goals")
+            completion(.success(NutritionGoals()))
+        }
+    }
 }
 
 struct UnifiedHealthData: Codable, Identifiable {

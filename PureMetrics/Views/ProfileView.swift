@@ -7,6 +7,7 @@ struct ProfileView: View {
     @State private var showingEditProfile = false
     @State private var showingDeleteAllConfirmation = false
     @State private var showingLogoutConfirmation = false
+    @State private var showingNotificationSettings = false
     
     var body: some View {
         NavigationView {
@@ -17,6 +18,12 @@ struct ProfileView: View {
                     
                     // Statistics Overview
                     statisticsSection
+                    
+                    // HealthKit Integration
+                    healthKitSection
+                    
+                    // Settings Section
+                    settingsSection
                     
                     // Recent Activity
                     recentActivitySection
@@ -38,6 +45,9 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingEditProfile) {
             EditProfileView(userName: $userName, age: $age)
+        }
+        .sheet(isPresented: $showingNotificationSettings) {
+            NotificationSettingsView()
         }
         .alert(isPresented: $showingDeleteAllConfirmation) {
             Alert(
@@ -147,6 +157,149 @@ struct ProfileView: View {
         }
     }
     
+    
+    // MARK: - HealthKit Section
+    
+    private var healthKitSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Apple Health Integration")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            VStack(spacing: 12) {
+                HStack {
+                    Image(systemName: dataManager.healthKitManager.isHealthKitEnabled ? "heart.fill" : "heart.slash")
+                        .foregroundColor(dataManager.healthKitManager.isHealthKitEnabled ? .red : .gray)
+                        .font(.title2)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Health Data Sync")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        Text(healthKitStatusText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    if !dataManager.healthKitManager.isHealthKitEnabled {
+                        Button("Enable") {
+                            dataManager.healthKitManager.isHealthKitEnabled = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    } else if !dataManager.healthKitManager.isAuthorized {
+                        Button("Grant Access") {
+                            dataManager.healthKitManager.requestAuthorization()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    } else {
+                        VStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.title2)
+                            
+                            #if targetEnvironment(simulator)
+                            Button("Add Sample Data") {
+                                dataManager.healthKitManager.forceAddSampleData()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .foregroundColor(.orange)
+                            #endif
+                        }
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white)
+                        .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+                )
+                
+                if dataManager.healthKitManager.isHealthKitEnabled && dataManager.healthKitManager.isAuthorized {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Synced Data Types:")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        
+                        HStack(spacing: 16) {
+                            HealthKitDataTypeView(icon: "scalemass", title: "Weight", isEnabled: true)
+                            HealthKitDataTypeView(icon: "figure.walk", title: "Steps", isEnabled: true)
+                            HealthKitDataTypeView(icon: "flame", title: "Active Energy", isEnabled: true)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.05))
+                    )
+                }
+            }
+        }
+    }
+    
+    // MARK: - Settings Section
+    
+    private var settingsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Settings")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            VStack(spacing: 12) {
+                // Notification Reminders
+                Button(action: {
+                    showingNotificationSettings = true
+                }) {
+                    HStack {
+                        Image(systemName: "bell.fill")
+                            .foregroundColor(.blue)
+                            .font(.title2)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Reminders")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            Text("Set up daily reminders for health and nutrition tracking")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                            .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+    
+    private var healthKitStatusText: String {
+        if !dataManager.healthKitManager.isHealthKitEnabled {
+            return "Enable to sync with Apple Health"
+        } else if !dataManager.healthKitManager.isAuthorized {
+            return "Grant permissions to access health data"
+        } else {
+            return "Connected and syncing data"
+        }
+    }
+    
     // MARK: - Recent Activity Section
     
     private var recentActivitySection: some View {
@@ -163,7 +316,7 @@ struct ProfileView: View {
                     .padding()
             } else {
                 LazyVStack(spacing: 8) {
-                    ForEach(Array(dataManager.sessions.prefix(5))) { session in
+                    ForEach(Array(sortedSessions.prefix(5))) { session in
                         RecentSessionRow(session: session)
                     }
                 }
@@ -172,6 +325,10 @@ struct ProfileView: View {
     }
     
     // MARK: - Computed Properties
+    
+    private var sortedSessions: [BPSession] {
+        dataManager.sessions.sorted { $0.startTime > $1.startTime }
+    }
     
     private var totalReadings: Int {
         dataManager.sessions.reduce(0) { $0 + $1.readings.count }
@@ -209,25 +366,6 @@ struct ProfileView: View {
                 .padding(.horizontal)
             
             VStack(spacing: 12) {
-                // Sync Data Button
-                Button(action: { 
-                    dataManager.forceReloadBPSessions()
-                }) {
-                    HStack {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundColor(.green)
-                        Text("Sync Data from Cloud")
-                            .foregroundColor(.green)
-                            .fontWeight(.medium)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.green.opacity(0.1))
-                    )
-                }
-                .buttonStyle(PlainButtonStyle())
                 
                 // Logout Button
                 Button(action: { showingLogoutConfirmation = true }) {
@@ -390,6 +528,26 @@ struct ProfileStatCard: View {
                 .fill(Color.white)
                 .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
         )
+    }
+}
+
+// MARK: - HealthKit Data Type View
+
+struct HealthKitDataTypeView: View {
+    let icon: String
+    let title: String
+    let isEnabled: Bool
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(isEnabled ? .green : .gray)
+            
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
     }
 }
 

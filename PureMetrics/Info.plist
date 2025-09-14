@@ -26,7 +26,7 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>PureMetrics updates your health data to keep it synchronized</string>
 	<key>NSCameraUsageDescription</key>
-	<string>PureMetrics uses the camera to take profile photos</string>
+	<string>PureMetrics uses the camera to take profile photos and scan nutrition labels</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PureMetrics accesses your photo library to select profile photos</string>
 </dict>

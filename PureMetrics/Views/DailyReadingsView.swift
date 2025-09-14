@@ -114,7 +114,7 @@ struct DailyReadingsView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.blue.opacity(0.6))
             
-            Text("No Sessions on \(selectedDate, style: .date)")
+            Text("No Data Available")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)

@@ -8,6 +8,9 @@ struct DataHistoryView: View {
     @State private var showingExportSheet = false
     @State private var exportData: Data?
     @State private var showingShareSheet = false
+    @State private var showingAllBloodPressure = false
+    @State private var showingAllFitness = false
+    @State private var showingAllNutrition = false
     
     enum TimeRange: String, CaseIterable {
         case week = "Week"
@@ -120,8 +123,31 @@ struct DataHistoryView: View {
                     .padding()
             } else {
                 LazyVStack(spacing: 8) {
-                    ForEach(filteredBloodPressureReadings) { reading in
+                    ForEach(displayedBloodPressureReadings) { reading in
                         BloodPressureRow(reading: reading)
+                    }
+                }
+                
+                // Show "See All" button if there are more items
+                if filteredBloodPressureReadings.count > 5 {
+                    Button(action: {
+                        showingAllBloodPressure.toggle()
+                    }) {
+                        HStack {
+                            Text(showingAllBloodPressure ? "Show Less" : "See All (\(filteredBloodPressureReadings.count) readings)")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Image(systemName: showingAllBloodPressure ? "chevron.up" : "chevron.down")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.blue.opacity(0.1))
+                        )
                     }
                 }
             }
@@ -155,12 +181,35 @@ struct DataHistoryView: View {
                     .padding()
             } else {
                 LazyVStack(spacing: 8) {
-                    ForEach(filteredFitnessSessions) { session in
+                    ForEach(displayedFitnessSessions) { session in
                         NavigationLink(destination: WorkoutDetailView(workout: session)
                             .environmentObject(dataManager)) {
                             FitnessSessionRow(session: session)
                         }
                         .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                
+                // Show "See All" button if there are more items
+                if filteredFitnessSessions.count > 5 {
+                    Button(action: {
+                        showingAllFitness.toggle()
+                    }) {
+                        HStack {
+                            Text(showingAllFitness ? "Show Less" : "See All (\(filteredFitnessSessions.count) sessions)")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Image(systemName: showingAllFitness ? "chevron.up" : "chevron.down")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.blue.opacity(0.1))
+                        )
                     }
                 }
             }
@@ -194,8 +243,31 @@ struct DataHistoryView: View {
                     .padding()
             } else {
                 LazyVStack(spacing: 8) {
-                    ForEach(filteredNutritionEntries) { entry in
+                    ForEach(displayedNutritionEntries) { entry in
                         NutritionEntryRow(entry: entry)
+                    }
+                }
+                
+                // Show "See All" button if there are more items
+                if filteredNutritionEntries.count > 5 {
+                    Button(action: {
+                        showingAllNutrition.toggle()
+                    }) {
+                        HStack {
+                            Text(showingAllNutrition ? "Show Less" : "See All (\(filteredNutritionEntries.count) entries)")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Image(systemName: showingAllNutrition ? "chevron.up" : "chevron.down")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.blue.opacity(0.1))
+                        )
                     }
                 }
             }
@@ -249,17 +321,20 @@ struct DataHistoryView: View {
     
     private var filteredBloodPressureReadings: [BloodPressureReading] {
         let readings = dataManager.sessions.flatMap { $0.readings }
-        return filterByTimeRange(readings)
+        let filteredReadings = filterByTimeRange(readings)
+        return filteredReadings.sorted { $0.timestamp > $1.timestamp }
     }
     
     private var filteredFitnessSessions: [FitnessSession] {
         let sessions = dataManager.fitnessSessions
-        return filterByTimeRange(sessions)
+        let filteredSessions = filterByTimeRange(sessions)
+        return filteredSessions.sorted { $0.startTime > $1.startTime }
     }
     
     private var filteredNutritionEntries: [NutritionEntry] {
         let entries = dataManager.nutritionEntries
-        return filterByTimeRange(entries)
+        let filteredEntries = filterByTimeRange(entries)
+        return filteredEntries.sorted { $0.date > $1.date }
     }
     
     private var filteredData: [Any] {
@@ -276,6 +351,32 @@ struct DataHistoryView: View {
         }
         
         return data
+    }
+    
+    // MARK: - Displayed Items (Limited to 5-7 recent items)
+    
+    private var displayedBloodPressureReadings: [BloodPressureReading] {
+        if showingAllBloodPressure {
+            return filteredBloodPressureReadings
+        } else {
+            return Array(filteredBloodPressureReadings.prefix(5))
+        }
+    }
+    
+    private var displayedFitnessSessions: [FitnessSession] {
+        if showingAllFitness {
+            return filteredFitnessSessions
+        } else {
+            return Array(filteredFitnessSessions.prefix(5))
+        }
+    }
+    
+    private var displayedNutritionEntries: [NutritionEntry] {
+        if showingAllNutrition {
+            return filteredNutritionEntries
+        } else {
+            return Array(filteredNutritionEntries.prefix(5))
+        }
     }
     
     // MARK: - Helper Methods
@@ -404,7 +505,7 @@ struct FitnessSessionRow: View {
                         .foregroundColor(.secondary)
                     
                     // Show exercise types
-                    let exerciseTypes = session.exerciseSessions.map { $0.exerciseType.rawValue }
+                    let exerciseTypes = session.exerciseSessions.map { $0.exerciseName }
                     Text(exerciseTypes.joined(separator: ", "))
                         .font(.caption2)
                         .foregroundColor(.secondary)
