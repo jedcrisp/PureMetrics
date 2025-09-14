@@ -5,11 +5,14 @@ struct WorkoutSelector: View {
     @Binding var selectedWorkout: PreBuiltWorkout?
     let onWorkoutSelected: (PreBuiltWorkout) -> Void
     @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var dataManager: BPDataManager
     @State private var selectedCategory: WorkoutCategory? = nil
     @State private var selectedDifficulty: WorkoutDifficulty? = nil
     @State private var showFavoritesOnly = false
     @State private var showingWorkoutPreview = false
     @State private var previewWorkout: PreBuiltWorkout? = nil
+    @State private var selectedCustomWorkout: CustomWorkout? = nil
+    @State private var showingCustomWorkoutPreview = false
     
     private var filteredWorkouts: [PreBuiltWorkout] {
         var workouts = workoutManager.workouts
@@ -33,6 +36,16 @@ struct WorkoutSelector: View {
         return workoutManager.getFavoriteWorkouts()
     }
     
+    private var filteredCustomWorkouts: [CustomWorkout] {
+        var workouts = dataManager.customWorkouts
+        
+        if showFavoritesOnly {
+            workouts = workouts.filter { $0.isFavorite }
+        }
+        
+        return workouts
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -45,7 +58,7 @@ struct WorkoutSelector: View {
                     
                     Spacer()
                     
-                    Text("Pre-Built Workouts")
+                    Text("Choose Workout")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
@@ -128,19 +141,74 @@ struct WorkoutSelector: View {
                 
                 // Workout List
                 List {
-                    ForEach(filteredWorkouts) { workout in
-                        WorkoutCard(
-                            workout: workout,
-                            isSelected: selectedWorkout?.id == workout.id,
-                            onTap: {
-                                previewWorkout = workout
-                                showingWorkoutPreview = true
-                            },
-                            onFavorite: {
-                                workoutManager.toggleFavorite(workout)
+                    // Pre-Built Workouts Section
+                    if !filteredWorkouts.isEmpty {
+                        Section("Pre-Built Workouts") {
+                            ForEach(filteredWorkouts) { workout in
+                                WorkoutCard(
+                                    workout: workout,
+                                    isSelected: selectedWorkout?.id == workout.id,
+                                    onTap: {
+                                        previewWorkout = workout
+                                        showingWorkoutPreview = true
+                                    },
+                                    onFavorite: {
+                                        workoutManager.toggleFavorite(workout)
+                                    }
+                                )
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                .listRowSeparator(.hidden)
                             }
-                        )
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        }
+                    }
+                    
+                    // Custom Workouts Section
+                    if !filteredCustomWorkouts.isEmpty {
+                        Section("Custom Workouts") {
+                            ForEach(filteredCustomWorkouts) { workout in
+                                CustomWorkoutCard(
+                                    workout: workout,
+                                    onTap: {
+                                        selectedCustomWorkout = workout
+                                        showingCustomWorkoutPreview = true
+                                    },
+                                    onStart: {
+                                        // Convert CustomWorkout to PreBuiltWorkout for compatibility
+                                        let preBuiltWorkout = convertCustomToPreBuilt(workout)
+                                        onWorkoutSelected(preBuiltWorkout)
+                                        presentationMode.wrappedValue.dismiss()
+                                    },
+                                    onFavorite: {
+                                        dataManager.toggleCustomWorkoutFavorite(workout)
+                                    }
+                                )
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                .listRowSeparator(.hidden)
+                            }
+                        }
+                    }
+                    
+                    // Empty State
+                    if filteredWorkouts.isEmpty && filteredCustomWorkouts.isEmpty {
+                        Section {
+                            VStack(spacing: 16) {
+                                Image(systemName: "dumbbell")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+                                
+                                Text("No Workouts Found")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                
+                                Text("Try adjusting your filters or create a custom workout")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                        }
+                        .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
                     }
                 }
@@ -164,6 +232,220 @@ struct WorkoutSelector: View {
                 )
             }
         }
+        .sheet(isPresented: $showingCustomWorkoutPreview) {
+            if let workout = selectedCustomWorkout {
+                CustomWorkoutPreview(
+                    workout: workout,
+                    onStart: {
+                        // Convert CustomWorkout to PreBuiltWorkout for compatibility
+                        let preBuiltWorkout = convertCustomToPreBuilt(workout)
+                        onWorkoutSelected(preBuiltWorkout)
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                )
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func convertCustomToPreBuilt(_ customWorkout: CustomWorkout) -> PreBuiltWorkout {
+        return PreBuiltWorkout(
+            name: customWorkout.name,
+            category: .fullBody, // Default category
+            description: customWorkout.description ?? "",
+            exercises: customWorkout.exercises,
+            estimatedDuration: customWorkout.estimatedDuration,
+            difficulty: .intermediate, // Default difficulty
+            isFavorite: customWorkout.isFavorite
+        )
+    }
+}
+
+
+// MARK: - Custom Workout Preview
+
+struct CustomWorkoutPreview: View {
+    let workout: CustomWorkout
+    let onStart: () -> Void
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    headerSection
+                    
+                    // Workout Info
+                    workoutInfoSection
+                    
+                    // Exercises List
+                    exercisesSection
+                    
+                    // Start Button
+                    startButtonSection
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("Workout Preview")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(workout.displayName)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    if let description = workout.description {
+                        Text(description)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("\(workout.estimatedDuration)m")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    Text("Duration")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            HStack {
+                Text("Created: \(workout.createdDate.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Text("Used \(workout.useCount) times")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        )
+    }
+    
+    private var workoutInfoSection: some View {
+        HStack(spacing: 20) {
+            VStack(spacing: 4) {
+                Text("\(workout.totalExercises)")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                Text("Exercises")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            VStack(spacing: 4) {
+                Text("\(workout.totalSets)")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                Text("Sets")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            VStack(spacing: 4) {
+                Text("\(workout.totalReps)")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                Text("Reps")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemGray6))
+        )
+    }
+    
+    private var exercisesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Exercises")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            ForEach(Array(workout.exercises.enumerated()), id: \.element.id) { index, exercise in
+                HStack(spacing: 16) {
+                    // Exercise Number
+                    Text("\(index + 1)")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle()
+                                .fill(Color.blue)
+                        )
+                    
+                    // Exercise Info
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(exercise.exerciseName)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Text(exercise.displayString)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                )
+            }
+        }
+    }
+    
+    private var startButtonSection: some View {
+        Button(action: onStart) {
+            Text("Start Workout")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.blue)
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
