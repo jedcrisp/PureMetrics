@@ -133,6 +133,7 @@ struct FitnessView: View {
                 hasSessionBeenSaved = false
                 showingWorkoutSelector = false
             }
+            .environmentObject(dataManager)
         }
         .sheet(isPresented: $showingCustomWorkoutBuilder) {
             CustomWorkoutBuilder()

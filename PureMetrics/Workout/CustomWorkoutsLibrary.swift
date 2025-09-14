@@ -50,6 +50,7 @@ struct CustomWorkoutsLibrary: View {
         .sheet(isPresented: $showingWorkoutDetails) {
             if let workout = selectedWorkout {
                 CustomWorkoutDetailView(workout: workout)
+                    .environmentObject(dataManager)
             }
         }
     }

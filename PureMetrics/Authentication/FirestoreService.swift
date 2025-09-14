@@ -1388,6 +1388,10 @@ class FirestoreService: ObservableObject {
                         workoutData["lastUsed"] = lastUsed.dateValue()
                     }
                     
+                    // Remove the createdAt field since it's not part of the CustomWorkout model
+                    workoutData.removeValue(forKey: "createdAt")
+                    workoutData.removeValue(forKey: "updatedAt")
+                    
                     let workout = try Firestore.Decoder().decode(CustomWorkout.self, from: workoutData)
                     workouts.append(workout)
                 } catch {
