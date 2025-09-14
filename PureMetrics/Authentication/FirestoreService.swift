@@ -2143,78 +2143,39 @@ extension FirestoreService {
             return
         }
         
-        let userCollection = dataTypeCollection(.nutritionGoals)
-        let rootCollection = rootDataTypeCollection(.nutritionGoals)
-        
-        // Try user collection first
-        if let userCollection = userCollection {
-            userCollection.document("goals").getDocument { document, error in
-                if let error = error {
-                    print("Error loading nutrition goals from user collection: \(error)")
-                    // Try root collection as fallback
-                    self.loadNutritionGoalsFromRoot(completion: completion)
-                } else if let document = document, document.exists, let data = document.data() {
-                    if let goalsData = data["goals"] as? Data {
-                        do {
-                            let goals = try JSONDecoder().decode(NutritionGoals.self, from: goalsData)
-                            print("Successfully loaded nutrition goals from user collection")
-                            completion(.success(goals))
-                        } catch {
-                            print("Error decoding nutrition goals: \(error)")
-                            completion(.failure(FirestoreError.decodingError(error.localizedDescription)))
-                        }
-                    } else {
-                        print("No nutrition goals data found in user collection")
-                        completion(.success(NutritionGoals()))
-                    }
-                } else {
-                    print("No nutrition goals document found in user collection")
-                    completion(.success(NutritionGoals()))
-                }
-            }
-        } else {
-            // Fallback to root collection
-            loadNutritionGoalsFromRoot(completion: completion)
-        }
-    }
-    
-    private func loadNutritionGoalsFromRoot(completion: @escaping (Result<NutritionGoals, Error>) -> Void) {
-        guard let userID = userID else {
+        // Only use user-specific collection to prevent data leakage
+        guard let userCollection = dataTypeCollection(.nutritionGoals) else {
+            print("Error: No user collection available for loading nutrition goals")
             completion(.failure(FirestoreError.noUser))
             return
         }
         
-        let rootCollection = rootDataTypeCollection(.nutritionGoals)
-        
-        if let rootCollection = rootCollection {
-            rootCollection.document("\(userID)_goals").getDocument { document, error in
-                if let error = error {
-                    print("Error loading nutrition goals from root collection: \(error)")
-                    completion(.failure(error))
-                } else if let document = document, document.exists, let data = document.data() {
-                    if let goalsData = data["goals"] as? Data {
-                        do {
-                            let goals = try JSONDecoder().decode(NutritionGoals.self, from: goalsData)
-                            print("Successfully loaded nutrition goals from root collection")
-                            completion(.success(goals))
-                        } catch {
-                            print("Error decoding nutrition goals: \(error)")
-                            completion(.failure(FirestoreError.decodingError(error.localizedDescription)))
-                        }
-                    } else {
-                        print("No nutrition goals data found in root collection")
-                        completion(.success(NutritionGoals()))
+        print("Loading nutrition goals from user-specific collection only: \(userCollection.path)")
+        userCollection.document("goals").getDocument { document, error in
+            if let error = error {
+                print("Error loading nutrition goals from user collection: \(error)")
+                completion(.failure(error))
+            } else if let document = document, document.exists, let data = document.data() {
+                if let goalsData = data["goals"] as? Data {
+                    do {
+                        let goals = try JSONDecoder().decode(NutritionGoals.self, from: goalsData)
+                        print("Successfully loaded nutrition goals from user collection")
+                        completion(.success(goals))
+                    } catch {
+                        print("Error decoding nutrition goals: \(error)")
+                        completion(.failure(FirestoreError.decodingError(error.localizedDescription)))
                     }
                 } else {
-                    print("No nutrition goals document found in root collection")
+                    print("No nutrition goals data found in user collection")
                     completion(.success(NutritionGoals()))
                 }
+            } else {
+                print("No nutrition goals document found in user collection")
+                completion(.success(NutritionGoals()))
             }
-        } else {
-            print("No root collection available for nutrition goals")
-            completion(.success(NutritionGoals()))
         }
     }
+    
 }
 
 struct UnifiedHealthData: Codable, Identifiable {
