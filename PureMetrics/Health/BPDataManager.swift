@@ -232,6 +232,9 @@ class BPDataManager: ObservableObject {
         
         // Add a small delay to prevent rapid-fire sync attempts
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            // First ensure user profile exists
+            self?.ensureUserProfileExists()
+            // Then load all data
             self?.loadFromFirebase()
             self?.loadHealthNotesFromFirestore()
             // Also reload custom nutrition templates when user signs in
@@ -262,6 +265,28 @@ class BPDataManager: ObservableObject {
         hasSyncedForCurrentSession = false
         isSyncing = false
         syncError = nil
+    }
+    
+    private func ensureUserProfileExists() {
+        guard authService.isAuthenticated else { return }
+        
+        // Check if user profile already exists
+        if userProfile != nil {
+            print("User profile already exists")
+            return
+        }
+        
+        // Create user profile if it doesn't exist
+        let profile = UserProfile(
+            id: authService.currentUser?.uid ?? "",
+            email: authService.currentUser?.email ?? "",
+            displayName: authService.currentUser?.displayName,
+            photoURL: authService.currentUser?.photoURL?.absoluteString
+        )
+        
+        userProfile = profile
+        firestoreService.saveUserProfile(profile)
+        print("Created user profile for new user")
     }
     
     // MARK: - Session Management
@@ -1954,10 +1979,34 @@ class BPDataManager: ObservableObject {
         firestoreService.loadUserProfile { [weak self] result in
             switch result {
             case .success(let profile):
-                self?.userProfile = profile
-                print("Loaded user profile from Firebase")
+                if let profile = profile {
+                    self?.userProfile = profile
+                    print("Loaded user profile from Firebase")
+                } else {
+                    // No profile exists, create one
+                    print("No user profile found, creating new one...")
+                    let newProfile = UserProfile(
+                        id: self?.authService.currentUser?.uid ?? "",
+                        email: self?.authService.currentUser?.email ?? "",
+                        displayName: self?.authService.currentUser?.displayName,
+                        photoURL: self?.authService.currentUser?.photoURL?.absoluteString
+                    )
+                    self?.userProfile = newProfile
+                    self?.firestoreService.saveUserProfile(newProfile)
+                    print("Created and saved new user profile")
+                }
             case .failure(let error):
                 print("Error loading user profile: \(error)")
+                // Create a fallback profile
+                let fallbackProfile = UserProfile(
+                    id: self?.authService.currentUser?.uid ?? "",
+                    email: self?.authService.currentUser?.email ?? "",
+                    displayName: self?.authService.currentUser?.displayName,
+                    photoURL: self?.authService.currentUser?.photoURL?.absoluteString
+                )
+                self?.userProfile = fallbackProfile
+                self?.firestoreService.saveUserProfile(fallbackProfile)
+                print("Created fallback user profile due to error")
             }
             dispatchGroup.leave()
         }
