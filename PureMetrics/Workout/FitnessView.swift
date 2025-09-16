@@ -25,7 +25,10 @@ struct FitnessView: View {
     @State private var hasSessionBeenSaved: Bool = false
     @State private var uiUpdateTrigger: Int = 0
     @State private var exerciseStartTimes: [Int: Date] = [:]
+    @State private var exercisePausedTimes: [Int: TimeInterval] = [:]
     @State private var expandedRepMaxCards: Set<UUID> = []
+    @State private var isCustomWorkoutLoaded: Bool = false
+    @State private var loadedCustomWorkout: CustomWorkout? = nil
     
     var body: some View {
         NavigationView {
@@ -107,6 +110,8 @@ struct FitnessView: View {
                 // Initialize set inputs for the new exercise
                 let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
                 exerciseSetInputs[newExerciseIndex] = [SetInput()]
+                // Start timer for the new exercise
+                startExerciseTimer(exerciseIndex: newExerciseIndex)
                 showingExerciseSelector = false
             },
                 onCustomExerciseSelected: { customExercise in
@@ -114,6 +119,8 @@ struct FitnessView: View {
                 // Initialize set inputs for the new exercise
                 let newExerciseIndex = dataManager.currentFitnessSession.exerciseSessions.count - 1
                 exerciseSetInputs[newExerciseIndex] = [SetInput()]
+                // Start timer for the new exercise
+                startExerciseTimer(exerciseIndex: newExerciseIndex)
                 showingExerciseSelector = false
             },
                 dataManager: dataManager
@@ -128,6 +135,8 @@ struct FitnessView: View {
                 // Initialize set inputs for all exercises
                 for i in 0..<dataManager.currentFitnessSession.exerciseSessions.count {
                     exerciseSetInputs[i] = [SetInput()]
+                    // Start timer for each exercise
+                    startExerciseTimer(exerciseIndex: i)
                 }
                 isWorkoutTemplateLoaded = true
                 hasSessionBeenSaved = false
@@ -144,6 +153,7 @@ struct FitnessView: View {
                 startCustomWorkoutSession(workout)
                 showingCustomWorkoutSelector = false
             }
+            .environmentObject(dataManager)
         }
         .sheet(isPresented: $showingFilterSettings) {
             MaxFilterSettingsView(filterSettings: filterSettings)
@@ -585,6 +595,20 @@ struct FitnessView: View {
                         .foregroundColor(.white)
                         .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
+                } else {
+                    // Show debug info when no custom workouts
+                    VStack(spacing: 8) {
+                        Text("No Custom Workouts Found")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Button("Refresh from Firestore") {
+                            dataManager.refreshCustomWorkouts()
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    }
+                    .padding(.vertical, 8)
                 }
             }
         }
@@ -600,6 +624,10 @@ struct FitnessView: View {
     private func startCustomWorkoutSession(_ workout: CustomWorkout) {
         // Load the custom workout into the current session
         dataManager.loadCustomWorkout(workout)
+        
+        // Set state variables for custom workout
+        isCustomWorkoutLoaded = true
+        loadedCustomWorkout = workout
         
         // Clear existing set inputs
         exerciseSetInputs.removeAll()
@@ -633,10 +661,49 @@ struct FitnessView: View {
         isWorkoutTemplateLoaded = true
         hasSessionBeenSaved = false
         
+        // Start with all exercises collapsed (closed) - user can expand individually as needed
+        selectedExerciseIndices.removeAll()
+        
         // Start the session if not already active
         if !dataManager.currentFitnessSession.isActive {
             dataManager.startFitnessSession()
         }
+    }
+    
+    private func cancelCustomWorkout() {
+        // Clear the current fitness session
+        dataManager.clearCurrentFitnessSession()
+        
+        // Reset state variables
+        isCustomWorkoutLoaded = false
+        loadedCustomWorkout = nil
+        isWorkoutTemplateLoaded = false
+        hasSessionBeenSaved = false
+        
+        // Clear set inputs
+        exerciseSetInputs.removeAll()
+        
+        // Clear selected exercise indices
+        selectedExerciseIndices.removeAll()
+        
+        // Stop any active timers
+        stopTimer()
+        
+        // Stop all exercise timers
+        exerciseStartTimes.removeAll()
+        
+        print("Custom workout cancelled")
+    }
+    
+    
+    private func formatExerciseTime(for exerciseIndex: Int) -> String {
+        if let startTime = exerciseStartTimes[exerciseIndex] {
+            let elapsed = Date().timeIntervalSince(startTime)
+            let minutes = Int(elapsed) / 60
+            let seconds = Int(elapsed) % 60
+            return String(format: "%02d:%02d", minutes, seconds)
+        }
+        return "00:00"
     }
     
     // MARK: - Current Exercises Section
@@ -653,6 +720,28 @@ struct FitnessView: View {
                     .fontWeight(.semibold)
                 
                 Spacer()
+                
+                // Cancel Custom Workout Button
+                if isCustomWorkoutLoaded {
+                    Button(action: {
+                        cancelCustomWorkout()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption)
+                            Text("Cancel")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.red.opacity(0.1))
+                        )
+                    }
+                }
                 
                 Text("\(dataManager.currentFitnessSession.totalExercises)")
                     .font(.caption)
@@ -726,12 +815,13 @@ struct FitnessView: View {
                         
                         Spacer()
                         
-                        // Running clock for this exercise
-                        if selectedExerciseIndices.contains(index) {
-                            Text("Time: \(formatDuration(getExerciseRunningTime(exerciseIndex: index)))")
+                        // Running clock for this exercise (show if timer is running or paused)
+                        if exerciseStartTimes[index] != nil || exercisePausedTimes[index] != nil {
+                            let timeText = exerciseStartTimes[index] != nil ? "Time: \(formatDuration(getExerciseRunningTime(exerciseIndex: index)))" : "Paused: \(formatDuration(getExerciseRunningTime(exerciseIndex: index)))"
+                            Text(timeText)
                                 .font(.caption)
                                 .fontWeight(.medium)
-                                .foregroundColor(colorForExerciseSession(exerciseSession))
+                                .foregroundColor(exerciseStartTimes[index] != nil ? colorForExerciseSession(exerciseSession) : .orange)
                                 .id("\(uiUpdateTrigger)-\(timerUpdate)") // Update with timer
                         }
                     }
@@ -746,13 +836,14 @@ struct FitnessView: View {
                     // Add Set Button
                     Button(action: {
                         if selectedExerciseIndices.contains(index) {
-                            // If this exercise is already selected, close it
+                            // If this exercise is already selected, close it (pause timer)
                             selectedExerciseIndices.remove(index)
-                            stopExerciseTimer(exerciseIndex: index)
+                            pauseExerciseTimer(exerciseIndex: index)
                         } else {
-                            // If this exercise is not selected, open it
+                            // If this exercise is not selected, open it (resume timer)
                             selectedExerciseIndices.insert(index)
                             startExerciseTimer(exerciseIndex: index)
+                            
                         }
                     }) {
                         Image(systemName: selectedExerciseIndices.contains(index) ? "minus.circle.fill" : "plus.circle.fill")
@@ -782,40 +873,6 @@ struct FitnessView: View {
             // Inline Set Input (when selected)
             if selectedExerciseIndices.contains(index) {
                 inlineSetInput(exerciseSession: exerciseSession, exerciseIndex: index)
-            }
-            
-            // Existing Sets List
-            if !exerciseSession.sets.isEmpty {
-                VStack(spacing: 8) {
-                    ForEach(Array(exerciseSession.sets.enumerated()), id: \.element.id) { setIndex, set in
-                        HStack {
-                            Text("Set \(setIndex + 1)")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            Text(set.displayString)
-                                .font(.caption)
-                                .foregroundColor(.primary)
-                            
-                            Button(action: {
-                                dataManager.removeExerciseSet(from: index, at: setIndex)
-                            }) {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundColor(.red.opacity(0.7))
-                                    .font(.caption)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(.systemGray6))
-                        )
-                    }
-                }
             }
         }
         .padding(16)
@@ -1228,6 +1285,15 @@ struct FitnessView: View {
             }
         )
         exerciseSetInputs = newInputs
+        
+        // Rebuild the exerciseStartTimes dictionary with correct indices
+        let newTimes: [Int: Date] = Dictionary(uniqueKeysWithValues:
+            exerciseStartTimes.compactMap { (key, value) in
+                let newKey = key > 0 ? key - 1 : nil
+                return newKey.map { ($0, value) }
+            }
+        )
+        exerciseStartTimes = newTimes
     }
     
     private func combineDateAndTime(_ date: Date, _ time: Date) -> Date {
@@ -1472,6 +1538,8 @@ struct FitnessView: View {
     
     private func stopFitnessSession() {
         dataManager.stopFitnessSession()
+        // Stop all exercise timers when session is stopped
+        exerciseStartTimes.removeAll()
     }
     
     private func saveFitnessSession() {
@@ -1508,6 +1576,8 @@ struct FitnessView: View {
         
         dataManager.saveCurrentFitnessSession()
         hasSessionBeenSaved = true
+        // Stop all exercise timers when session is saved
+        exerciseStartTimes.removeAll()
     }
     
     private func saveSessionWithoutClosing() {
@@ -1666,16 +1736,42 @@ struct FitnessView: View {
     }
     
     private func getExerciseRunningTime(exerciseIndex: Int) -> TimeInterval {
-        guard let startTime = exerciseStartTimes[exerciseIndex] else { return 0 }
-        return Date().timeIntervalSince(startTime)
+        // If timer is running, calculate from start time
+        if let startTime = exerciseStartTimes[exerciseIndex] {
+            return Date().timeIntervalSince(startTime)
+        }
+        // If timer is paused, return the paused time
+        if let pausedTime = exercisePausedTimes[exerciseIndex] {
+            return pausedTime
+        }
+        return 0
     }
     
     private func startExerciseTimer(exerciseIndex: Int) {
-        exerciseStartTimes[exerciseIndex] = Date()
+        // If we have a paused time, resume from where we left off
+        if let pausedTime = exercisePausedTimes[exerciseIndex] {
+            // Calculate the start time that would give us the paused duration
+            let startTime = Date().addingTimeInterval(-pausedTime)
+            exerciseStartTimes[exerciseIndex] = startTime
+            exercisePausedTimes.removeValue(forKey: exerciseIndex)
+        } else {
+            // Start fresh timer
+            exerciseStartTimes[exerciseIndex] = Date()
+        }
+    }
+    
+    private func pauseExerciseTimer(exerciseIndex: Int) {
+        // Calculate total elapsed time and store it as paused time
+        if let startTime = exerciseStartTimes[exerciseIndex] {
+            let elapsed = Date().timeIntervalSince(startTime)
+            exercisePausedTimes[exerciseIndex] = elapsed
+            exerciseStartTimes.removeValue(forKey: exerciseIndex)
+        }
     }
     
     private func stopExerciseTimer(exerciseIndex: Int) {
         exerciseStartTimes.removeValue(forKey: exerciseIndex)
+        exercisePausedTimes.removeValue(forKey: exerciseIndex)
     }
     
     private func startTimer() {
@@ -1684,6 +1780,7 @@ struct FitnessView: View {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             // Force UI update by incrementing timer update counter
+            // This will update both running and paused timers
             timerUpdate += 1
         }
     }
@@ -1790,85 +1887,249 @@ struct CustomWorkoutSelector: View {
     let onWorkoutSelected: (CustomWorkout) -> Void
     @EnvironmentObject var dataManager: BPDataManager
     @Environment(\.presentationMode) var presentationMode
+    @State private var searchText = ""
+    @State private var showingEditWorkout = false
+    @State private var showingDeleteConfirmation = false
+    @State private var workoutToEdit: CustomWorkout?
+    @State private var workoutToDelete: CustomWorkout?
     
     var body: some View {
         NavigationView {
-            List {
-                ForEach(dataManager.customWorkouts, id: \.id) { workout in
-                    Button(action: {
-                        onWorkoutSelected(workout)
-                    }) {
-                        HStack(spacing: 16) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.purple.opacity(0.1))
-                                    .frame(width: 50, height: 50)
-                                
-                                Image(systemName: "bookmark.circle.fill")
-                                    .font(.title3)
-                                    .foregroundColor(.purple)
+            VStack(spacing: 0) {
+                // Search Bar
+                if !dataManager.customWorkouts.isEmpty {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        
+                        TextField("Search workouts...", text: $searchText)
+                            .textFieldStyle(PlainTextFieldStyle())
+                        
+                        if !searchText.isEmpty {
+                            Button("Clear") {
+                                searchText = ""
                             }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(workout.displayName)
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
-                                
-                                if let description = workout.description, !description.isEmpty {
-                                    Text(description)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                }
-                                
-                                HStack(spacing: 16) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "dumbbell")
-                                            .font(.caption)
-                                            .foregroundColor(.orange)
-                                        Text("\(workout.totalExercises) exercises")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "repeat")
-                                            .font(.caption)
-                                            .foregroundColor(.blue)
-                                        Text("\(workout.totalSets) sets")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "clock")
-                                            .font(.caption)
-                                            .foregroundColor(.green)
-                                        Text("\(workout.estimatedDuration) min")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "play.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.green)
+                            .foregroundColor(.blue)
                         }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(.systemGray6))
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                }
+                
+                // Workout List
+                if filteredWorkouts.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "bookmark.circle")
+                            .font(.system(size: 60))
+                            .foregroundColor(.secondary)
+                        
+                        Text(searchText.isEmpty ? "No Custom Workouts" : "No Results")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        if searchText.isEmpty {
+                            Text("Create your first custom workout to get started")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        } else {
+                            Text("Try adjusting your search terms")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemGroupedBackground))
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(filteredWorkouts, id: \.id) { workout in
+                                CustomWorkoutSelectorCard(
+                                    workout: workout,
+                                    onStart: {
+                                        onWorkoutSelected(workout)
+                                    },
+                                    onEdit: {
+                                        workoutToEdit = workout
+                                        showingEditWorkout = true
+                                    },
+                                    onDelete: {
+                                        workoutToDelete = workout
+                                        showingDeleteConfirmation = true
+                                    }
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                     }
-                    .buttonStyle(PlainButtonStyle())
                 }
             }
             .navigationTitle("Custom Workouts")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(trailing: Button("Cancel") {
-                presentationMode.wrappedValue.dismiss()
-            })
+            .navigationBarItems(
+                leading: Button("Refresh") {
+                    dataManager.refreshCustomWorkouts()
+                },
+                trailing: Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            )
         }
+        .sheet(isPresented: $showingEditWorkout) {
+            if let workout = workoutToEdit {
+                CustomWorkoutBuilder(editingWorkout: workout)
+                    .environmentObject(dataManager)
+            }
+        }
+        .alert("Delete Workout", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let workout = workoutToDelete {
+                    dataManager.deleteCustomWorkout(workout)
+                }
+            }
+        } message: {
+            if let workout = workoutToDelete {
+                Text("Are you sure you want to delete '\(workout.name)'? This action cannot be undone.")
+            }
+        }
+    }
+    
+    private var filteredWorkouts: [CustomWorkout] {
+        if searchText.isEmpty {
+            return dataManager.customWorkouts
+        } else {
+            return dataManager.customWorkouts.filter { workout in
+                workout.name.localizedCaseInsensitiveContains(searchText) ||
+                workout.description?.localizedCaseInsensitiveContains(searchText) == true ||
+                workout.exercises.contains { exercise in
+                    exercise.exerciseName.localizedCaseInsensitiveContains(searchText)
+                }
+            }
+        }
+    }
+}
+
+struct CustomWorkoutSelectorCard: View {
+    let workout: CustomWorkout
+    let onStart: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    
+    var body: some View {
+        Button(action: onStart) {
+            VStack(spacing: 12) {
+                // Header with title and action buttons
+                HStack {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.purple.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                            
+                            Image(systemName: "bookmark.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.purple)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(workout.displayName)
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                            
+                            if let description = workout.description, !description.isEmpty {
+                                Text(description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Action Buttons
+                    HStack(spacing: 8) {
+                        // Edit Button
+                        Button(action: onEdit) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.orange)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    Circle()
+                                        .fill(Color.orange.opacity(0.1))
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        // Delete Button
+                        Button(action: onDelete) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.red)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    Circle()
+                                        .fill(Color.red.opacity(0.1))
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+            
+            // Stats Row
+            HStack(spacing: 20) {
+                HStack(spacing: 4) {
+                    Image(systemName: "dumbbell")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                    Text("\(workout.totalExercises) exercises")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "repeat")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    Text("\(workout.totalSets) sets")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "clock")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                    Text("\(workout.estimatedDuration) min")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        )
     }
 }
 

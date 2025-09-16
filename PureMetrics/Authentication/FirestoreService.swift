@@ -1340,7 +1340,13 @@ class FirestoreService: ObservableObject {
         let workoutRef = db.collection("users").document(userID).collection("custom_workouts").document(workout.id.uuidString)
         
         do {
-            var workoutData = try Firestore.Encoder().encode(workout)
+            // Use JSONEncoder with proper date handling
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .secondsSince1970
+            let jsonData = try encoder.encode(workout)
+            var workoutData = try JSONSerialization.jsonObject(with: jsonData) as! [String: Any]
+            
+            // Add Firestore-specific fields
             workoutData["createdAt"] = Timestamp(date: workout.createdDate)
             workoutData["updatedAt"] = Timestamp(date: Date())
             
@@ -1358,47 +1364,70 @@ class FirestoreService: ObservableObject {
     
     func loadCustomWorkouts(completion: @escaping (Result<[CustomWorkout], Error>) -> Void) {
         guard let userID = userID else {
+            print("No authenticated user for loading custom workouts")
             completion(.failure(FirestoreError.noUser))
             return
         }
         
+        print("Loading custom workouts for user: \(userID)")
         let workoutsRef = db.collection("users").document(userID).collection("custom_workouts")
             .order(by: "createdAt", descending: true)
         
         workoutsRef.getDocuments { snapshot, error in
             if let error = error {
+                print("Error fetching custom workouts from Firestore: \(error)")
                 completion(.failure(error))
                 return
             }
             
             guard let documents = snapshot?.documents else {
+                print("No custom workout documents found")
                 completion(.success([]))
                 return
             }
             
+            print("Found \(documents.count) custom workout documents")
             var workouts: [CustomWorkout] = []
-            for document in documents {
+            
+            for (index, document) in documents.enumerated() {
+                print("Processing document \(index + 1)/\(documents.count): \(document.documentID)")
                 do {
                     var workoutData = document.data()
-                    // Convert Firestore timestamps back to Date
+                    print("Raw workout data keys: \(workoutData.keys.sorted())")
+                    
+                    // Convert Firestore timestamps back to Date and handle date serialization
                     if let createdAt = workoutData["createdAt"] as? Timestamp {
-                        workoutData["createdDate"] = createdAt.dateValue()
+                        workoutData["createdDate"] = createdAt.dateValue().timeIntervalSince1970
+                        print("Converted createdAt timestamp to createdDate")
                     }
                     if let lastUsed = workoutData["lastUsed"] as? Timestamp {
-                        workoutData["lastUsed"] = lastUsed.dateValue()
+                        workoutData["lastUsed"] = lastUsed.dateValue().timeIntervalSince1970
+                        print("Converted lastUsed timestamp")
                     }
                     
                     // Remove the createdAt field since it's not part of the CustomWorkout model
                     workoutData.removeValue(forKey: "createdAt")
                     workoutData.removeValue(forKey: "updatedAt")
                     
-                    let workout = try Firestore.Decoder().decode(CustomWorkout.self, from: workoutData)
+                    print("Final workout data keys: \(workoutData.keys.sorted())")
+                    
+                    // Convert to JSON data with proper date handling
+                    let jsonData = try JSONSerialization.data(withJSONObject: workoutData)
+                    
+                    // Create a custom decoder that handles date conversion
+                    let decoder = JSONDecoder()
+                    decoder.dateDecodingStrategy = .secondsSince1970
+                    
+                    let workout = try decoder.decode(CustomWorkout.self, from: jsonData)
                     workouts.append(workout)
+                    print("Successfully decoded workout: \(workout.name)")
                 } catch {
-                    print("Error decoding custom workout: \(error)")
+                    print("Error decoding custom workout \(index + 1): \(error)")
+                    print("Document data: \(document.data())")
                 }
             }
             
+            print("Successfully loaded \(workouts.count) custom workouts")
             completion(.success(workouts))
         }
     }
@@ -1788,8 +1817,13 @@ class FirestoreService: ObservableObject {
             return
         }
         
-        let userCollection = dataTypeCollection(.nutritionEntry)
-        let rootCollection = rootDataTypeCollection(.nutritionEntry)
+        // Use new date-based collections ONLY (same as save function)
+        let userCollection = nutritionEntryCollection(for: entry.date)
+        let rootCollection = rootNutritionEntryCollection(for: entry.date)
+        
+        print("=== COLLECTION PATHS FOR DELETION ===")
+        print("Date-based user collection: \(userCollection?.path ?? "nil")")
+        print("Date-based root collection: \(rootCollection?.path ?? "nil")")
         
         let dispatchGroup = DispatchGroup()
         var hasError = false
@@ -1827,9 +1861,61 @@ class FirestoreService: ObservableObject {
         
         dispatchGroup.notify(queue: .main) {
             if hasError {
-                completion(.failure(lastError ?? FirestoreError.unknown))
+                // If deletion from date-based collections failed, try old collections as fallback
+                print("Deletion from date-based collections failed, trying old collections as fallback...")
+                self.deleteFromOldCollections(entry: entry, completion: completion)
             } else {
                 print("Successfully deleted nutrition entry from Firestore")
+                completion(.success(()))
+            }
+        }
+    }
+    
+    private func deleteFromOldCollections(entry: NutritionEntry, completion: @escaping (Result<Void, Error>) -> Void) {
+        print("=== FIRESTORE DELETE FROM OLD COLLECTIONS (FALLBACK) ===")
+        
+        let userCollection = dataTypeCollection(.nutritionEntry)
+        let rootCollection = rootDataTypeCollection(.nutritionEntry)
+        
+        let dispatchGroup = DispatchGroup()
+        var hasError = false
+        var lastError: Error?
+        
+        // Delete from old user-specific collection
+        if let userCollection = userCollection {
+            dispatchGroup.enter()
+            userCollection.document(entry.id.uuidString).delete { error in
+                if let error = error {
+                    print("Error deleting nutrition entry from old user collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else {
+                    print("Successfully deleted nutrition entry from old user collection")
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Delete from old root collection
+        if let rootCollection = rootCollection {
+            dispatchGroup.enter()
+            rootCollection.document(entry.id.uuidString).delete { error in
+                if let error = error {
+                    print("Error deleting nutrition entry from old root collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else {
+                    print("Successfully deleted nutrition entry from old root collection")
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if hasError {
+                completion(.failure(lastError ?? FirestoreError.unknown))
+            } else {
+                print("Successfully deleted nutrition entry from old Firestore collections")
                 completion(.success(()))
             }
         }
@@ -2065,6 +2151,7 @@ enum HealthDataType: String, CaseIterable, Codable {
     case personalRecords = "personal_records"
     case nutritionEntry = "nutrition_entry"
     case nutritionGoals = "nutrition_goals"
+    case dailyGoals = "daily_goals"
 }
 
 // MARK: - Nutrition Goals Firestore Methods
@@ -2272,6 +2359,229 @@ enum FirestoreError: LocalizedError {
             return "Request timed out"
         case .unknown:
             return "An unknown error occurred"
+        }
+    }
+}
+
+// MARK: - Daily Goals Firestore Methods
+
+extension FirestoreService {
+    func saveDailyGoals(_ goals: DailyGoals, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        print("=== FIRESTORE SAVE DAILY GOALS CALLED ===")
+        print("User ID: \(userID ?? "nil")")
+        print("Goals ID: \(goals.id)")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        do {
+            let data = try JSONEncoder().encode(goals)
+            let goalsData: [String: Any] = [
+                "goals": data,
+                "timestamp": Date(),
+                "userID": userID,
+                "date": goals.date,
+                "isCompleted": goals.isCompleted
+            ]
+            
+            let userCollection = dataTypeCollection(.dailyGoals)
+            let rootCollection = rootDataTypeCollection(.dailyGoals)
+            
+            let dispatchGroup = DispatchGroup()
+            var hasError = false
+            var lastError: Error?
+            
+            // Save to user-specific collection
+            if let userCollection = userCollection {
+                dispatchGroup.enter()
+                userCollection.document(goals.id).setData(goalsData) { error in
+                    if let error = error {
+                        print("Error saving daily goals to user collection: \(error)")
+                        hasError = true
+                        lastError = error
+                    } else {
+                        print("Successfully saved daily goals to user collection")
+                    }
+                    dispatchGroup.leave()
+                }
+            }
+            
+            // Save to root collection
+            if let rootCollection = rootCollection {
+                dispatchGroup.enter()
+                rootCollection.document("\(userID)_\(goals.id)").setData(goalsData) { error in
+                    if let error = error {
+                        print("Error saving daily goals to root collection: \(error)")
+                        hasError = true
+                        lastError = error
+                    } else {
+                        print("Successfully saved daily goals to root collection")
+                    }
+                    dispatchGroup.leave()
+                }
+            }
+            
+            dispatchGroup.notify(queue: .main) {
+                if hasError {
+                    completion(.failure(lastError ?? FirestoreError.unknown))
+                } else {
+                    completion(.success(()))
+                }
+            }
+            
+        } catch {
+            print("Error encoding daily goals: \(error)")
+            completion(.failure(FirestoreError.encodingError))
+        }
+    }
+    
+    func loadDailyGoals(completion: @escaping (Result<DailyGoals?, Error>) -> Void) {
+        print("=== FIRESTORE LOAD DAILY GOALS CALLED ===")
+        print("User ID: \(userID ?? "nil")")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Only use user-specific collection to prevent data leakage
+        guard let userCollection = dataTypeCollection(.dailyGoals) else {
+            print("Error: No user collection available for loading daily goals")
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Get today's goals
+        let today = Date()
+        let todayGoalsID = DailyGoals.generateID(for: today)
+        
+        print("Loading daily goals from user-specific collection: \(userCollection.path)")
+        userCollection.document(todayGoalsID).getDocument { document, error in
+            if let error = error {
+                print("Error loading daily goals from user collection: \(error)")
+                completion(.failure(error))
+            } else if let document = document, document.exists, let data = document.data() {
+                if let goalsData = data["goals"] as? Data {
+                    do {
+                        let goals = try JSONDecoder().decode(DailyGoals.self, from: goalsData)
+                        print("Successfully loaded daily goals from Firestore")
+                        completion(.success(goals))
+                    } catch {
+                        print("Error decoding daily goals: \(error)")
+                        completion(.failure(FirestoreError.decodingError(error.localizedDescription)))
+                    }
+                } else {
+                    print("No daily goals data found in document")
+                    completion(.success(nil))
+                }
+            } else {
+                print("No daily goals document found")
+                completion(.success(nil))
+            }
+        }
+    }
+    
+    func loadDailyGoalsForDateRange(startDate: Date, endDate: Date, completion: @escaping (Result<[DailyGoals], Error>) -> Void) {
+        print("=== FIRESTORE LOAD DAILY GOALS RANGE CALLED ===")
+        print("User ID: \(userID ?? "nil")")
+        print("Start Date: \(startDate)")
+        print("End Date: \(endDate)")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        guard let userCollection = dataTypeCollection(.dailyGoals) else {
+            print("Error: No user collection available for loading daily goals range")
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        userCollection
+            .whereField("userID", isEqualTo: userID)
+            .whereField("date", isGreaterThanOrEqualTo: startDate)
+            .whereField("date", isLessThanOrEqualTo: endDate)
+            .order(by: "date", descending: true)
+            .getDocuments { querySnapshot, error in
+                if let error = error {
+                    print("Error loading daily goals range from user collection: \(error)")
+                    completion(.failure(error))
+                } else {
+                    var goals: [DailyGoals] = []
+                    
+                    for document in querySnapshot?.documents ?? [] {
+                        if let data = document.data()["goals"] as? Data {
+                            do {
+                                let goal = try JSONDecoder().decode(DailyGoals.self, from: data)
+                                goals.append(goal)
+                            } catch {
+                                print("Error decoding daily goal: \(error)")
+                            }
+                        }
+                    }
+                    
+                    print("Successfully loaded \(goals.count) daily goals from Firestore")
+                    completion(.success(goals))
+                }
+            }
+    }
+    
+    func deleteDailyGoals(_ goalsID: String, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        print("=== FIRESTORE DELETE DAILY GOALS CALLED ===")
+        print("User ID: \(userID ?? "nil")")
+        print("Goals ID: \(goalsID)")
+        
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        let userCollection = dataTypeCollection(.dailyGoals)
+        let rootCollection = rootDataTypeCollection(.dailyGoals)
+        
+        let dispatchGroup = DispatchGroup()
+        var hasError = false
+        var lastError: Error?
+        
+        // Delete from user-specific collection
+        if let userCollection = userCollection {
+            dispatchGroup.enter()
+            userCollection.document(goalsID).delete { error in
+                if let error = error {
+                    print("Error deleting daily goals from user collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else {
+                    print("Successfully deleted daily goals from user collection")
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Delete from root collection
+        if let rootCollection = rootCollection {
+            dispatchGroup.enter()
+            rootCollection.document("\(userID)_\(goalsID)").delete { error in
+                if let error = error {
+                    print("Error deleting daily goals from root collection: \(error)")
+                    hasError = true
+                    lastError = error
+                } else {
+                    print("Successfully deleted daily goals from root collection")
+                }
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if hasError {
+                completion(.failure(lastError ?? FirestoreError.unknown))
+            } else {
+                completion(.success(()))
+            }
         }
     }
 }

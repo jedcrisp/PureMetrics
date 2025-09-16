@@ -1,10 +1,12 @@
 import SwiftUI
 import Charts
+import Combine
 
 struct TrendsView: View {
     @ObservedObject var dataManager: BPDataManager
     @State private var selectedTimeRange: TimeRange = .week
     @State private var selectedMetric: Metric = .bloodPressure
+    @State private var cancellables = Set<AnyCancellable>()
     
     
     enum Metric: String, CaseIterable {
@@ -85,6 +87,7 @@ struct TrendsView: View {
                 if selectedMetric == .weight || selectedMetric == .bodyFatPercentage || selectedMetric == .leanBodyMass {
                     fetchHealthKitData()
                 }
+                setupRealTimeWeightMonitoring()
             }
         }
     }
@@ -776,13 +779,28 @@ struct TrendsView: View {
                             ], spacing: 12) {
                                 if selectedMetric == .weight {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text("Current Weight")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                                        HStack {
+                                            Text("Current Weight")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            
+                                            if dataManager.bmrManager.isWeightSyncingEnabled {
+                                                Image(systemName: "arrow.triangle.2.circlepath")
+                                                    .font(.caption2)
+                                                    .foregroundColor(.green)
+                                            }
+                                        }
+                                        
                                         Text(dataManager.healthKitManager.formattedCurrentWeight)
                                             .font(.title3)
                                             .fontWeight(.bold)
                                             .foregroundColor(.purple)
+                                        
+                                        if dataManager.bmrManager.isWeightSyncingEnabled {
+                                            Text("Auto-syncing from Apple Health")
+                                                .font(.caption2)
+                                                .foregroundColor(.green)
+                                        }
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(12)
@@ -983,6 +1001,51 @@ struct TrendsView: View {
         default:
             healthKitDataPoints = []
             isLoadingHealthKitData = false
+        }
+    }
+    
+    private func setupRealTimeWeightMonitoring() {
+        // Monitor weight changes and refresh trends when weight is selected
+        dataManager.healthKitManager.$currentWeight
+            .sink { weight in
+                // Only refresh if weight metric is selected and we have a valid weight
+                if self.selectedMetric == .weight && weight > 0 {
+                    print("Weight changed to \(weight) lbs, refreshing trends...")
+                    
+                    // Add current weight as today's data point if it's not already there
+                    self.addCurrentWeightToTrends()
+                    
+                    // Refresh the historical data to get the latest trends
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.fetchHealthKitData()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func addCurrentWeightToTrends() {
+        let currentWeight = dataManager.healthKitManager.currentWeight
+        guard currentWeight > 0 else { return }
+        
+        let today = Date()
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: today)
+        
+        // Check if we already have today's weight in the data
+        let hasTodaysWeight = healthKitDataPoints.contains { dataPoint in
+            calendar.isDate(dataPoint.date, inSameDayAs: today)
+        }
+        
+        // Add today's weight if we don't have it yet
+        if !hasTodaysWeight {
+            let newDataPoint = ChartDataPoint(date: startOfDay, value: currentWeight)
+            healthKitDataPoints.append(newDataPoint)
+            
+            // Sort by date to maintain chronological order
+            healthKitDataPoints.sort { $0.date < $1.date }
+            
+            print("Added current weight (\(currentWeight) lbs) to trends data")
         }
     }
     

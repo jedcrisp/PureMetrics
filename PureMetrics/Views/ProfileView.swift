@@ -8,6 +8,8 @@ struct ProfileView: View {
     @State private var showingDeleteAllConfirmation = false
     @State private var showingLogoutConfirmation = false
     @State private var showingNotificationSettings = false
+    @State private var showingBMRProfile = false
+    @State private var showingBMRGoals = false
     
     var body: some View {
         NavigationView {
@@ -21,6 +23,9 @@ struct ProfileView: View {
                     
                     // HealthKit Integration
                     healthKitSection
+                    
+                    // BMR Calculator Section
+                    bmrSection
                     
                     // Settings Section
                     settingsSection
@@ -48,6 +53,12 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingNotificationSettings) {
             NotificationSettingsView()
+        }
+        .sheet(isPresented: $showingBMRProfile) {
+            BMRProfileInputView(bmrManager: dataManager.bmrManager)
+        }
+        .sheet(isPresented: $showingBMRGoals) {
+            BMRGoalsView(dataManager: dataManager)
         }
         .alert(isPresented: $showingDeleteAllConfirmation) {
             Alert(
@@ -243,6 +254,78 @@ struct ProfileView: View {
         }
     }
     
+    // MARK: - BMR Section
+    
+    private var bmrSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("BMR Calculator")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            if dataManager.bmrManager.profile.isValid {
+                BMRProfileCard(
+                    profile: dataManager.bmrManager.profile,
+                    recommendations: dataManager.getBMRRecommendations(),
+                    onEdit: {
+                        showingBMRProfile = true
+                    },
+                    onSetGoals: {
+                        showingBMRGoals = true
+                    }
+                )
+                
+                // Weight Sync Toggle
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundColor(.green)
+                            .font(.title2)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Auto-Sync Weight")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            Text("Automatically update BMR when weight changes in Apple Health")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $dataManager.bmrManager.isWeightSyncingEnabled)
+                            .onChange(of: dataManager.bmrManager.isWeightSyncingEnabled) { _ in
+                                dataManager.bmrManager.toggleWeightSyncing()
+                            }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    if dataManager.bmrManager.isWeightSyncingEnabled {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                            
+                            Text("Weight syncing is active. Your BMR will update automatically when your weight changes in Apple Health.")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.horizontal)
+            } else {
+                BMRSetupCard {
+                    showingBMRProfile = true
+                }
+            }
+        }
+    }
+    
     // MARK: - Settings Section
     
     private var settingsSection: some View {
@@ -268,6 +351,40 @@ struct ProfileView: View {
                                 .foregroundColor(.primary)
                             
                             Text("Set up daily reminders for health and nutrition tracking")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                            .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Daily Snapshot PDF
+                Button(action: {
+                }) {
+                    HStack {
+                        Image(systemName: "doc.text.fill")
+                            .foregroundColor(.green)
+                            .font(.title2)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Daily Snapshot")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            Text("Generate a printable PDF of today's health data")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -356,6 +473,7 @@ struct ProfileView: View {
         userName = UserDefaults.standard.string(forKey: "userName") ?? ""
         age = UserDefaults.standard.string(forKey: "userAge") ?? ""
     }
+    
     
     // MARK: - Delete All Data Section
     
@@ -552,6 +670,344 @@ struct HealthKitDataTypeView: View {
 }
 
 // MARK: - Preview
+
+// MARK: - BMR Setup Card
+
+struct BMRSetupCard: View {
+    let onSetup: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Image(systemName: "person.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Set Up BMR Profile")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Text("Calculate your personalized nutrition goals")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Button(action: onSetup) {
+                Text("Get Started")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(
+                            colors: [.blue, .blue.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .cornerRadius(8)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+    }
+}
+
+// MARK: - BMR Profile Card
+
+struct BMRProfileCard: View {
+    let profile: BMRProfile
+    let recommendations: BMRRecommendations
+    let onEdit: () -> Void
+    let onSetGoals: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // Profile Summary
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Your BMR Profile")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Text("\(profile.age) years • \(profile.gender.displayName) • \(BMRProfileCard.formatWeight(profile))")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Button("Edit") {
+                    onEdit()
+                }
+                .font(.subheadline)
+                .foregroundColor(.blue)
+            }
+            
+            // BMR Values
+            HStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("BMR")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(recommendations.bmrString)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.blue)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("TDEE")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(recommendations.tdeeString)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.green)
+                }
+                
+                Spacer()
+            }
+            
+            // Macro Recommendations
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Daily Recommendations")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Protein")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(recommendations.proteinString)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.red)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Fat")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(recommendations.fatString)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.brown)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Carbs")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(recommendations.carbString)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.yellow)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Water")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(recommendations.waterString)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Spacer()
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.05))
+            )
+            
+            // Goal Setting Button
+            Button(action: onSetGoals) {
+                HStack {
+                    Image(systemName: "target")
+                        .font(.subheadline)
+                    Text("Set Nutrition Goals")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                }
+                .foregroundColor(.white)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .background(
+                    LinearGradient(
+                        colors: [.green, .green.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(8)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+        )
+    }
+    
+    static func formatWeight(_ profile: BMRProfile) -> String {
+        // Check if user prefers imperial units
+        let prefersImperial = UserDefaults.standard.bool(forKey: "prefersImperialUnits")
+        
+        if prefersImperial {
+            return "\(Int(profile.weightInPounds)) lbs"
+        } else {
+            return "\(Int(profile.weight)) kg"
+        }
+    }
+}
+
+// MARK: - BMR Goals View
+
+struct BMRGoalsView: View {
+    @ObservedObject var dataManager: BPDataManager
+    @Environment(\.presentationMode) var presentationMode
+    @State private var selectedGoalType: BMRGoalType = .maintenance
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Goal Type Selection
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Select Your Goal")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    Picker("Goal Type", selection: $selectedGoalType) {
+                        ForEach(BMRGoalType.allCases, id: \.self) { goalType in
+                            VStack(alignment: .leading) {
+                                Text(goalType.displayName)
+                                    .font(.headline)
+                                Text(goalType.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .tag(goalType)
+                        }
+                    }
+                    .pickerStyle(DefaultPickerStyle())
+                }
+                
+                // BMR Recommendations
+                if dataManager.bmrManager.profile.isValid {
+                    let recommendations = dataManager.getBMRRecommendations()
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Recommended Goals")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        VStack(spacing: 8) {
+                            HStack {
+                                Text("Daily Calories:")
+                                Spacer()
+                                Text(getCalorieGoal(for: selectedGoalType, recommendations: recommendations))
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            HStack {
+                                Text("Protein:")
+                                Spacer()
+                                Text(recommendations.proteinString)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.red)
+                            }
+                            
+                            HStack {
+                                Text("Fat:")
+                                Spacer()
+                                Text(recommendations.fatString)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.brown)
+                            }
+                            
+                            HStack {
+                                Text("Carbs:")
+                                Spacer()
+                                Text(recommendations.carbString)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.yellow)
+                            }
+                            
+                            HStack {
+                                Text("Water:")
+                                Spacer()
+                                Text(recommendations.waterString)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(.systemGray6))
+                        )
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(20)
+            .navigationTitle("BMR Goals")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Apply") {
+                        dataManager.updateNutritionGoalsFromBMR(for: selectedGoalType)
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func getCalorieGoal(for goalType: BMRGoalType, recommendations: BMRRecommendations) -> String {
+        switch goalType {
+        case .weightLoss:
+            return recommendations.weightLossString
+        case .weightGain:
+            return recommendations.weightGainString
+        case .maintenance:
+            return recommendations.maintenanceString
+        }
+    }
+}
 
 struct ProfileView_Previews: PreviewProvider {
     static var previews: some View {

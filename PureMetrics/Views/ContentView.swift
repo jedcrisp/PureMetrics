@@ -42,13 +42,20 @@ struct ContentView: View {
                 }
                 .tag(4)
             
+            DailyGoalsView(dailyGoalsManager: dataManager.dailyGoalsManager, dataManager: dataManager)
+                .tabItem {
+                    Image(systemName: "target")
+                    Text("Goals")
+                }
+                .tag(5)
+            
             CustomWorkoutsLibrary()
                 .environmentObject(dataManager)
                 .tabItem {
                     Image(systemName: "book.fill")
                     Text("Library")
                 }
-                .tag(5)
+                .tag(6)
             
             ProfileView(dataManager: dataManager)
                 .tabItem {

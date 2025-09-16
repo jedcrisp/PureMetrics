@@ -180,6 +180,12 @@ struct WorkoutSelector: View {
                                     },
                                     onFavorite: {
                                         dataManager.toggleCustomWorkoutFavorite(workout)
+                                    },
+                                    onEdit: {
+                                        // Edit functionality not available in this context
+                                    },
+                                    onDelete: {
+                                        // Delete functionality not available in this context
                                     }
                                 )
                                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))

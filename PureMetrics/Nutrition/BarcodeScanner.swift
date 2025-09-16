@@ -368,6 +368,11 @@ struct BarcodeScanner: View {
         } message: {
             Text(errorMessage ?? "Unknown error occurred")
         }
+        .alert("Success", isPresented: $showingSuccess) {
+            Button("OK") { }
+        } message: {
+            Text(successMessage)
+        }
         .sheet(isPresented: $showingTemplateCreation) {
             templateCreationSheet
         }
@@ -388,6 +393,33 @@ struct BarcodeScanner: View {
                                 .font(.headline)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
+                            
+                            // Data Accuracy Warning
+                            VStack(spacing: 8) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.orange)
+                                    Text("Scanned data may be inaccurate - please verify and edit values below")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                
+                                HStack(spacing: 8) {
+                                    Image(systemName: "info.circle.fill")
+                                        .foregroundColor(.blue)
+                                    Text("Most APIs return data per 100g - check if values match the nutrition label")
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                        .multilineTextAlignment(.leading)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.orange.opacity(0.1))
+                            )
                         }
                         .padding(.top)
                         
@@ -430,7 +462,7 @@ struct BarcodeScanner: View {
                                 TextField("1.0", text: $servingAmountText)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .keyboardType(.decimalPad)
-                                    .onChange(of: servingAmountText) { newValue in
+                                    .onChange(of: servingAmountText) { _, newValue in
                                         if let amount = Double(newValue), amount > 0 {
                                             servingAmount = amount
                                             // Removed automatic recalculation - serving size changes no longer affect nutritional values
@@ -536,6 +568,54 @@ struct BarcodeScanner: View {
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
+                    
+                    // Quick Fix Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Quick Fixes")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        VStack(spacing: 8) {
+                            HStack(spacing: 12) {
+                                Button("Reset to Scanned") {
+                                    resetToScannedValues()
+                                }
+                                .font(.subheadline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.blue.opacity(0.1))
+                                )
+                                .foregroundColor(.blue)
+                                
+                                Button("Clear All") {
+                                    clearAllValues()
+                                }
+                                .font(.subheadline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.red.opacity(0.1))
+                                )
+                                .foregroundColor(.red)
+                                
+                                Spacer()
+                            }
+                            
+                            Text("💡 Tip: Compare with the nutrition label on the product for accuracy")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    )
                     
                     Spacer()
                     
@@ -718,8 +798,8 @@ struct BarcodeScanner: View {
             return
         }
         
-        // Try to fetch from Open Food Facts API first
-        fetchFromOpenFoodFacts(barcode: barcode) { result in
+        // Try multiple APIs in order of accuracy
+        fetchFromMultipleAPIs(barcode: barcode) { result in
             DispatchQueue.main.async {
                 self.isLoading = false
                 
@@ -735,15 +815,66 @@ struct BarcodeScanner: View {
                     // Show template creation screen
                     self.showingTemplateCreation = true
                 case .failure(let error):
-                    print("API fetch failed: \(error)")
-                    // Fall back to sample data for testing
-                    let sampleNutrition = self.createSampleNutritionData(for: barcode)
-                    self.nutritionData = sampleNutrition
-                    self.templateName = sampleNutrition.productName ?? "Sample Product"
-                    // Initialize editable nutrition values
-                    self.initializeEditableValues(from: sampleNutrition)
+                    print("All APIs failed: \(error)")
+                    // Show error and let user manually enter data
+                    self.errorMessage = "Could not find nutrition data for this barcode. Please enter the nutrition information manually."
+                    self.showingError = true
+                    // Create empty nutrition data for manual entry
+                    let emptyNutrition = ScannedNutrition(
+                        servingSize: "1 serving",
+                        calories: nil,
+                        protein: nil,
+                        carbohydrates: nil,
+                        fat: nil,
+                        fiber: nil,
+                        sugar: nil,
+                        addedSugar: nil,
+                        sodium: nil,
+                        cholesterol: nil,
+                        productName: "Manual Entry \(barcode.suffix(4))"
+                    )
+                    self.nutritionData = emptyNutrition
+                    self.templateName = "Manual Entry \(barcode.suffix(4))"
+                    // Initialize editable nutrition values as empty
+                    self.initializeEditableValues(from: emptyNutrition)
                     self.showingTemplateCreation = true
                 }
+            }
+        }
+    }
+    
+    private func fetchFromMultipleAPIs(barcode: String, completion: @escaping (Result<ScannedNutrition, Error>) -> Void) {
+        // Try APIs in order of accuracy and reliability
+        let apis: [(String, (String, @escaping (Result<ScannedNutrition, Error>) -> Void) -> Void)] = [
+            ("Open Food Facts", fetchFromOpenFoodFacts),
+            ("USDA FoodData Central", fetchFromUSDA),
+            ("Spoonacular", fetchFromSpoonacular)
+        ]
+        
+        tryAPIsSequentially(apis: apis, barcode: barcode, index: 0, completion: completion)
+    }
+    
+    private func tryAPIsSequentially(apis: [(String, (String, @escaping (Result<ScannedNutrition, Error>) -> Void) -> Void)], 
+                                   barcode: String, 
+                                   index: Int, 
+                                   completion: @escaping (Result<ScannedNutrition, Error>) -> Void) {
+        guard index < apis.count else {
+            completion(.failure(NSError(domain: "BarcodeScanner", code: 404, userInfo: [NSLocalizedDescriptionKey: "No nutrition data found in any database"])))
+            return
+        }
+        
+        let (apiName, apiFunction) = apis[index]
+        print("Trying \(apiName) API...")
+        
+        apiFunction(barcode) { result in
+            switch result {
+            case .success(let nutrition):
+                print("✅ Success with \(apiName) API")
+                completion(.success(nutrition))
+            case .failure(let error):
+                print("❌ \(apiName) API failed: \(error.localizedDescription)")
+                // Try next API
+                self.tryAPIsSequentially(apis: apis, barcode: barcode, index: index + 1, completion: completion)
             }
         }
     }
@@ -784,19 +915,24 @@ struct BarcodeScanner: View {
                     // Get serving size and calculate conversion factor
                     let servingSize = product["serving_size"] as? String ?? "100g"
                     let productName = product["product_name"] as? String
-                    let density = self.getDensityForProduct(productName: productName, servingSize: servingSize)
-                    let servingWeight = self.extractServingWeightWithDensity(from: servingSize, density: density)
+                    
+                    // Simplified serving size conversion - most APIs return per 100g
+                    let servingWeight = self.extractServingWeight(from: servingSize)
                     let conversionFactor = servingWeight / 100.0 // Convert from per 100g to per serving
+                    
+                    // If serving size is already in grams and reasonable, use it directly
+                    let isPer100g = servingSize.lowercased().contains("100g") || servingSize.lowercased().contains("100 g")
+                    let finalConversionFactor = isPer100g ? 1.0 : conversionFactor
                     
                     // Debug logging
                     print("🔍 DEBUG - Product: \(productName ?? "Unknown")")
                     print("🔍 DEBUG - Serving Size: \(servingSize)")
-                    print("🔍 DEBUG - Density: \(density)")
                     print("🔍 DEBUG - Serving Weight: \(servingWeight)")
-                    print("🔍 DEBUG - Conversion Factor: \(conversionFactor)")
+                    print("🔍 DEBUG - Conversion Factor: \(finalConversionFactor)")
+                    print("🔍 DEBUG - Is Per 100g: \(isPer100g)")
                     
                     // For fluid products, we might need to adjust density calculations
-                    let isFluid = self.isFluidProduct(servingSize: servingSize)
+                    let _ = self.isFluidProduct(servingSize: servingSize)
                     
                     // Debug raw nutrition values from API
                     let rawCalories = self.extractNutrientValue(from: nutriments, key: "energy-kcal_100g") ?? self.extractNutrientValue(from: nutriments, key: "energy_100g").map { $0 / 4.184 }
@@ -816,15 +952,15 @@ struct BarcodeScanner: View {
                     
                     let nutrition = ScannedNutrition(
                         servingSize: servingSize,
-                        calories: rawCalories.map { Int($0 * conversionFactor) },
-                        protein: rawProtein.map { $0 * conversionFactor },
-                        carbohydrates: rawCarbs.map { $0 * conversionFactor },
-                        fat: rawFat.map { $0 * conversionFactor },
-                        fiber: self.extractNutrientValue(from: nutriments, key: "fiber_100g").map { $0 * conversionFactor },
-                        sugar: rawSugar.map { $0 * conversionFactor },
-                        addedSugar: self.extractNutrientValue(from: nutriments, key: "sugars-added_100g").map { $0 * conversionFactor },
-                        sodium: rawSodium.map { $0 * conversionFactor * 1000 }, // Convert to mg
-                        cholesterol: self.extractNutrientValue(from: nutriments, key: "cholesterol_100g").map { $0 * conversionFactor * 1000 }, // Convert to mg
+                        calories: rawCalories.map { Int($0 * finalConversionFactor) },
+                        protein: rawProtein.map { $0 * finalConversionFactor },
+                        carbohydrates: rawCarbs.map { $0 * finalConversionFactor },
+                        fat: rawFat.map { $0 * finalConversionFactor },
+                        fiber: self.extractNutrientValue(from: nutriments, key: "fiber_100g").map { $0 * finalConversionFactor },
+                        sugar: rawSugar.map { $0 * finalConversionFactor },
+                        addedSugar: self.extractNutrientValue(from: nutriments, key: "sugars-added_100g").map { $0 * finalConversionFactor },
+                        sodium: rawSodium.map { $0 * finalConversionFactor * 1000 }, // Convert to mg
+                        cholesterol: self.extractNutrientValue(from: nutriments, key: "cholesterol_100g").map { $0 * finalConversionFactor * 1000 }, // Convert to mg
                         productName: self.capitalizeProductName(product["product_name"] as? String)
                     )
                     
@@ -846,6 +982,22 @@ struct BarcodeScanner: View {
         }.resume()
     }
     
+    private func fetchFromUSDA(barcode: String, completion: @escaping (Result<ScannedNutrition, Error>) -> Void) {
+        // USDA FoodData Central API implementation
+        // Note: This is a placeholder - USDA API requires more complex setup
+        // For now, we'll return a failure to fall back to other APIs
+        print("🔍 USDA API not yet implemented - falling back to other APIs")
+        completion(.failure(NSError(domain: "BarcodeScanner", code: 501, userInfo: [NSLocalizedDescriptionKey: "USDA API not implemented"])))
+    }
+    
+    private func fetchFromSpoonacular(barcode: String, completion: @escaping (Result<ScannedNutrition, Error>) -> Void) {
+        // Spoonacular API implementation
+        // Note: This is a placeholder - Spoonacular API requires API key setup
+        // For now, we'll return a failure to fall back to other APIs
+        print("🔍 Spoonacular API not yet implemented - falling back to other APIs")
+        completion(.failure(NSError(domain: "BarcodeScanner", code: 501, userInfo: [NSLocalizedDescriptionKey: "Spoonacular API not implemented"])))
+    }
+    
     private func extractNutrientValue(from nutriments: [String: Any], key: String) -> Double? {
         if let value = nutriments[key] as? Double {
             return value
@@ -863,6 +1015,22 @@ struct BarcodeScanner: View {
     }
     
     private func extractServingWeight(from servingSize: String) -> Double {
+        // Handle common serving size patterns more accurately
+        let lowercased = servingSize.lowercased().trimmingCharacters(in: .whitespaces)
+        
+        // Common serving sizes with reasonable defaults
+        if lowercased.contains("100g") || lowercased.contains("100 g") {
+            return 100.0
+        } else if lowercased.contains("1 serving") || lowercased.contains("1serving") {
+            return 100.0 // Default serving size
+        } else if lowercased.contains("1 cup") || lowercased.contains("1cup") {
+            return 240.0 // 1 cup = 240ml
+        } else if lowercased.contains("1 tbsp") || lowercased.contains("1tbsp") {
+            return 15.0 // 1 tbsp = 15ml
+        } else if lowercased.contains("1 tsp") || lowercased.contains("1tsp") {
+            return 5.0 // 1 tsp = 5ml
+        }
+        
         // Extract numeric value from serving size string and convert to grams
         let pattern = #"(\d+(?:\.\d+)?)\s*(g|ml|oz|cup|cups|tbsp|tsp|fl\s*oz|fluid\s*ounce|pint|pt|quart|qt|liter|l|serving|servings)"#
         let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
@@ -1035,6 +1203,34 @@ struct BarcodeScanner: View {
         )
         
         dataManager.addNutritionEntry(entry)
+        
+        // Show success message
+        successMessage = "Food added to summary!"
+        showingSuccess = true
+    }
+    
+    private func resetToScannedValues() {
+        guard let nutrition = nutritionData else { return }
+        
+        editableCalories = String(nutrition.calories ?? 0)
+        editableProtein = String(format: "%.1f", nutrition.protein ?? 0)
+        editableCarbs = String(format: "%.1f", nutrition.carbohydrates ?? 0)
+        editableFat = String(format: "%.1f", nutrition.fat ?? 0)
+        editableSodium = String(format: "%.0f", (nutrition.sodium ?? 0) * 1000) // Convert to mg
+        editableSugar = String(format: "%.1f", nutrition.sugar ?? 0)
+        editableNaturalSugar = String(format: "%.1f", nutrition.naturalSugar ?? 0)
+        editableAddedSugar = String(format: "%.1f", nutrition.addedSugar ?? 0)
+    }
+    
+    private func clearAllValues() {
+        editableCalories = ""
+        editableProtein = ""
+        editableCarbs = ""
+        editableFat = ""
+        editableSodium = ""
+        editableSugar = ""
+        editableNaturalSugar = ""
+        editableAddedSugar = ""
     }
     
     private func extractUnitFromServingSize(_ servingSize: String) -> String {
@@ -1096,28 +1292,46 @@ struct EditableNutritionCard: View {
     let servingAmount: Double
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
             
-            HStack(alignment: .bottom, spacing: 2) {
+            HStack(alignment: .bottom, spacing: 4) {
                 TextField("0", text: $value)
-                    .font(.headline)
+                    .font(.title3)
                     .fontWeight(.semibold)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(.systemGray6))
+                    )
                 
                 Text(unit)
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
+                    .fontWeight(.medium)
+            }
+            
+            // Show original scanned value for reference
+            if baseValue > 0 {
+                Text("Scanned: \(String(format: "%.1f", baseValue * servingAmount)) \(unit)")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
-        .background(Color.white)
-        .cornerRadius(8)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        )
         .onAppear {
             // Initialize with calculated value if empty
             if value.isEmpty {

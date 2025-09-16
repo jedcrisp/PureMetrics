@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 import FirebaseAuth
 import FirebaseFirestore
 import FirebaseCore
@@ -130,6 +131,7 @@ class BPDataManager: ObservableObject {
     @Published var healthNotes: [HealthNote] = []
     @Published var nutritionGoals: NutritionGoals = NutritionGoals()
     @Published var nutritionLabelManager = NutritionLabelManager()
+    @Published var bmrManager = BMRManager()
     
     // Custom exercises storage
     @Published var customExercises: [CustomExercise] = []
@@ -139,6 +141,12 @@ class BPDataManager: ObservableObject {
     
     // HealthKit storage
     @Published var healthKitManager = HealthKitManager()
+    
+    // Daily goals storage
+    @Published var dailyGoalsManager = DailyGoalsManager()
+    
+    // Combine cancellables for weight sync
+    private var cancellables = Set<AnyCancellable>()
     
     private let maxReadingsPerSession = Int.max
     private let userDefaults = UserDefaults.standard
@@ -174,6 +182,9 @@ class BPDataManager: ObservableObject {
         // Load nutrition goals from Firestore
         loadNutritionGoalsFromFirestore()
         
+        // Setup weight sync from HealthKit
+        setupWeightSync()
+        
         // Check for daily reset
         checkAndResetDailyProgress()
         
@@ -195,7 +206,10 @@ class BPDataManager: ObservableObject {
         
         
         // Load custom workouts from Firestore (with local fallback)
-        loadCustomWorkoutsFromFirestore()
+        // Add a small delay to ensure authentication is complete
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.loadCustomWorkoutsFromFirestore()
+        }
         
         // Listen for authentication changes
         NotificationCenter.default.addObserver(
@@ -954,6 +968,14 @@ class BPDataManager: ObservableObject {
     }
     
     func loadCustomWorkout(_ workout: CustomWorkout) {
+        print("Loading custom workout: \(workout.name)")
+        
+        // Validate workout data before processing
+        guard !workout.exercises.isEmpty else {
+            print("Warning: Custom workout '\(workout.name)' has no exercises")
+            return
+        }
+        
         // Clear current session if it has exercises
         if !currentFitnessSession.exerciseSessions.isEmpty {
             saveCurrentFitnessSession()
@@ -962,14 +984,20 @@ class BPDataManager: ObservableObject {
         // Clear current session
         clearCurrentFitnessSession()
         
-        // Add exercises from custom workout with pre-populated sets
-        for workoutExercise in workout.exercises {
+        // Add exercises from custom workout WITH pre-populated sets for immediate editing
+        var loadedExercises = 0
+        for (index, workoutExercise) in workout.exercises.enumerated() {
             // Only add built-in exercises (custom exercises can't be converted to ExerciseSession)
-            guard let exerciseType = workoutExercise.exerciseType else { continue }
+            guard let exerciseType = workoutExercise.exerciseType else { 
+                print("Skipping exercise \(index): No exercise type found")
+                continue 
+            }
+            
             var exerciseSession = ExerciseSession(exerciseType: exerciseType)
             
-            // Pre-populate sets if planned sets are available
+            // Pre-populate sets if planned sets are available (for immediate editing)
             if let plannedSets = workoutExercise.plannedSets {
+                print("Adding \(plannedSets.count) planned sets for \(exerciseType.rawValue)")
                 for plannedSet in plannedSets {
                     let exerciseSet = ExerciseSet(
                         reps: plannedSet.reps,
@@ -983,7 +1011,10 @@ class BPDataManager: ObservableObject {
             }
             
             currentFitnessSession.addExerciseSession(exerciseSession)
+            loadedExercises += 1
         }
+        
+        print("Successfully loaded \(loadedExercises) exercises from custom workout with pre-populated sets for immediate editing")
         
         // Update use count and last used
         if let index = customWorkouts.firstIndex(where: { $0.id == workout.id }) {
@@ -995,7 +1026,9 @@ class BPDataManager: ObservableObject {
     
     private func saveCustomWorkouts() {
         do {
-            let data = try JSONEncoder().encode(customWorkouts)
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .secondsSince1970
+            let data = try encoder.encode(customWorkouts)
             userDefaults.set(data, forKey: customWorkoutsKey)
         } catch {
             print("Error saving custom workouts: \(error)")
@@ -1003,21 +1036,52 @@ class BPDataManager: ObservableObject {
     }
     
     private func loadCustomWorkouts() {
-        guard let data = userDefaults.data(forKey: customWorkoutsKey) else { return }
+        guard let data = userDefaults.data(forKey: customWorkoutsKey) else { 
+            print("No custom workouts data found in UserDefaults")
+            return 
+        }
         
         do {
-            customWorkouts = try JSONDecoder().decode([CustomWorkout].self, from: data)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .secondsSince1970
+            customWorkouts = try decoder.decode([CustomWorkout].self, from: data)
+            print("Successfully loaded \(customWorkouts.count) custom workouts from UserDefaults")
         } catch {
             print("Error loading custom workouts: \(error)")
             customWorkouts = []
         }
     }
     
+    private var isLoadingCustomWorkouts = false
+    
     func loadCustomWorkoutsFromFirestore() {
+        // Prevent multiple simultaneous loads
+        guard !isLoadingCustomWorkouts else {
+            print("Custom workouts already loading, skipping...")
+            return
+        }
+        
+        isLoadingCustomWorkouts = true
+        print("Loading custom workouts from Firestore...")
+        
+        // Add timeout to prevent hanging
+        let timeoutWorkItem = DispatchWorkItem { [weak self] in
+            print("Firestore loading timeout - falling back to local storage")
+            self?.isLoadingCustomWorkouts = false
+            self?.loadCustomWorkouts()
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: timeoutWorkItem)
+        
         firestoreService.loadCustomWorkouts { [weak self] result in
+            timeoutWorkItem.cancel() // Cancel timeout if we get a result
+            
             DispatchQueue.main.async {
+                self?.isLoadingCustomWorkouts = false
+                
                 switch result {
                 case .success(let workouts):
+                    print("Successfully loaded \(workouts.count) custom workouts from Firestore")
                     self?.customWorkouts = workouts
                     self?.saveCustomWorkouts() // Save to local storage as backup
                 case .failure(let error):
@@ -1027,6 +1091,12 @@ class BPDataManager: ObservableObject {
                 }
             }
         }
+    }
+    
+    func refreshCustomWorkouts() {
+        print("Manually refreshing custom workouts...")
+        isLoadingCustomWorkouts = false // Reset loading state
+        loadCustomWorkoutsFromFirestore()
     }
     
     // MARK: - Beginner Workout Templates
@@ -1369,10 +1439,14 @@ class BPDataManager: ObservableObject {
     }
     
     func updateNutritionGoals(_ goals: NutritionGoals) {
+        // Update legacy nutrition goals for backward compatibility
         nutritionGoals = goals
         saveNutritionGoals()
         
-        // Also save to Firestore
+        // Update daily goals with new nutrition goals
+        dailyGoalsManager.updateNutritionGoals(goals)
+        
+        // Also save to Firestore (legacy method for backward compatibility)
         firestoreService.saveNutritionGoals(goals) { result in
             switch result {
             case .success:
@@ -1381,6 +1455,97 @@ class BPDataManager: ObservableObject {
                 print("Error saving nutrition goals to Firestore: \(error)")
             }
         }
+    }
+    
+    func updateFitnessGoals(_ goals: FitnessGoals) {
+        // Update daily goals with new fitness goals
+        dailyGoalsManager.updateFitnessGoals(goals)
+    }
+    
+    func markDailyGoalsCompleted() {
+        dailyGoalsManager.markGoalsCompleted()
+    }
+    
+    // MARK: - BMR-Based Nutrition Goals
+    
+    func generateBMRBasedGoals(for goalType: BMRGoalType) -> NutritionGoals {
+        guard bmrManager.profile.isValid else {
+            print("BMR profile is not valid, returning default goals")
+            return NutritionGoals()
+        }
+        
+        let profile = bmrManager.profile
+        var goals = NutritionGoals()
+        
+        // Set calorie goals based on BMR and goal type
+        switch goalType {
+        case .weightLoss:
+            goals.dailyCalories = profile.weightLossCalories
+        case .weightGain:
+            goals.dailyCalories = profile.weightGainCalories
+        case .maintenance:
+            goals.dailyCalories = profile.maintenanceCalories
+        }
+        
+        // Set macro goals based on BMR calculations
+        goals.dailyProtein = profile.proteinRecommendation
+        goals.dailyFat = profile.fatRecommendation
+        goals.dailyCarbohydrates = profile.carbRecommendation
+        goals.dailyWater = profile.waterRecommendation
+        
+        // Set other goals with reasonable defaults
+        goals.dailySodium = 2300 // mg - standard recommendation
+        goals.dailySugar = 50 // g - reasonable limit
+        goals.dailyNaturalSugar = 30 // g
+        goals.dailyAddedSugar = 20 // g
+        goals.dailyFiber = 25 // g - standard recommendation
+        goals.dailyCholesterol = 300 // mg - standard recommendation
+        
+        return goals
+    }
+    
+    func updateNutritionGoalsFromBMR(for goalType: BMRGoalType) {
+        let newGoals = generateBMRBasedGoals(for: goalType)
+        updateNutritionGoals(newGoals)
+    }
+    
+    func getBMRRecommendations() -> BMRRecommendations {
+        guard bmrManager.profile.isValid else {
+            return BMRRecommendations(
+                bmr: 0,
+                tdee: 0,
+                weightLossCalories: 0,
+                weightGainCalories: 0,
+                maintenanceCalories: 0,
+                proteinRecommendation: 0,
+                fatRecommendation: 0,
+                carbRecommendation: 0,
+                waterRecommendation: 0
+            )
+        }
+        
+        let profile = bmrManager.profile
+        return BMRRecommendations(
+            bmr: profile.bmr,
+            tdee: profile.tdee,
+            weightLossCalories: profile.weightLossCalories,
+            weightGainCalories: profile.weightGainCalories,
+            maintenanceCalories: profile.maintenanceCalories,
+            proteinRecommendation: profile.proteinRecommendation,
+            fatRecommendation: profile.fatRecommendation,
+            carbRecommendation: profile.carbRecommendation,
+            waterRecommendation: profile.waterRecommendation
+        )
+    }
+    
+    private func setupWeightSync() {
+        // Observe weight changes from HealthKit
+        healthKitManager.$currentWeight
+            .sink { [weak self] weight in
+                guard let self = self, weight > 0 else { return }
+                self.bmrManager.syncWeightFromHealthKit(weight)
+            }
+            .store(in: &cancellables)
     }
     
     func loadNutritionGoalsFromFirestore() {
@@ -1577,6 +1742,40 @@ class BPDataManager: ObservableObject {
         } catch {
             print("Error loading nutrition goals: \(error)")
             nutritionGoals = NutritionGoals()
+        }
+    }
+    
+    // MARK: - Calorie Burn Tracking
+    
+    func getTodaysCalorieBurn(completion: @escaping (Double, Double) -> Void) {
+        let calendar = Calendar.current
+        let today = Date()
+        let startOfDay = calendar.startOfDay(for: today)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? today
+        
+        // Get BMR (Basal Metabolic Rate) - calories burned at rest
+        healthKitManager.fetchBasalEnergyBurned(from: startOfDay, to: endOfDay) { bmr in
+            // Get Active Energy Burned - calories burned through activity
+            self.healthKitManager.fetchActiveEnergyBurned(from: startOfDay, to: endOfDay) { active in
+                DispatchQueue.main.async {
+                    completion(bmr, active)
+                }
+            }
+        }
+    }
+    
+    func getTodaysNetCalories(completion: @escaping (Double) -> Void) {
+        getTodaysCalorieBurn { bmr, active in
+            let totalBurned = bmr + active
+            // Calculate today's consumed calories
+            let calendar = Calendar.current
+            let today = Date()
+            let todaysEntries = self.nutritionEntries.filter { entry in
+                calendar.isDate(entry.date, inSameDayAs: today)
+            }
+            let totalConsumed = todaysEntries.reduce(0) { $0 + $1.calories }
+            let netCalories = totalConsumed - totalBurned
+            completion(netCalories)
         }
     }
     

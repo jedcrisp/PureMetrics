@@ -67,6 +67,8 @@ struct NutritionView: View {
     @State private var showingSuccessPopup = false
     @State private var successMessage = ""
     
+    // PDF generation state
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -98,6 +100,12 @@ struct NutritionView: View {
             }
             .navigationTitle("")
             .navigationBarHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("PDF") {
+                    }
+                }
+            }
         }
         .onAppear {
             // Load nutrition entries for the current selected date when view appears
@@ -273,7 +281,7 @@ struct NutritionView: View {
                 .foregroundColor(.blue)
             }
             
-            NutritionSummaryCard(summary: todaysSummary, goals: dataManager.nutritionGoals)
+            NutritionSummaryCard(summary: todaysSummary, dataManager: dataManager)
             
             // Today's Foods Button
             Button(action: {
@@ -981,6 +989,7 @@ struct NutritionEntryCard: View {
         }
     }
 }
+
 
 
 #Preview {

@@ -3,15 +3,22 @@ import SwiftUI
 struct CustomWorkoutBuilder: View {
     @EnvironmentObject var dataManager: BPDataManager
     @Environment(\.presentationMode) var presentationMode
+    let editingWorkout: CustomWorkout?
+    
     @State private var workoutName = ""
     @State private var workoutDescription = ""
     @State private var selectedExercises: [WorkoutExercise] = []
     @State private var showingExerciseSelector = false
     @State private var selectedExerciseType: ExerciseType?
     @State private var showingSaveConfirmation = false
+    @State private var showingDeleteConfirmation = false
     @State private var editingIndex: Int?
     @State private var exerciseSetInputs: [Int: [SetInput]] = [:]
     @FocusState private var isTextFieldFocused: Bool
+    
+    init(editingWorkout: CustomWorkout? = nil) {
+        self.editingWorkout = editingWorkout
+    }
     
     var body: some View {
         NavigationView {
@@ -37,7 +44,33 @@ struct CustomWorkoutBuilder: View {
             .onTapGesture {
                 isTextFieldFocused = false
             }
-            .navigationTitle("Custom Workout")
+            .onAppear {
+                if let workout = editingWorkout {
+                    workoutName = workout.name
+                    workoutDescription = workout.description ?? ""
+                    selectedExercises = workout.exercises
+                    
+                    // Initialize set inputs for existing exercises
+                    for (index, exercise) in workout.exercises.enumerated() {
+                        if let plannedSets = exercise.plannedSets, !plannedSets.isEmpty {
+                            var setInputs: [SetInput] = []
+                            for plannedSet in plannedSets {
+                                let setInput = SetInput(
+                                    reps: plannedSet.reps?.description ?? "",
+                                    weight: plannedSet.weight?.description ?? "",
+                                    time: plannedSet.time?.description ?? "",
+                                    distance: plannedSet.distance?.description ?? ""
+                                )
+                                setInputs.append(setInput)
+                            }
+                            exerciseSetInputs[index] = setInputs
+                        } else {
+                            exerciseSetInputs[index] = [SetInput()]
+                        }
+                    }
+                }
+            }
+            .navigationTitle(editingWorkout != nil ? "Edit Workout" : "Custom Workout")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -47,11 +80,22 @@ struct CustomWorkoutBuilder: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if !selectedExercises.isEmpty {
-                        Button("Save") {
-                            showingSaveConfirmation = true
+                    HStack(spacing: 16) {
+                        // Delete button (only when editing existing workout)
+                        if editingWorkout != nil {
+                            Button("Delete") {
+                                showingDeleteConfirmation = true
+                            }
+                            .foregroundColor(.red)
                         }
-                        .disabled(workoutName.isEmpty)
+                        
+                        // Save button
+                        if !selectedExercises.isEmpty {
+                            Button("Save") {
+                                showingSaveConfirmation = true
+                            }
+                            .disabled(workoutName.isEmpty)
+                        }
                     }
                 }
             }
@@ -76,18 +120,28 @@ struct CustomWorkoutBuilder: View {
         } message: {
             Text("This will save your custom workout template for future use.")
         }
+        .alert("Delete Workout", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteCustomWorkout()
+            }
+        } message: {
+            if let workout = editingWorkout {
+                Text("Are you sure you want to delete '\(workout.name)'? This action cannot be undone.")
+            }
+        }
     }
     
     // MARK: - Header Section
     
     private var headerSection: some View {
         VStack(spacing: 12) {
-            Text("Create Custom Workout")
+            Text(editingWorkout != nil ? "Edit Custom Workout" : "Create Custom Workout")
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
             
-            Text("Build your own workout template with exercises, sets, and reps")
+            Text(editingWorkout != nil ? "Modify your workout template" : "Build your own workout template with exercises, sets, and reps")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -464,15 +518,41 @@ struct CustomWorkoutBuilder: View {
             return
         }
         
-        let customWorkout = CustomWorkout(
-            name: trimmedName,
-            description: workoutDescription.isEmpty ? nil : workoutDescription,
-            exercises: selectedExercises,
-            createdDate: Date(),
-            isFavorite: false
-        )
+        if let existingWorkout = editingWorkout {
+            // Update existing workout
+            let updatedWorkout = CustomWorkout(
+                id: existingWorkout.id,
+                name: trimmedName,
+                description: workoutDescription.isEmpty ? nil : workoutDescription,
+                exercises: selectedExercises,
+                createdDate: existingWorkout.createdDate,
+                isFavorite: existingWorkout.isFavorite,
+                lastUsed: existingWorkout.lastUsed,
+                useCount: existingWorkout.useCount
+            )
+            dataManager.updateCustomWorkout(updatedWorkout)
+        } else {
+            // Create new workout
+            let customWorkout = CustomWorkout(
+                name: trimmedName,
+                description: workoutDescription.isEmpty ? nil : workoutDescription,
+                exercises: selectedExercises,
+                createdDate: Date(),
+                isFavorite: false
+            )
+            dataManager.saveCustomWorkout(customWorkout)
+        }
         
-        dataManager.saveCustomWorkout(customWorkout)
+        presentationMode.wrappedValue.dismiss()
+    }
+    
+    private func deleteCustomWorkout() {
+        guard let workout = editingWorkout else { return }
+        
+        // Delete the workout using the data manager
+        dataManager.deleteCustomWorkout(workout)
+        
+        // Dismiss the edit view
         presentationMode.wrappedValue.dismiss()
     }
 }

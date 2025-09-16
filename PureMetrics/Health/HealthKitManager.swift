@@ -75,12 +75,12 @@ class HealthKitManager: ObservableObject {
             }
         }
         
-        // Add sample data to simulator for testing
-        #if targetEnvironment(simulator)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            self.addSampleDataToSimulator()
-        }
-        #endif
+        // Sample data generation disabled - using real HealthKit data only
+        // #if targetEnvironment(simulator)
+        // DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+        //     self.addSampleDataToSimulator()
+        // }
+        // #endif
     }
     
     private func checkHealthKitAvailability() {
@@ -319,12 +319,32 @@ class HealthKitManager: ObservableObject {
         healthStore.execute(query)
     }
     
-    private func fetchActiveEnergyBurned(from startDate: Date, to endDate: Date, completion: @escaping (Double) -> Void) {
+    func fetchActiveEnergyBurned(from startDate: Date, to endDate: Date, completion: @escaping (Double) -> Void) {
         guard let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) else { return }
         
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
         let query = HKStatisticsQuery(quantityType: energyType, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, result, error in
             guard let result = result, let sum = result.sumQuantity() else {
+                completion(0)
+                return
+            }
+            completion(sum.doubleValue(for: HKUnit.kilocalorie()))
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    func fetchBasalEnergyBurned(from startDate: Date, to endDate: Date, completion: @escaping (Double) -> Void) {
+        guard let energyType = HKQuantityType.quantityType(forIdentifier: .basalEnergyBurned) else { 
+            // No basal energy data available - return 0 to indicate no real data
+            completion(0)
+            return 
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        let query = HKStatisticsQuery(quantityType: energyType, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, result, error in
+            guard let result = result, let sum = result.sumQuantity() else {
+                // No data available - return 0 to indicate no real data
                 completion(0)
                 return
             }

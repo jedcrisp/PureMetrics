@@ -7,6 +7,8 @@ struct MyNutritionEntriesView: View {
     @State private var showingReuseAlert: NutritionEntry? = nil
     @State private var showingEditSheet: NutritionEntry? = nil
     @State private var showingDeleteAlert: NutritionEntry? = nil
+    @State private var showingSuccess = false
+    @State private var successMessage = ""
     
     var filteredEntries: [NutritionEntry] {
         let entries = dataManager.nutritionEntries
@@ -133,6 +135,11 @@ struct MyNutritionEntriesView: View {
                 Text("Are you sure you want to delete '\(entry.label ?? "this food")'? This action cannot be undone.")
             }
         }
+        .alert("Success", isPresented: $showingSuccess) {
+            Button("OK") { }
+        } message: {
+            Text(successMessage)
+        }
     }
     
     private var emptyStateView: some View {
@@ -175,6 +182,10 @@ struct MyNutritionEntriesView: View {
         )
         
         dataManager.addNutritionEntry(newEntry)
+        
+        // Show success message
+        successMessage = "Food added to summary!"
+        showingSuccess = true
     }
 }
 

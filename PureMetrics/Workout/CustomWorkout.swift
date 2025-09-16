@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Custom Workout Model
 
 struct CustomWorkout: Codable, Identifiable {
-    let id = UUID()
+    let id: UUID
     let name: String
     let description: String?
     let exercises: [WorkoutExercise]
@@ -13,16 +13,28 @@ struct CustomWorkout: Codable, Identifiable {
     var useCount: Int = 0
     
     enum CodingKeys: String, CodingKey {
-        case name, description, exercises, createdDate, isFavorite, lastUsed, useCount
+        case id, name, description, exercises, createdDate, isFavorite, lastUsed, useCount
     }
     
     init(name: String, description: String? = nil, exercises: [WorkoutExercise], createdDate: Date, isFavorite: Bool = false) {
+        self.id = UUID()
         self.name = name
         self.description = description
         self.exercises = exercises
         self.createdDate = createdDate
         self.isFavorite = isFavorite
         self.useCount = 0
+    }
+    
+    init(id: UUID, name: String, description: String? = nil, exercises: [WorkoutExercise], createdDate: Date, isFavorite: Bool = false, lastUsed: Date? = nil, useCount: Int = 0) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.exercises = exercises
+        self.createdDate = createdDate
+        self.isFavorite = isFavorite
+        self.lastUsed = lastUsed
+        self.useCount = useCount
     }
     
     var displayName: String {

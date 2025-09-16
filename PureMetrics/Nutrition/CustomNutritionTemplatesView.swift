@@ -8,6 +8,8 @@ struct CustomNutritionTemplatesView: View {
     @State private var showingAddTemplate = false
     @State private var showingEditTemplate: CustomNutritionTemplate? = nil
     @State private var showingDeleteAlert: CustomNutritionTemplate? = nil
+    @State private var showingSuccess = false
+    @State private var successMessage = ""
     
     var filteredTemplates: [CustomNutritionTemplate] {
         let templates = dataManager.searchCustomNutritionTemplates(searchText)
@@ -88,6 +90,8 @@ struct CustomNutritionTemplatesView: View {
                                     },
                                     onUse: {
                                         dataManager.useCustomNutritionTemplate(template)
+                                        successMessage = "Food added to summary!"
+                                        showingSuccess = true
                                     }
                                 )
                             }
@@ -136,6 +140,11 @@ struct CustomNutritionTemplatesView: View {
             if let template = showingDeleteAlert {
                 Text("Are you sure you want to delete '\(template.name)'? This action cannot be undone.")
             }
+        }
+        .alert("Success", isPresented: $showingSuccess) {
+            Button("OK") { }
+        } message: {
+            Text(successMessage)
         }
     }
     

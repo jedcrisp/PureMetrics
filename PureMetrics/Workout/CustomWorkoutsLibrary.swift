@@ -8,6 +8,10 @@ struct CustomWorkoutsLibrary: View {
     @State private var searchText = ""
     @State private var sortOption: SortOption = .newest
     @State private var filterOption: FilterOption = .all
+    @State private var showingDeleteConfirmation = false
+    @State private var workoutToDelete: CustomWorkout?
+    @State private var showingEditWorkout = false
+    @State private var workoutToEdit: CustomWorkout?
     
     enum SortOption: String, CaseIterable {
         case newest = "Newest First"
@@ -51,6 +55,24 @@ struct CustomWorkoutsLibrary: View {
             if let workout = selectedWorkout {
                 CustomWorkoutDetailView(workout: workout)
                     .environmentObject(dataManager)
+            }
+        }
+        .sheet(isPresented: $showingEditWorkout) {
+            if let workout = workoutToEdit {
+                CustomWorkoutBuilder(editingWorkout: workout)
+                    .environmentObject(dataManager)
+            }
+        }
+        .alert("Delete Workout", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                if let workout = workoutToDelete {
+                    dataManager.deleteCustomWorkout(workout)
+                }
+            }
+        } message: {
+            if let workout = workoutToDelete {
+                Text("Are you sure you want to delete '\(workout.name)'? This action cannot be undone.")
             }
         }
     }
@@ -185,6 +207,14 @@ struct CustomWorkoutsLibrary: View {
                         },
                         onFavorite: {
                             dataManager.toggleCustomWorkoutFavorite(workout)
+                        },
+                        onEdit: {
+                            workoutToEdit = workout
+                            showingEditWorkout = true
+                        },
+                        onDelete: {
+                            workoutToDelete = workout
+                            showingDeleteConfirmation = true
                         }
                     )
                 }
@@ -288,6 +318,8 @@ struct CustomWorkoutCard: View {
     let onTap: () -> Void
     let onStart: () -> Void
     let onFavorite: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -364,39 +396,77 @@ struct CustomWorkoutCard: View {
             }
             
             // Action Buttons
-            HStack(spacing: 12) {
-                Button(action: onTap) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "info.circle")
-                        Text("Details")
+            VStack(spacing: 8) {
+                // Primary Actions Row
+                HStack(spacing: 12) {
+                    Button(action: onTap) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "info.circle")
+                            Text("Details")
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.blue.opacity(0.1))
+                        )
                     }
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.blue.opacity(0.1))
-                    )
+                    
+                    Button(action: onStart) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "play.circle.fill")
+                            Text("Start")
+                        }
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.green)
+                        )
+                    }
+                    
+                    Spacer()
                 }
                 
-                Button(action: onStart) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "play.circle.fill")
-                        Text("Start")
+                // Secondary Actions Row
+                HStack(spacing: 12) {
+                    Button(action: onEdit) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "pencil")
+                            Text("Edit")
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.orange)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.orange.opacity(0.1))
+                        )
                     }
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.green)
-                    )
+                    
+                    Button(action: onDelete) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "trash")
+                            Text("Delete")
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.red.opacity(0.1))
+                        )
+                    }
+                    
+                    Spacer()
                 }
-                
-                Spacer()
             }
         }
         .padding(16)
