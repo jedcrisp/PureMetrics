@@ -240,6 +240,9 @@ struct CustomWorkoutBuilder: View {
                                         updateSetInput(exerciseIndex: index, setIndex: setIndex, reps: reps)
                                         updateSetInput(exerciseIndex: index, setIndex: setIndex, weight: weight)
                                     },
+                                    onUpdateTime: { setIndex, time in
+                                        updateSetInput(exerciseIndex: index, setIndex: setIndex, time: time)
+                                    },
                                     onRemoveSet: { setIndex in
                                         removeSetInput(exerciseIndex: index, setIndex: setIndex)
                                     }
@@ -494,6 +497,12 @@ struct CustomWorkoutBuilder: View {
         exerciseSetInputs[exerciseIndex] = setInputs
     }
     
+    private func updateSetInput(exerciseIndex: Int, setIndex: Int, time: String) {
+        guard var setInputs = exerciseSetInputs[exerciseIndex], setIndex < setInputs.count else { return }
+        setInputs[setIndex].time = time
+        exerciseSetInputs[exerciseIndex] = setInputs
+    }
+    
     private func removeSetInput(exerciseIndex: Int, setIndex: Int) {
         guard var setInputs = exerciseSetInputs[exerciseIndex], setIndex < setInputs.count else { return }
         setInputs.remove(at: setIndex)
@@ -565,6 +574,7 @@ struct InlineExerciseEditor: View {
     let setInputs: [SetInput]
     let onAddSet: () -> Void
     let onUpdateSet: (Int, String, String) -> Void
+    let onUpdateTime: (Int, String) -> Void
     let onRemoveSet: (Int) -> Void
     @FocusState private var isTextFieldFocused: Bool
     
@@ -738,7 +748,7 @@ struct InlineExerciseEditor: View {
                         HStack {
                             TextField("9:15", text: Binding(
                                 get: { setInput.time },
-                                set: { _ in }
+                                set: { onUpdateTime(setIndex, $0) }
                             ))
                             .font(.system(size: 16, weight: .medium, design: .rounded))
                             .multilineTextAlignment(.center)
@@ -818,8 +828,8 @@ struct InlineExerciseEditor: View {
     }
     
     private func shouldShowTime(for category: ExerciseCategory) -> Bool {
-        // Cardio and some other exercises support time
-        return category == .cardio
+        // All exercises support time - users should be able to track time for any exercise
+        return true
     }
     
     private func shouldShowDistance(for category: ExerciseCategory) -> Bool {

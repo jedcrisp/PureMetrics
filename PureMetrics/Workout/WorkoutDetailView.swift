@@ -163,6 +163,13 @@ struct WorkoutDetailView: View {
                 )
                 
                 StatCard(
+                    icon: "scalemass.fill",
+                    title: "Total Volume",
+                    value: "\(Int(currentWorkout.totalVolume)) lbs",
+                    color: .red
+                )
+                
+                StatCard(
                     icon: "clock",
                     title: "Duration",
                     value: formatDuration(currentWorkout.duration),
@@ -251,6 +258,16 @@ struct WorkoutDetailView: View {
         let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
+    
+    private func formatExerciseTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        if minutes > 0 {
+            return String(format: "%d:%02d", minutes, seconds)
+        } else {
+            return "\(seconds)s"
+        }
+    }
 }
 
 // MARK: - Stat Card
@@ -304,18 +321,32 @@ struct ExerciseDetailCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Exercise Header
             HStack {
-                Text("\(index). \(exercise.exerciseName)")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(index). \(exercise.exerciseName)")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Text("Time: \(formatExerciseTime(exercise.totalTime))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 
                 Spacer()
                 
-                if let maxWeight = exercise.maxWeight, maxWeight > 0 {
-                    Text("Max: \(Int(maxWeight)) lbs")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+                VStack(alignment: .trailing, spacing: 4) {
+                    if let maxWeight = exercise.maxWeight, maxWeight > 0 {
+                        Text("Max: \(Int(maxWeight)) lbs")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if exercise.totalVolume > 0 {
+                        Text("Volume: \(Int(exercise.totalVolume)) lbs")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             
@@ -478,11 +509,9 @@ struct ExerciseDetailCard: View {
                 
                 Spacer()
                 
-                if exercise.totalTime > 0 {
-                    Text("Time: \(Int(exercise.totalTime))s")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Text("Time: \(formatExerciseTime(exercise.totalTime))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .padding(16)
@@ -528,6 +557,16 @@ struct ExerciseDetailCard: View {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+    
+    private func formatExerciseTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        if minutes > 0 {
+            return String(format: "%d:%02d", minutes, seconds)
+        } else {
+            return "\(seconds)s"
+        }
     }
 }
 

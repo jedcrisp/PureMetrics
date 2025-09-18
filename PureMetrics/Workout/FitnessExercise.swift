@@ -304,16 +304,8 @@ enum ExerciseType: String, CaseIterable, Codable {
     }
     
     var supportsTime: Bool {
-        // Most exercises can be timed (holds, isometric exercises, etc.)
-        switch self {
-        case .weightedPlank, .turkishGetUp, .farmersCarry, .suitcaseCarry, .overheadCarry, .zercherCarry:
-            return true
-        // Cardio exercises are primarily time-based
-        case .running, .cycling, .rowing, .elliptical, .stairClimber, .treadmill, .jumpRope, .burpees, .mountainClimbers, .highKnees, .jumpingJacks, .boxJumps, .battleRopes, .swimming, .walking, .hiking, .dancing, .kickboxing, .spinning, .crossTraining:
-            return true
-        default:
-            return false
-        }
+        // All exercises can be timed - users should be able to track time for any exercise
+        return true
     }
     
     var supportsReps: Bool {
@@ -447,7 +439,18 @@ struct ExerciseSession: Codable, Identifiable {
     }
     
     var totalTime: TimeInterval {
-        sets.compactMap { $0.time }.reduce(0, +)
+        // First try to get time from individual sets
+        let setTime = sets.compactMap { $0.time }.reduce(0, +)
+        if setTime > 0 {
+            return setTime
+        }
+        
+        // If no set time, calculate from exercise session duration
+        if let endTime = endTime {
+            return endTime.timeIntervalSince(startTime)
+        }
+        
+        return 0
     }
     
     var totalDistance: Double {
@@ -577,6 +580,10 @@ struct FitnessSession: Codable, Identifiable {
     
     var totalReps: Int {
         exerciseSessions.reduce(0) { $0 + $1.totalReps }
+    }
+    
+    var totalVolume: Double {
+        exerciseSessions.reduce(0) { $0 + $1.totalVolume }
     }
     
     var duration: TimeInterval {

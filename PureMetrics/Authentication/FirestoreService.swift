@@ -844,6 +844,7 @@ class FirestoreService: ObservableObject {
                                 let timestamp = timestampTimestamp.dateValue()
                                 
                                 print("    - Parsed set from exercise doc: ID=\(setId), reps=\(reps ?? 0), weight=\(weight ?? 0), time=\(time ?? 0)")
+                                print("    - Raw time data from Firestore: \(setData["time"] ?? "nil")")
                                 
                                 let set = ExerciseSet(id: setId, reps: reps, weight: weight, time: time, timestamp: timestamp)
                                 sets.append(set)
@@ -873,6 +874,7 @@ class FirestoreService: ObservableObject {
                                         let timestamp = timestampTimestamp.dateValue()
                                         
                                         print("    - Parsed set from subcollection: ID=\(setId), reps=\(reps ?? 0), weight=\(weight ?? 0), time=\(time ?? 0)")
+                                        print("    - Raw time data from subcollection: \(setData["time"] ?? "nil")")
                                         
                                         let set = ExerciseSet(id: setId, reps: reps, weight: weight, time: time, timestamp: timestamp)
                                         sets.append(set)
@@ -982,6 +984,10 @@ class FirestoreService: ObservableObject {
                                 do {
                                     var setData = try Firestore.Encoder().encode(set)
                                     setData["type"] = "exercise_set"
+                                    
+                                    // Debug: Print set data to verify time is included
+                                    print("Saving set to Firestore: ID=\(set.id), reps=\(set.reps ?? 0), weight=\(set.weight ?? 0), time=\(set.time ?? 0)")
+                                    
                                     batch.setData(setData, forDocument: setDoc)
                                 } catch {
                                     print("Error encoding set: \(error)")
