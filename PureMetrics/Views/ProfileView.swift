@@ -10,6 +10,9 @@ struct ProfileView: View {
     @State private var showingNotificationSettings = false
     @State private var showingBMRProfile = false
     @State private var showingBMRGoals = false
+    @State private var showingCoachInvitations = false
+    @State private var showingCoachDashboard = false
+    @StateObject private var firestoreService = FirestoreService()
     
     var body: some View {
         NavigationView {
@@ -26,6 +29,9 @@ struct ProfileView: View {
                     
                     // BMR Calculator Section
                     bmrSection
+                    
+                    // Coach-Client Section
+                    coachClientSection
                     
                     // Settings Section
                     settingsSection
@@ -59,6 +65,12 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingBMRGoals) {
             BMRGoalsView(dataManager: dataManager)
+        }
+        .sheet(isPresented: $showingCoachInvitations) {
+            CoachInvitationView(firestoreService: firestoreService)
+        }
+        .sheet(isPresented: $showingCoachDashboard) {
+            CoachDashboardView(firestoreService: firestoreService)
         }
         .alert(isPresented: $showingDeleteAllConfirmation) {
             Alert(
@@ -322,6 +334,88 @@ struct ProfileView: View {
                 BMRSetupCard {
                     showingBMRProfile = true
                 }
+            }
+        }
+    }
+    
+    // MARK: - Coach-Client Section
+    
+    private var coachClientSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Coach & Client")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            VStack(spacing: 12) {
+                // View Invitations Button
+                Button(action: {
+                    showingCoachInvitations = true
+                }) {
+                    HStack {
+                        Image(systemName: "envelope.fill")
+                            .foregroundColor(.blue)
+                            .font(.title2)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Coach Invitations")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            Text("View and accept coach invitations")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                            .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Coach Dashboard Button
+                Button(action: {
+                    showingCoachDashboard = true
+                }) {
+                    HStack {
+                        Image(systemName: "person.2.fill")
+                            .foregroundColor(.green)
+                            .font(.title2)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("My Clients")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            Text("Manage workouts for your clients")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white)
+                            .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
             }
         }
     }

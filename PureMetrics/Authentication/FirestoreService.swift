@@ -2105,6 +2105,610 @@ class FirestoreService: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Coach-Client Invitation Management
+    
+    func sendCoachInvitation(to clientEmail: String, message: String? = nil, completion: @escaping (Result<CoachInvitation, Error>) -> Void) {
+        guard let coachID = userID,
+              let coachEmail = authService.currentUser?.email else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // First, try to find the client by email in user profiles
+        // We'll search through all users and check their email or profile
+        // Note: This is a simplified approach - in production, you might want to maintain an email index
+        db.collection("users")
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                // Find user by email - check both document data and profile
+                var clientID: String?
+                var clientName: String?
+                
+                for document in snapshot?.documents ?? [] {
+                    let data = document.data()
+                    
+                    // Check if email matches in document data
+                    if let email = data["email"] as? String, email.lowercased() == clientEmail.lowercased() {
+                        clientID = document.documentID
+                        clientName = data["displayName"] as? String
+                        break
+                    }
+                    
+                    // Also check in user profile if it exists
+                    if let profileData = data["profile"] as? [String: Any],
+                       let email = profileData["email"] as? String,
+                       email.lowercased() == clientEmail.lowercased() {
+                        clientID = document.documentID
+                        clientName = profileData["displayName"] as? String ?? data["displayName"] as? String
+                        break
+                    }
+                }
+                
+                guard let foundClientID = clientID else {
+                    completion(.failure(FirestoreError.decodingError("Client not found with email: \(clientEmail). Make sure they have signed up for the app.")))
+                    return
+                }
+                
+                let finalClientID = foundClientID
+                let finalClientName = clientName
+                
+                // Get coach name from profile
+                self.loadUserProfile { result in
+                    let coachName: String?
+                    if case .success(let profile) = result {
+                        coachName = profile?.displayName
+                    } else {
+                        coachName = nil
+                    }
+                    
+                    // Check if relationship already exists
+                    self.db.collection("coach_client_relationships")
+                        .whereField("coach_id", isEqualTo: coachID)
+                        .whereField("client_id", isEqualTo: finalClientID)
+                        .whereField("is_active", isEqualTo: true)
+                        .limit(to: 1)
+                        .getDocuments { snapshot, error in
+                            if let error = error {
+                                completion(.failure(error))
+                                return
+                            }
+                            
+                            if let documents = snapshot?.documents, !documents.isEmpty {
+                                completion(.failure(FirestoreError.decodingError("Relationship already exists")))
+                                return
+                            }
+                            
+                            // Check if pending invitation exists
+                            self.db.collection("coach_invitations")
+                                .whereField("coach_id", isEqualTo: coachID)
+                                .whereField("client_id", isEqualTo: finalClientID)
+                                .whereField("status", isEqualTo: "pending")
+                                .limit(to: 1)
+                                .getDocuments { snapshot, error in
+                                    if let error = error {
+                                        completion(.failure(error))
+                                        return
+                                    }
+                                    
+                                    if let documents = snapshot?.documents, !documents.isEmpty {
+                                        completion(.failure(FirestoreError.decodingError("Invitation already sent")))
+                                        return
+                                    }
+                                    
+                    // Create invitation
+                    let invitation = CoachInvitation(
+                        coachID: coachID,
+                        clientID: finalClientID,
+                        coachEmail: coachEmail,
+                        coachName: coachName,
+                        clientEmail: clientEmail,
+                        clientName: finalClientName,
+                        message: message
+                    )
+                                    
+                                    let invitationRef = self.db.collection("coach_invitations").document(invitation.id)
+                                    
+                                    do {
+                                        var invitationData = try Firestore.Encoder().encode(invitation)
+                                        invitationData["created_at"] = Timestamp(date: invitation.createdAt)
+                                        invitationData["updated_at"] = Timestamp(date: invitation.updatedAt)
+                                        
+                                        invitationRef.setData(invitationData) { error in
+                                            if let error = error {
+                                                completion(.failure(error))
+                                            } else {
+                                                completion(.success(invitation))
+                                            }
+                                        }
+                                    } catch {
+                                        completion(.failure(error))
+                                    }
+                                }
+                        }
+                }
+            }
+    }
+    
+    func getPendingInvitations(completion: @escaping (Result<[CoachInvitation], Error>) -> Void) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        db.collection("coach_invitations")
+            .whereField("client_id", isEqualTo: userID)
+            .whereField("status", isEqualTo: "pending")
+            .order(by: "created_at", descending: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+                
+                var invitations: [CoachInvitation] = []
+                for document in documents {
+                    do {
+                        var data = document.data()
+                        if let createdAt = data["created_at"] as? Timestamp {
+                            data["created_at"] = createdAt.dateValue().timeIntervalSince1970
+                        }
+                        if let updatedAt = data["updated_at"] as? Timestamp {
+                            data["updated_at"] = updatedAt.dateValue().timeIntervalSince1970
+                        }
+                        
+                        let jsonData = try JSONSerialization.data(withJSONObject: data)
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .secondsSince1970
+                        let invitation = try decoder.decode(CoachInvitation.self, from: jsonData)
+                        invitations.append(invitation)
+                    } catch {
+                        print("Error decoding invitation: \(error)")
+                    }
+                }
+                
+                completion(.success(invitations))
+            }
+    }
+    
+    func acceptCoachInvitation(_ invitation: CoachInvitation, completion: @escaping (Result<CoachClientRelationship, Error>) -> Void) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        guard invitation.clientID == userID else {
+            completion(.failure(FirestoreError.decodingError("Invitation not for current user")))
+            return
+        }
+        
+        let batch = db.batch()
+        
+        // Update invitation status
+        let invitationRef = db.collection("coach_invitations").document(invitation.id)
+        batch.updateData([
+            "status": "accepted",
+            "updated_at": Timestamp(date: Date())
+        ], forDocument: invitationRef)
+        
+        // Create relationship
+        let relationship = CoachClientRelationship(
+            coachID: invitation.coachID,
+            clientID: invitation.clientID,
+            coachEmail: invitation.coachEmail,
+            coachName: invitation.coachName,
+            clientEmail: invitation.clientEmail,
+            clientName: invitation.clientName
+        )
+        
+        let relationshipRef = db.collection("coach_client_relationships").document(relationship.id)
+        
+        do {
+            var relationshipData = try Firestore.Encoder().encode(relationship)
+            relationshipData["created_at"] = Timestamp(date: relationship.createdAt)
+            
+            batch.setData(relationshipData, forDocument: relationshipRef)
+            
+            batch.commit { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(relationship))
+                }
+            }
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
+    func rejectCoachInvitation(_ invitation: CoachInvitation, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        guard invitation.clientID == userID else {
+            completion(.failure(FirestoreError.decodingError("Invitation not for current user")))
+            return
+        }
+        
+        let invitationRef = db.collection("coach_invitations").document(invitation.id)
+        invitationRef.updateData([
+            "status": "rejected",
+            "updated_at": Timestamp(date: Date())
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+    
+    func cancelCoachInvitation(_ invitation: CoachInvitation, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let userID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        guard invitation.coachID == userID else {
+            completion(.failure(FirestoreError.decodingError("Invitation not from current user")))
+            return
+        }
+        
+        let invitationRef = db.collection("coach_invitations").document(invitation.id)
+        invitationRef.updateData([
+            "status": "cancelled",
+            "updated_at": Timestamp(date: Date())
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+            } else {
+                completion(.success(()))
+            }
+        }
+    }
+    
+    // MARK: - Coach-Client Relationship Management
+    
+    func getCoachClients(completion: @escaping (Result<[ClientInfo], Error>) -> Void) {
+        guard let coachID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        db.collection("coach_client_relationships")
+            .whereField("coach_id", isEqualTo: coachID)
+            .whereField("is_active", isEqualTo: true)
+            .order(by: "created_at", descending: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+                
+                var clients: [ClientInfo] = []
+                for document in documents {
+                    do {
+                        var data = document.data()
+                        if let createdAt = data["created_at"] as? Timestamp {
+                            data["created_at"] = createdAt.dateValue().timeIntervalSince1970
+                        }
+                        
+                        let jsonData = try JSONSerialization.data(withJSONObject: data)
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .secondsSince1970
+                        let relationship = try decoder.decode(CoachClientRelationship.self, from: jsonData)
+                        clients.append(ClientInfo(from: relationship, isCoach: true))
+                    } catch {
+                        print("Error decoding relationship: \(error)")
+                    }
+                }
+                
+                completion(.success(clients))
+            }
+    }
+    
+    func getMyCoaches(completion: @escaping (Result<[ClientInfo], Error>) -> Void) {
+        guard let clientID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        db.collection("coach_client_relationships")
+            .whereField("client_id", isEqualTo: clientID)
+            .whereField("is_active", isEqualTo: true)
+            .order(by: "created_at", descending: true)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+                
+                var coaches: [ClientInfo] = []
+                for document in documents {
+                    do {
+                        var data = document.data()
+                        if let createdAt = data["created_at"] as? Timestamp {
+                            data["created_at"] = createdAt.dateValue().timeIntervalSince1970
+                        }
+                        
+                        let jsonData = try JSONSerialization.data(withJSONObject: data)
+                        let decoder = JSONDecoder()
+                        decoder.dateDecodingStrategy = .secondsSince1970
+                        let relationship = try decoder.decode(CoachClientRelationship.self, from: jsonData)
+                        coaches.append(ClientInfo(from: relationship, isCoach: false))
+                    } catch {
+                        print("Error decoding relationship: \(error)")
+                    }
+                }
+                
+                completion(.success(coaches))
+            }
+    }
+    
+    func removeCoachClientRelationship(clientID: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let coachID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        db.collection("coach_client_relationships")
+            .whereField("coach_id", isEqualTo: coachID)
+            .whereField("client_id", isEqualTo: clientID)
+            .whereField("is_active", isEqualTo: true)
+            .limit(to: 1)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents,
+                      let relationshipDoc = documents.first else {
+                    completion(.failure(FirestoreError.decodingError("Relationship not found")))
+                    return
+                }
+                
+                relationshipDoc.reference.updateData([
+                    "is_active": false
+                ]) { error in
+                    if let error = error {
+                        completion(.failure(error))
+                    } else {
+                        completion(.success(()))
+                    }
+                }
+            }
+    }
+    
+    // MARK: - Coach Workout Management for Clients
+    
+    func saveCustomWorkoutForClient(_ workout: CustomWorkout, clientID: String, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let coachID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Verify coach has access to this client
+        db.collection("coach_client_relationships")
+            .whereField("coach_id", isEqualTo: coachID)
+            .whereField("client_id", isEqualTo: clientID)
+            .whereField("is_active", isEqualTo: true)
+            .limit(to: 1)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    completion(.failure(FirestoreError.decodingError("No active relationship with this client")))
+                    return
+                }
+                
+                // Save workout to client's collection
+                let workoutRef = self.db.collection("users").document(clientID).collection("custom_workouts").document(workout.id.uuidString)
+                
+                do {
+                    let encoder = JSONEncoder()
+                    encoder.dateEncodingStrategy = .secondsSince1970
+                    let jsonData = try encoder.encode(workout)
+                    var workoutData = try JSONSerialization.jsonObject(with: jsonData) as! [String: Any]
+                    
+                    workoutData["createdAt"] = Timestamp(date: workout.createdDate)
+                    workoutData["updatedAt"] = Timestamp(date: Date())
+                    workoutData["created_by_coach"] = true
+                    workoutData["coach_id"] = coachID
+                    
+                    workoutRef.setData(workoutData) { error in
+                        if let error = error {
+                            completion(.failure(error))
+                        } else {
+                            completion(.success(()))
+                        }
+                    }
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+    }
+    
+    func updateCustomWorkoutForClient(_ workout: CustomWorkout, clientID: String, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let coachID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Verify coach has access to this client
+        db.collection("coach_client_relationships")
+            .whereField("coach_id", isEqualTo: coachID)
+            .whereField("client_id", isEqualTo: clientID)
+            .whereField("is_active", isEqualTo: true)
+            .limit(to: 1)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    completion(.failure(FirestoreError.decodingError("No active relationship with this client")))
+                    return
+                }
+                
+                let workoutRef = self.db.collection("users").document(clientID).collection("custom_workouts").document(workout.id.uuidString)
+                
+                do {
+                    var workoutData = try Firestore.Encoder().encode(workout)
+                    workoutData["updatedAt"] = Timestamp(date: Date())
+                    
+                    workoutRef.updateData(workoutData) { error in
+                        if let error = error {
+                            completion(.failure(error))
+                        } else {
+                            completion(.success(()))
+                        }
+                    }
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+    }
+    
+    func deleteCustomWorkoutForClient(_ workout: CustomWorkout, clientID: String, completion: @escaping (Result<Void, Error>) -> Void = { _ in }) {
+        guard let coachID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Verify coach has access to this client
+        db.collection("coach_client_relationships")
+            .whereField("coach_id", isEqualTo: coachID)
+            .whereField("client_id", isEqualTo: clientID)
+            .whereField("is_active", isEqualTo: true)
+            .limit(to: 1)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    completion(.failure(FirestoreError.decodingError("No active relationship with this client")))
+                    return
+                }
+                
+                let workoutRef = self.db.collection("users").document(clientID).collection("custom_workouts").document(workout.id.uuidString)
+                
+                workoutRef.delete { error in
+                    if let error = error {
+                        completion(.failure(error))
+                    } else {
+                        completion(.success(()))
+                    }
+                }
+            }
+    }
+    
+    func loadCustomWorkoutsForClient(clientID: String, completion: @escaping (Result<[CustomWorkout], Error>) -> Void) {
+        guard let coachID = userID else {
+            completion(.failure(FirestoreError.noUser))
+            return
+        }
+        
+        // Verify coach has access to this client
+        db.collection("coach_client_relationships")
+            .whereField("coach_id", isEqualTo: coachID)
+            .whereField("client_id", isEqualTo: clientID)
+            .whereField("is_active", isEqualTo: true)
+            .limit(to: 1)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents, !documents.isEmpty else {
+                    completion(.failure(FirestoreError.decodingError("No active relationship with this client")))
+                    return
+                }
+                
+                // Load workouts from client's collection
+                self.db.collection("users").document(clientID).collection("custom_workouts")
+                    .getDocuments { snapshot, error in
+                        if let error = error {
+                            completion(.failure(error))
+                            return
+                        }
+                        
+                        guard let documents = snapshot?.documents else {
+                            completion(.success([]))
+                            return
+                        }
+                        
+                        var workouts: [CustomWorkout] = []
+                        
+                        for document in documents {
+                            do {
+                                var workoutData = document.data()
+                                
+                                if let createdAt = workoutData["createdAt"] as? Timestamp {
+                                    workoutData["createdDate"] = createdAt.dateValue().timeIntervalSince1970
+                                }
+                                if let lastUsed = workoutData["lastUsed"] as? Timestamp {
+                                    workoutData["lastUsed"] = lastUsed.dateValue().timeIntervalSince1970
+                                }
+                                
+                                workoutData.removeValue(forKey: "createdAt")
+                                workoutData.removeValue(forKey: "updatedAt")
+                                
+                                let jsonData = try JSONSerialization.data(withJSONObject: workoutData)
+                                let decoder = JSONDecoder()
+                                decoder.dateDecodingStrategy = .secondsSince1970
+                                
+                                let workout = try decoder.decode(CustomWorkout.self, from: jsonData)
+                                workouts.append(workout)
+                            } catch {
+                                print("Error decoding workout: \(error)")
+                            }
+                        }
+                        
+                        completion(.success(workouts))
+                    }
+            }
+    }
 }
 
 // MARK: - User Profile Model
